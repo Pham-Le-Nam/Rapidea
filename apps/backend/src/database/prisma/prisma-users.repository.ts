@@ -1,0 +1,68 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { UsersRepository } from '../../modules/users/users.repository';
+
+@Injectable()
+export class PrismaUsersRepository implements UsersRepository {
+    constructor(private prisma: PrismaService) {}
+
+    async create(email: string, password: string, firstname: string, lastname: string, middlename?: string) {
+        if (!middlename) {
+            middlename = '';
+        }
+        else {
+            middlename += '.';
+        }
+        const username = await this.generateUsername(`${firstname} ${middlename} ${lastname}`);
+        return this.prisma.users.create({ data: { email, password, firstname, lastname, middlename, username } });
+    }
+
+    async findAll() {
+        return this.prisma.users.findMany();
+    }
+
+    async findByEmail(email: string) {
+        return this.prisma.users.findUnique({
+            where: { email },
+        });
+    }
+
+    async findByUsername(username: string) {
+        return this.prisma.users.findUnique({
+            where: { username },
+        });
+    }
+
+    async updateSessionVersion(id: string) {
+        return this.prisma.users.update({
+            where: { id: id },
+            data: { sessionVersion: { increment: 1 } },
+        });
+    }
+
+    async validateSessionVersion(id: string, sessionVersion: number) {
+        const user = await this.prisma.users.findUnique({
+            where: { id: id },
+            select: { sessionVersion: true },
+        });
+
+        return user?.sessionVersion === sessionVersion;
+    }
+
+    private async generateUsername(name: string): Promise<string> {
+        const base = name.toLowerCase().replace(/\s+/g, '');
+        let username = base;
+        let counter = 1;
+
+        while (
+            await this.prisma.users.findUnique({
+                where: { username },
+            })
+        ) {
+            username = `${base}${counter}`;
+            counter++;
+        }
+
+        return username;
+    }
+}
