@@ -6,11 +6,6 @@ import { OptionalJwtAuthGuard } from '../auth/optional-jwt.guard';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Get()
-  findAll() {
-    return this.usersService.getUsers();
-  }
-
   @UseGuards(OptionalJwtAuthGuard)
   @Get(':username')
   async getProfile(

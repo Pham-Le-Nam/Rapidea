@@ -20,7 +20,7 @@ import { ConfigService } from '@nestjs/config';
                 }
 
                 const expiresInRaw = configService.get<string>('JWT_EXPIRES_IN');
-                const expiresIn = expiresInRaw ? Number(expiresInRaw) : '1d';
+                const expiresIn = expiresInRaw ? Number(expiresInRaw) : 86400;
 
                 return {
                     secret,

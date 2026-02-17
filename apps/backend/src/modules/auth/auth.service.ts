@@ -22,9 +22,13 @@ export class AuthService {
         };
     }
 
-    async register(email: string, password: string, firstname: string, lastname: string, middlename?: string) {
+    async register(email: string, password: string, confirmPassword: string, firstname: string, lastname: string, middlename?: string) {
         if (await this.usersService.getUserByEmail(email)) {
             throw new UnauthorizedException('Email already in use');
+        }
+
+        if (password !== confirmPassword) {
+            throw new UnauthorizedException('Passwords do not match');
         }
 
         const hashed = await bcrypt.hash(password, 10);
