@@ -36,29 +36,25 @@ function Register() {
             navigate("/");
 
         } catch (error: any) {
-            if (error.response?.status === 401) {
-                setErrorMessage(error.response.data?.message || "Invalid registration details");
-            } else {
-                setErrorMessage("Something went wrong. Please try again.");
-            }
+            setErrorMessage(error.response.data?.message || "Invalid registration details");
         }
     }
 
     return (
-        <div className="flex-col md:flex-row flex items-center justify-center px-3 gap-[max(1rem,2vw)]">
+        <div className="auth-page">
             <Description />
 
-            <form onSubmit={handleSubmit} className="bg-white p-6 border border-gray-200 rounded-md shadow-md w-full max-w-sm flex flex-col items-center md:self-start">
-                <h3 className="text-lg font-bold mb-4">
+            <form onSubmit={handleSubmit} className="auth-form">
+                <h3 className="auth-headline">
                     Register to start your lessons
                 </h3>
-                <div className="mb-4 w-full">
-                    <label className="block text-sm font-medium text-gray-700">
+                <div className="auth-input-container">
+                    <label className="auth-label">
                         Email
                     </label>
                     <input
                         type="email"
-                        className="h-10 mt-1 px-2 block w-full border-gray-300 rounded-md shadow-sm"
+                        className="auth-input"
                         placeholder="Enter your email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -66,13 +62,13 @@ function Register() {
                     />
                 </div>
 
-                <div className="mb-4 w-full">
-                    <label className="block text-sm font-medium text-gray-700">
+                <div className="auth-input-container">
+                    <label className="auth-label">
                         Password
                     </label>
                     <input
                         type="password"
-                        className="h-10 mt-1 px-2 block w-full border-gray-300 rounded-md shadow-sm"
+                        className="auth-input"
                         placeholder="Enter your password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -80,13 +76,13 @@ function Register() {
                     />
                 </div>
 
-                <div className="mb-4 w-full">
-                    <label className="block text-sm font-medium text-gray-700">
+                <div className="auth-input-container">
+                    <label className="auth-label">
                         Confirm Password
                     </label>
                     <input
                         type="password"
-                        className="h-10 mt-1 px-2 block w-full border-gray-300 rounded-md shadow-sm"
+                        className="auth-input"
                         placeholder="Confirm your password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
@@ -94,13 +90,13 @@ function Register() {
                     />
                 </div>
 
-                <div className="mb-4 w-full">
-                    <label className="block text-sm font-medium text-gray-700">
+                <div className="auth-input-container">
+                    <label className="auth-label">
                         First Name
                     </label>
                     <input
                         type="text"
-                        className="h-10 mt-1 px-2 block w-full border-gray-300 rounded-md shadow-sm"
+                        className="auth-input"
                         placeholder="Enter your first name"
                         value={firstname}
                         onChange={(e) => setFirstname(e.target.value)}
@@ -108,13 +104,13 @@ function Register() {
                     />
                 </div>
 
-                <div className="mb-4 w-full">
-                    <label className="block text-sm font-medium text-gray-700">
+                <div className="auth-input-container">
+                    <label className="auth-label">
                         Last Name
                     </label>
                     <input
                         type="text"
-                        className="h-10 mt-1 px-2 block w-full border-gray-300 rounded-md shadow-sm"
+                        className="auth-input"
                         placeholder="Enter your last name"
                         value={lastname}
                         onChange={(e) => setLastname(e.target.value)}
@@ -122,13 +118,13 @@ function Register() {
                     />
                 </div>
 
-                <div className="mb-4 w-full">
-                    <label className="block text-sm font-medium text-gray-700">
+                <div className="auth-input-container">
+                    <label className="auth-label">
                         Middle Name
                     </label>
                     <input
                         type="text"
-                        className="h-10 mt-1 px-2 block w-full border-gray-300 rounded-md shadow-sm"
+                        className="auth-input"
                         placeholder="Enter your middle name"
                         value={middlename}
                         onChange={(e) => setMiddlename(e.target.value)}
@@ -136,8 +132,8 @@ function Register() {
                 </div>
 
                 {errorMessage && (
-                <div className="w-full flex justify-start mb-2">
-                    <span className="text-red-500 text-sm">{errorMessage}</span>
+                <div className="auth-error-container">
+                    <span className="auth-error">{errorMessage}</span>
                 </div>
                 )}
 
@@ -145,7 +141,7 @@ function Register() {
                     Register
                 </Button>
 
-                <h3 className="mt-4 text-sm text-black">
+                <h3 className="mt-4">
                     Already have an account?{" "}
                     <a href="/login" className="text-main hover:underline">
                         Login

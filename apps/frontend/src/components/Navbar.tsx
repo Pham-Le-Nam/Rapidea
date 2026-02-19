@@ -7,7 +7,7 @@ function Navbar() {
     const { isLoggedIn } = useAuth();
 
     return (
-        <nav className="bg-white text-black px-6 py-4 flex justify-between items-center shadow-md flex-wrap">
+        <nav className="px-6 py-4 flex justify-between items-center shadow-md flex-wrap">
             <Link to="/">
                 <img src={rapideiaLogo} className="size-9 rounded-full" />
             </Link>

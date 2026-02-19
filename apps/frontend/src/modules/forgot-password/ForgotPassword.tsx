@@ -1,6 +1,6 @@
 function ForgotPassword() {
     return (
-        <div className="text-[30px] text-blue-500">
+        <div className="flex flex-col items-center justify-start">
             This is the ForgotPassword page. You can add your ForgotPassword form here.
         </div>
     );
