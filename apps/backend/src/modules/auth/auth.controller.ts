@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Body } from '@nestjs/common';
+import { Controller, Post, Get, Put, Body, Query } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -31,10 +31,10 @@ export class AuthController {
     }
 
     @Get('reset-password')
-    async checkToken(
-        @Body() data: { token : string }
+    async verifyToken(
+        @Query('token') token: string,
     ) {
-        return this.authService.checkResetToken(data.token);
+        return this.authService.checkResetToken(token);
     }
 
     @Put('reset-password')

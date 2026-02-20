@@ -68,7 +68,7 @@ export class AuthService {
         const resetToken = await this.passwordResetTokenService.getPasswordResetToken(token);
 
         if (!resetToken) {
-            throw new RequestTimeoutException('This reset password link is invalid');
+            throw new RequestTimeoutException('This reset password link is invalid. It may has been used already or expired.');
         }
 
         const user = await this.usersService.getUserById(resetToken.userId);
@@ -80,7 +80,7 @@ export class AuthService {
         const resetToken = await this.passwordResetTokenService.getPasswordResetToken(token);
 
         if (!resetToken) {
-            throw new RequestTimeoutException('This reset password link is invalid');
+            throw new RequestTimeoutException('This reset password link is invalid. It may has been used already or expired.');
         }
 
         if (password !== confirmPassword) {

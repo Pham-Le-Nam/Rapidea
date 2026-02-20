@@ -80,7 +80,7 @@
     --sidebar-ring: oklch(0.708 0 0);
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
     :root {
         --background: oklch(9.002% 0.05775 272.524);
         --foreground: oklch(0.985 0 0);
@@ -114,7 +114,7 @@
         --sidebar-border: oklch(1 0 0 / 10%);
         --sidebar-ring: oklch(0.556 0 0);
     }
-}
+} */
 
 @layer base {
   * {

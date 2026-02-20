@@ -25,3 +25,29 @@ export async function registerApi(email: string, password: string, confirmPasswo
 
     return response.data;
 };
+
+export async function getResetPasswordLinkApi(email: string) {
+    const response = await API.post("/auth/reset-password", {
+        email,
+    })
+
+    return response.data;
+};
+
+export async function verifyResetPasswordLink(token: string) {
+    const response = await API.get("/auth/reset-password", {
+        params: { token },
+    })
+
+    return response.data;
+}
+
+export async function resetPassword(password: string, confirmPassword: string, token: string) {
+    const response = await API.put("/auth/reset-password", {
+        password,
+        confirmPassword,
+        token,
+    })
+
+    return response.data;
+}

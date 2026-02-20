@@ -5,14 +5,17 @@ import Register from './modules/register/Register.tsx';
 import MainLayout from "./layouts/MainLayout.tsx";
 import ForgotPassword from './modules/forgot-password/ForgotPassword.tsx';
 import Logout from './modules/logout/Logout.tsx';
+import ResetPassword from './modules/reset-password/ResetPassword.tsx';
 
 import { BrowserRouter as Router, Routes, Route} from 'react-router-dom';
+import { Toaster } from "react-hot-toast";
 
 
 function App() {
 
   return (
     <Router>
+      <Toaster position="top-right" reverseOrder={false} />
       <Routes>
         <Route element={<MainLayout />}>
           <Route path="/vite" element={<Vite />} />
@@ -20,6 +23,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/logout" element={<Logout />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/" element={<Homepage />} />
         </Route>
       </Routes>
