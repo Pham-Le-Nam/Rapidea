@@ -1,13 +1,18 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, RequestTimeoutException, InternalServerErrorException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
+import { MailService } from '../mail/mail.service';
+import { PasswordResetTokenService } from '../password-reset-token/password-reset-token.service';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
     constructor(
         private usersService: UsersService,
         private jwtService: JwtService,
+        private mailService: MailService,
+        private passwordResetTokenService: PasswordResetTokenService,
     ) {}
 
     async login(email: string, password: string) {
@@ -31,8 +36,69 @@ export class AuthService {
             throw new UnauthorizedException('Passwords do not match');
         }
 
-        const hashed = await bcrypt.hash(password, 10);
-        const user = await this.usersService.createUser(email, hashed, firstname, lastname, middlename);
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = await this.usersService.createUser(email, hashedPassword, firstname, lastname, middlename);
+
+        const payload = { sub: user.id, email: user.email, sessionVersion: user.sessionVersion };
+
+        return {
+            access_token: this.jwtService.sign(payload),
+        };
+    }
+
+    async changePassword(email: string) {
+        const user = await this.usersService.getUserByEmail(email);
+        
+        if (!user) {
+           throw new UnauthorizedException('Invalid email, please try again');
+        }
+
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const hashedToken = await bcrypt.hash(rawToken, 10);
+
+        await this.passwordResetTokenService.createPasswordResetToken(user.id, hashedToken);
+        await this.mailService.sendPasswordReset(email, rawToken);
+
+        return {
+            success_message: 'The password reset link has been sent to your email'
+        };
+    }
+
+    async checkResetToken (token: string) {
+        const resetToken = await this.passwordResetTokenService.getPasswordResetToken(token);
+
+        if (!resetToken) {
+            throw new RequestTimeoutException('This reset password link is invalid');
+        }
+
+        const user = await this.usersService.getUserById(resetToken.userId);
+
+        return user;
+    }
+
+    async resetPassword (password: string, confirmPassword: string, token: string) {
+        const resetToken = await this.passwordResetTokenService.getPasswordResetToken(token);
+
+        if (!resetToken) {
+            throw new RequestTimeoutException('This reset password link is invalid');
+        }
+
+        if (password !== confirmPassword) {
+            throw new UnauthorizedException('Passwords do not match');
+        }
+
+        // Reset user password
+        const hashedPassword = await bcrypt.hash(password, 10);
+        let user = await this.usersService.resetPassword(resetToken.userId, hashedPassword);
+
+        if (!user) {
+            throw new InternalServerErrorException("Internal Error");
+        }
+
+        // Update reset password token to be used
+        await this.passwordResetTokenService.usePasswordResetToken(resetToken.id);
+
+        user = await this.usersService.updateSessionVersion(user.id);
 
         const payload = { sub: user.id, email: user.email, sessionVersion: user.sessionVersion };
 

@@ -24,11 +24,19 @@ export class UsersService {
         return this.usersRepo.findByUsername(username);
     }
 
+    async getUserById(id: string) {
+        return this.usersRepo.findById(id);
+    }
+
     async updateSessionVersion(id: string) {
         return this.usersRepo.updateSessionVersion(id);
     }
 
     async validateSessionVersion(id: string, sessionVersion: number) {
         return this.usersRepo.validateSessionVersion(id, sessionVersion);
+    }
+
+    async resetPassword(id: string, password: string) {
+        return this.usersRepo.resetPassword(id, password);
     }
 }

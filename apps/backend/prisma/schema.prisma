@@ -14,18 +14,34 @@ datasource db {
 }
 
 model Users {
-  id              String    @id @default(uuid())
-  email           String    @unique
-  password        String
-  firstname       String
-  lastname        String
-  middlename      String?
-  username        String    @unique
-  coursesCount    Int       @default(0)
-  followersCount  Int       @default(0)
-  followingCount  Int       @default(0)
-  sessionVersion  Int       @default(0)
-  createdAt       DateTime  @default(now())
+  id             String   @id @default(uuid())
+  email          String   @unique
+  password       String
+  firstname      String
+  lastname       String
+  middlename     String?
+  username       String   @unique
+  coursesCount   Int      @default(0)
+  followersCount Int      @default(0)
+  followingCount Int      @default(0)
+  sessionVersion Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }

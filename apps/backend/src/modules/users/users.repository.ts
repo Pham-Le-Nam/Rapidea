@@ -3,6 +3,8 @@ export interface UsersRepository {
     findAll(): Promise<any[]>;
     findByEmail(email: string): Promise<any | null>;
     findByUsername(username: string): Promise<any | null>;
+    findById(id: string): Promise<any | null>;
     updateSessionVersion(id: string): Promise<any>;
     validateSessionVersion(id: string, sessionVersion: number): Promise<boolean>;
+    resetPassword(id: string, password: string): Promise<any>;
 }

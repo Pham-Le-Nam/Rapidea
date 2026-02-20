@@ -1,7 +1,9 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Get, Put, Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -11,13 +13,34 @@ export class AuthController {
     async register(
         @Body() registerDto: RegisterDto
     ) {
-        return this.authService.register(registerDto.Email, registerDto.Password, registerDto.ConfirmPassword, registerDto.Firstname, registerDto.Lastname, registerDto.Middlename);
+        return this.authService.register(registerDto.email, registerDto.password, registerDto.confirmPassword, registerDto.firstname, registerDto.lastname, registerDto.middlename);
     }
 
     @Post('login')
     async login(
         @Body() loginDto: LoginDto
     ) {
-        return this.authService.login(loginDto.Email, loginDto.Password);
+        return this.authService.login(loginDto.email, loginDto.password);
+    }
+
+    @Post('reset-password')
+    async changePassoword(
+        @Body() changePassowordDto: ChangePasswordDto
+    ) {
+        return this.authService.changePassword(changePassowordDto.email);
+    }
+
+    @Get('reset-password')
+    async checkToken(
+        @Body() data: { token : string }
+    ) {
+        return this.authService.checkResetToken(data.token);
+    }
+
+    @Put('reset-password')
+    async resetPassword( 
+        @Body() resetPasswordDto: ResetPasswordDto
+    ) {
+        return this.authService.resetPassword(resetPasswordDto.password, resetPasswordDto.confirmPassword, resetPasswordDto.token);
     }
 }

@@ -33,9 +33,15 @@ export class PrismaUsersRepository implements UsersRepository {
         });
     }
 
+    async findById(id: string){
+        return this.prisma.users.findUnique({
+            where: { id }
+        })
+    }
+
     async updateSessionVersion(id: string) {
         return this.prisma.users.update({
-            where: { id: id },
+            where: { id },
             data: { sessionVersion: { increment: 1 } },
         });
     }
@@ -47,6 +53,15 @@ export class PrismaUsersRepository implements UsersRepository {
         });
 
         return user?.sessionVersion === sessionVersion;
+    }
+
+    async resetPassword(id: string, password: string) {
+        const user = await this.prisma.users.update({
+            where: { id },
+            data: { password }
+        })
+
+        return user;
     }
 
     private async generateUsername(name: string): Promise<string> {

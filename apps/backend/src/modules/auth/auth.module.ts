@@ -5,7 +5,9 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { UsersModule } from '../users/users.module';
+import { PasswordResetTokenModule } from '../password-reset-token/password-reset-token.module';
 import { ConfigService } from '@nestjs/config';
+import { MailService } from '../mail/mail.service';
 
 @Module({
     imports: [
@@ -28,8 +30,9 @@ import { ConfigService } from '@nestjs/config';
                 };
             },
         }),
+        PasswordResetTokenModule,
     ],
-    providers: [AuthService, JwtStrategy],
+    providers: [AuthService, JwtStrategy, MailService],
     controllers: [AuthController],
 })
 export class AuthModule {}
