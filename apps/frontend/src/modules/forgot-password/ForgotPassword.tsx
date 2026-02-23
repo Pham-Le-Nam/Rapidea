@@ -42,7 +42,6 @@ function ForgotPassword() {
             // Disable button for 30 seconds
             setIsDisabled(true);
             setCountdown(30);
-
             setInstructionMessage("The password reset link is being sent to your email...");
 
             const response = await getResetPasswordLinkApi(email);
@@ -54,6 +53,7 @@ function ForgotPassword() {
             setErrorMessage(error.response.data?.message);
             setIsDisabled(false);
             setCountdown(0);
+            setInstructionMessage("The password reset link will be sent to your email");
         }
     }
 
