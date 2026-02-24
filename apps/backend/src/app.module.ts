@@ -3,12 +3,20 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { UsersModule } from './modules/users/users.module';
-import { SessionsModule } from './modules/sessions/sessions.module';
 import { FollowersModule } from './modules/followers/followers.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
 import { PasswordResetTokenModule } from './modules/password-reset-token/password-reset-token.module';
+import { FollowModule } from './modules/follow/follow.module';
+import { CourseModule } from './modules/course/course.module';
+import { SubscribeModule } from './modules/subscribe/subscribe.module';
+import { PostModule } from './modules/post/post.module';
+import { InCourseModule } from './modules/in-course/in-course.module';
+import { RatePostModule } from './modules/rate-post/rate-post.module';
+import { DiscussionModule } from './modules/discussion/discussion.module';
+import { ReplyDiscussionModule } from './modules/reply-discussion/reply-discussion.module';
+import { RateDiscussionModule } from './modules/rate-discussion/rate-discussion.module';
 
 @Module({
   imports: [
@@ -30,10 +38,18 @@ import { PasswordResetTokenModule } from './modules/password-reset-token/passwor
       }),
     }),
     UsersModule,
-    SessionsModule,
     FollowersModule,
     AuthModule,
     PasswordResetTokenModule,
+    FollowModule,
+    CourseModule,
+    SubscribeModule,
+    PostModule,
+    InCourseModule,
+    RatePostModule,
+    DiscussionModule,
+    ReplyDiscussionModule,
+    RateDiscussionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

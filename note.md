@@ -1,7 +1,7 @@
 Reviews show how much the reviewer pay for the subscription.
 
 ## Profile page structure
-- Background 
+- Background photo
 - Photo
 - Avatar
 - Headline

@@ -5,43 +5,215 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+    provider = "prisma-client"
+    output   = "../generated/prisma"
 }
 
 datasource db {
-  provider = "postgresql"
+    provider = "postgresql"
 }
 
 model Users {
-  id             String   @id @default(uuid())
-  email          String   @unique
-  password       String
-  firstname      String
-  lastname       String
-  middlename     String?
-  username       String   @unique
-  coursesCount   Int      @default(0)
-  followersCount Int      @default(0)
-  followingCount Int      @default(0)
-  sessionVersion Int      @default(0)
-  createdAt      DateTime @default(now())
+    id                  String                  @id @default(uuid())
+    email               String                  @unique
+    password            String
+    firstname           String
+    lastname            String
+    middlename          String?
+    username            String                  @unique
+    postsCount          Int                     @default(0)
+    coursesCount        Int                     @default(0)
+    followersCount      Int                     @default(0)
+    followingCount      Int                     @default(0)
+    subscribersCount    Int                     @default(0)
+    ratingCount         Int                     @default(0)
+    ratingTotal         Float                   @default(0)
+    rating              Float                   @default(0)
+    sessionVersion      Int                     @default(0)
+    createdAt           DateTime                @default(now())
 
-  passwordResetTokens PasswordResetToken[]
+    passwordResetTokens PasswordResetToken[]
+    posts               Post[]
+    course              Course[]
+    subscribe           Subscribe[]
+    followers           Follow[]                @relation("userFollowers")
+    following           Follow[]                @relation("userFollowing")
+    discussions         Discussion[]
+    ratePosts           RatePost[]
+    rateDiscussion      RateDicussion[]
 
-  @@map("users")
+    @@map("users")
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid())
-  userId    String
-  token     String
-  expiresAt DateTime
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now())
+    id              String      @id @default(uuid())
+    userId          String
+    token           String
+    expiresAt       DateTime
+    used            Boolean     @default(false)
+    createdAt       DateTime    @default(now())
 
-  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user Users                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@map("password_reset_tokens")
+    @@index([userId])
+    @@map("password_reset_tokens")
+}
+
+model Follow {
+    id              String      @id @default(uuid())
+
+    followerId      String
+    followingId     String
+
+    follower        Users       @relation("userFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+    following       Users       @relation("userFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+    createdAt       DateTime    @default(now())
+
+    @@unique([followerId, followingId]) // prevents duplicate follows
+    @@index([followingId])
+    @@map("follow")
+}
+
+model Course {
+    id              String      @id @default(uuid())
+    title           String?
+    description     String?
+    userId          String
+    postCount       Int         @default(0)
+    ratingCount     Int         @default(0)
+    ratingTotal     Float       @default(0)
+    rating          Float       @default(0)
+    price           Float       @default(0)
+    currency        String      @default("AUD")
+    createdAt       DateTime    @default(now())
+
+    user            Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    subscribers     Subscribe[]
+    inCourses       InCourse[]
+
+    @@unique([userId, title])   // Prevent 2 courses having the same name
+    @@index([userId])
+    @@map("course")
+}
+
+model Subscribe {
+    id              String      @id @default(uuid())
+
+    courseId        String
+    subscriberId    String
+    review          String?
+    rating          Float       @default(0)
+    price           Float       @default(0)
+    currency        String      @default("AUD")
+
+    createdAt       DateTime    @default(now())
+
+    course         Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+    subscriber     Users       @relation(fields: [subscriberId], references: [id])
+
+    @@unique([courseId, subscriberId])
+    @@index([courseId])
+    @@map("subscribe")
+}
+
+model Post {
+    id              String      @id @default(uuid())
+    title           String?
+    description     String?
+    userId          String
+    ratingCount     Int         @default(0)
+    ratingTotal     Float       @default(0)
+    rating          Float       @default(0)
+    createdAt       DateTime    @default(now())
+
+    user            Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    
+    inCourses       InCourse[]
+    discussions     Discussion[]
+    ratePosts       RatePost[]
+
+    @@index([userId])
+    @@map("post")
+}
+
+model InCourse {
+    id              String      @id @default(uuid())
+    courseId        String
+    postId          String
+    createdAt       DateTime    @default(now())
+
+    course         Course      @relation(fields: [courseId], references: [id])
+    post           Post        @relation(fields: [postId], references: [id])
+
+    @@unique([courseId, postId])
+    @@index([courseId])
+    @@map("in_course")
+}
+
+model RatePost {
+    id              String      @id @default(uuid())
+    postId          String
+    userId          String
+    rating          Float       @default(0)
+
+    createdAt       DateTime    @default(now())
+
+    post            Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+    user            Users       @relation(fields: [userId], references: [id])
+
+    @@unique([postId, userId])
+    @@map("rate_post")
+}
+
+model Discussion {
+    id                  String              @id @default(uuid())
+    discussion          String
+    ratingCount         Int                 @default(0)
+    ratingTotal         Float               @default(0)
+    rating              Float               @default(0)
+    postId              String
+    userId              String
+    createdAt           DateTime            @default(now())
+
+    post                Post                @relation(fields: [postId], references: [id], onDelete: Cascade)
+    user                Users               @relation(fields: [userId], references: [id])
+
+    repliedDiscussions  ReplyDiscussion[]   @relation("repliedDiscussion")
+    replyingDiscussions ReplyDiscussion[]   @relation("replyingDiscussion")
+    rateDiscussion      RateDicussion[]
+
+    @@index([postId])
+    @@map("discussion")
+}
+
+model ReplyDiscussion {
+    id                  String      @id @default(uuid())
+
+    repliedId           String
+    replyingId          String
+
+    createdAt           DateTime    @default(now())
+
+    repliedDiscussion   Discussion  @relation("repliedDiscussion", fields: [repliedId], references: [id], onDelete: Cascade)
+    replyingDiscussion  Discussion  @relation("replyingDiscussion", fields: [replyingId], references: [id])
+
+    @@index([repliedId])
+    @@map("reply_discussion")
+}
+
+model RateDicussion {
+    id              String      @id @default(uuid())
+    discussionId    String
+    userId          String
+    rating          Float       @default(0)
+
+    createdAt       DateTime    @default(now())
+
+    discussion      Discussion  @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+    user            Users       @relation(fields: [userId], references: [id])
+
+    @@unique([discussionId, userId])
+    @@map("rate_dicussion")
 }
