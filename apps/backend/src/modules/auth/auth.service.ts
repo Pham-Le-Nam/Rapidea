@@ -5,6 +5,7 @@ import { MailService } from '../mail/mail.service';
 import { PasswordResetTokenService } from '../password-reset-token/password-reset-token.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { mkdir } from "fs/promises";
 
 @Injectable()
 export class AuthService {
@@ -38,6 +39,29 @@ export class AuthService {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const user = await this.usersService.createUser(email, hashedPassword, firstname, lastname, middlename);
+
+        if (!user) {
+            throw new InternalServerErrorException("Couldn't register new user");
+        }
+
+        const rootFolder = process.env.STORAGE_URL;
+        const generalFolder = process.env.GENERAL_STORAGE;
+        const mediaFolder = process.env.MEDIA_STORAGE;
+        const backgroundFolder = process.env.BACKGROUND;
+        const courseThumbnailFolder = process.env.COURSE_THUMBNAIL_STORAGE;
+        const educationLogoFolder = process.env.EDUCATION_LOGO_STORAGE;
+        const experienceLogoFolder = process.env.EXPERIENCE_LOGO_STORAGE;
+        const projectLogoFolder = process.env.PROJECT_LOGO_STORAGE;
+        const avatarFolder = process.env.AVATAR_STORAGE;
+        const username = user.username;
+        
+        await mkdir(`${rootFolder}/${generalFolder}/${username}`, { recursive: true })
+        await mkdir(`${rootFolder}/${mediaFolder}/${username}/${avatarFolder}`, { recursive: true })
+        await mkdir(`${rootFolder}/${mediaFolder}/${username}/${backgroundFolder}`, { recursive: true })
+        await mkdir(`${rootFolder}/${mediaFolder}/${username}/${courseThumbnailFolder}`, { recursive: true })
+        await mkdir(`${rootFolder}/${mediaFolder}/${username}/${experienceLogoFolder}`, { recursive: true })
+        await mkdir(`${rootFolder}/${mediaFolder}/${username}/${educationLogoFolder}`, { recursive: true })
+        await mkdir(`${rootFolder}/${mediaFolder}/${username}/${projectLogoFolder}`, { recursive: true })
 
         const payload = { sub: user.id, email: user.email, sessionVersion: user.sessionVersion };
 

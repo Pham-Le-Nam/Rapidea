@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UsersRepository } from '../../modules/users/users.repository';
 
@@ -37,6 +37,17 @@ export class PrismaUsersRepository implements UsersRepository {
         return this.prisma.users.findUnique({
             where: { id }
         })
+    }
+
+    async updateById(id: string, firstname?: string, lastname?: string, middlename?: string): Promise<any | null> {
+        return this.prisma.users.update({
+            where: { id },
+            data: {
+                firstname,
+                lastname,
+                middlename,
+            },
+        });
     }
 
     async updateSessionVersion(id: string) {

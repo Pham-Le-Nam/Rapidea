@@ -12,11 +12,22 @@ import { FollowModule } from './modules/follow/follow.module';
 import { CourseModule } from './modules/course/course.module';
 import { SubscribeModule } from './modules/subscribe/subscribe.module';
 import { PostModule } from './modules/post/post.module';
-import { InCourseModule } from './modules/in-course/in-course.module';
+import { InCourseModule } from './modules/post-in-course/post-in-course.module';
 import { RatePostModule } from './modules/rate-post/rate-post.module';
 import { DiscussionModule } from './modules/discussion/discussion.module';
 import { ReplyDiscussionModule } from './modules/reply-discussion/reply-discussion.module';
 import { RateDiscussionModule } from './modules/rate-discussion/rate-discussion.module';
+import { ExperienceModule } from './modules/experience/experience.module';
+import { EducationModule } from './modules/education/education.module';
+import { ProjectModule } from './modules/project/project.module';
+import { ProjectContributorModule } from './modules/project-contributor/project-contributor.module';
+import { ProjectLinkModule } from './modules/project-link/project-link.module';
+import { FolderModule } from './modules/folder/folder.module';
+import { FolderInCourseModule } from './modules/folder-in-course/folder-in-course.module';
+import { FileModule } from './modules/file/file.module';
+import { FileInCourseModule } from './modules/file-in-course/file-in-course.module';
+import { FileInPostModule } from './modules/file-in-post/file-in-post.module';
+import { PhotoModule } from './modules/photo/photo.module';
 
 @Module({
   imports: [
@@ -50,6 +61,17 @@ import { RateDiscussionModule } from './modules/rate-discussion/rate-discussion.
     DiscussionModule,
     ReplyDiscussionModule,
     RateDiscussionModule,
+    ExperienceModule,
+    EducationModule,
+    ProjectModule,
+    ProjectContributorModule,
+    ProjectLinkModule,
+    FolderModule,
+    FolderInCourseModule,
+    FileModule,
+    FileInCourseModule,
+    FileInPostModule,
+    PhotoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

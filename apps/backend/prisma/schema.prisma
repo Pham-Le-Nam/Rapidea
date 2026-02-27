@@ -14,34 +14,47 @@ datasource db {
 }
 
 model Users {
-    id                  String                  @id @default(uuid())
-    email               String                  @unique
-    password            String
-    firstname           String
-    lastname            String
-    middlename          String?
-    username            String                  @unique
-    postsCount          Int                     @default(0)
-    coursesCount        Int                     @default(0)
-    followersCount      Int                     @default(0)
-    followingCount      Int                     @default(0)
-    subscribersCount    Int                     @default(0)
-    ratingCount         Int                     @default(0)
-    ratingTotal         Float                   @default(0)
-    rating              Float                   @default(0)
-    sessionVersion      Int                     @default(0)
-    createdAt           DateTime                @default(now())
+    id                      String                  @id @default(uuid())
+    email                   String                  @unique
+    password                String
+    firstname               String
+    lastname                String
+    middlename              String?
+    username                String                  @unique
+    avatarId                Int?                    @unique
+    backgroundId            Int?                    @unique
 
-    passwordResetTokens PasswordResetToken[]
-    posts               Post[]
-    course              Course[]
-    subscribe           Subscribe[]
-    followers           Follow[]                @relation("userFollowers")
-    following           Follow[]                @relation("userFollowing")
-    discussions         Discussion[]
-    ratePosts           RatePost[]
-    rateDiscussion      RateDicussion[]
+    postsCount              Int                     @default(0)
+    coursesCount            Int                     @default(0)
+    followersCount          Int                     @default(0)
+    followingCount          Int                     @default(0)
+    subscribersCount        Int                     @default(0)
+    ratingCount             Int                     @default(0)
+    ratingTotal             Float                   @default(0)
+    rating                  Float                   @default(0)
 
+    sessionVersion          Int                     @default(0)
+    createdAt               DateTime                @default(now())
+
+    avatar                  Photo?                  @relation("UserAvatar", fields: [avatarId], references: [id])
+    background              Photo?                  @relation("UserBackground", fields: [backgroundId], references: [id])
+
+    passwordResetTokens     PasswordResetToken[]
+    posts                   Post[]
+    course                  Course[]
+    subscribe               Subscribe[]
+    followers               Follow[]                @relation("userFollowers")
+    following               Follow[]                @relation("userFollowing")
+    discussions             Discussion[]
+    ratePosts               RatePost[]
+    rateDiscussion          RateDiscussion[]
+    experience              Experience[]
+    educations              Education[]
+    projects                Project[]
+    projectContributors     ProjectContributor[]
+    uploadedFiles           File[]
+    uploadedPhotos          Photo[]                 @relation("UploadedPhoto")
+    
     @@map("users")
 }
 
@@ -53,15 +66,13 @@ model PasswordResetToken {
     used            Boolean     @default(false)
     createdAt       DateTime    @default(now())
 
-    user Users                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user            Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@index([userId])
     @@map("password_reset_tokens")
 }
 
 model Follow {
-    id              String      @id @default(uuid())
-
     followerId      String
     followingId     String
 
@@ -76,22 +87,29 @@ model Follow {
 }
 
 model Course {
-    id              String      @id @default(uuid())
-    title           String?
-    description     String?
-    userId          String
-    postCount       Int         @default(0)
-    ratingCount     Int         @default(0)
-    ratingTotal     Float       @default(0)
-    rating          Float       @default(0)
-    price           Float       @default(0)
-    currency        String      @default("AUD")
-    createdAt       DateTime    @default(now())
+    id                  String      @id @default(uuid())
+    title               String?
+    description         String?
+    userId              String
+    price               Float       @default(0)
+    currency            String      @default("AUD")
+    thumbnailId         Int?        @unique
 
-    user            Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    subscribersCount    Int         @default(0)
+    postsCount          Int         @default(0)
+    ratingCount         Int         @default(0)
+    ratingTotal         Float       @default(0)
+    rating              Float       @default(0)
 
-    subscribers     Subscribe[]
-    inCourses       InCourse[]
+    createdAt           DateTime    @default(now())
+
+    user                Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    thumbnail           Photo?      @relation(fields: [thumbnailId], references: [id])
+
+    subscribers         Subscribe[]
+    posts               PostInCourse[]
+    folders             FolderInCourse[]
+    files               FileInCourse[]
 
     @@unique([userId, title])   // Prevent 2 courses having the same name
     @@index([userId])
@@ -102,7 +120,7 @@ model Subscribe {
     id              String      @id @default(uuid())
 
     courseId        String
-    subscriberId    String
+    userId          String
     review          String?
     rating          Float       @default(0)
     price           Float       @default(0)
@@ -110,10 +128,10 @@ model Subscribe {
 
     createdAt       DateTime    @default(now())
 
-    course         Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
-    subscriber     Users       @relation(fields: [subscriberId], references: [id])
+    course         Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+    subscriber     Users        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([courseId, subscriberId])
+    @@unique([courseId, userId])
     @@index([courseId])
     @@map("subscribe")
 }
@@ -121,8 +139,10 @@ model Subscribe {
 model Post {
     id              String      @id @default(uuid())
     title           String?
-    description     String?
+    content         Json?
     userId          String
+
+    // rating = ratingTotal / ratingCount
     ratingCount     Int         @default(0)
     ratingTotal     Float       @default(0)
     rating          Float       @default(0)
@@ -130,33 +150,34 @@ model Post {
 
     user            Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
     
-    inCourses       InCourse[]
+    inCourses       PostInCourse[]
     discussions     Discussion[]
     ratePosts       RatePost[]
+    files           FileInPost[]
 
     @@index([userId])
     @@map("post")
 }
 
-model InCourse {
-    id              String      @id @default(uuid())
+model PostInCourse {
     courseId        String
     postId          String
+
     createdAt       DateTime    @default(now())
 
-    course         Course      @relation(fields: [courseId], references: [id])
-    post           Post        @relation(fields: [postId], references: [id])
+    course         Course       @relation(fields: [courseId], references: [id])
+    post           Post         @relation(fields: [postId], references: [id])
 
     @@unique([courseId, postId])
     @@index([courseId])
-    @@map("in_course")
+    @@map("post_in_course")
 }
 
 model RatePost {
     id              String      @id @default(uuid())
     postId          String
     userId          String
-    rating          Float       @default(0)
+    rating          Float       @default(5)
 
     createdAt       DateTime    @default(now())
 
@@ -169,10 +190,10 @@ model RatePost {
 
 model Discussion {
     id                  String              @id @default(uuid())
-    discussion          String
+    discussion          Json
     ratingCount         Int                 @default(0)
     ratingTotal         Float               @default(0)
-    rating              Float               @default(0)
+    rating              Float               @default(5)
     postId              String
     userId              String
     createdAt           DateTime            @default(now())
@@ -182,7 +203,7 @@ model Discussion {
 
     repliedDiscussions  ReplyDiscussion[]   @relation("repliedDiscussion")
     replyingDiscussions ReplyDiscussion[]   @relation("replyingDiscussion")
-    rateDiscussion      RateDicussion[]
+    rateDiscussion      RateDiscussion[]
 
     @@index([postId])
     @@map("discussion")
@@ -197,17 +218,17 @@ model ReplyDiscussion {
     createdAt           DateTime    @default(now())
 
     repliedDiscussion   Discussion  @relation("repliedDiscussion", fields: [repliedId], references: [id], onDelete: Cascade)
-    replyingDiscussion  Discussion  @relation("replyingDiscussion", fields: [replyingId], references: [id])
+    replyingDiscussion  Discussion  @relation("replyingDiscussion", fields: [replyingId], references: [id], onDelete: Cascade)
 
     @@index([repliedId])
     @@map("reply_discussion")
 }
 
-model RateDicussion {
+model RateDiscussion {
     id              String      @id @default(uuid())
     discussionId    String
     userId          String
-    rating          Float       @default(0)
+    rating          Float       
 
     createdAt       DateTime    @default(now())
 
@@ -216,4 +237,198 @@ model RateDicussion {
 
     @@unique([discussionId, userId])
     @@map("rate_dicussion")
+}
+
+model Experience {
+    id              String      @id @default(uuid())
+    name            String
+    position        String?
+    role            String?
+    startedAt       DateTime?
+    endedAt         DateTime?
+    location        String?
+    achievement     String?
+    order           Int
+    userId          String
+    logoId          Int?        @unique
+
+    createdAt       DateTime    @default(now())
+
+    user            Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    logo            Photo?      @relation(fields: [logoId], references: [id])
+
+    @@index([userId])
+    @@map("experience")
+}
+
+model Education {
+    id              String      @id @default(uuid())
+    name            String
+    major           String?
+    degree          String?
+    startedAt       DateTime?
+    endedAt         DateTime?
+    location        String?
+    achievement     String?
+    order           Int         
+    userId          String
+    logoId          Int?        @unique
+
+    createdAt       DateTime    @default(now())
+
+    user            Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    logo            Photo?      @relation(fields: [logoId], references: [id])
+
+    @@index([userId])
+    @@map("education")
+}
+
+model Project {
+    id                      String                  @id @default(uuid())
+    name                    String
+    role                    String
+    startedAt               DateTime?
+    endedAt                 DateTime?
+    details                 String?
+    order                   Int
+    userId                  String
+    logoId                  Int?                    @unique
+
+    createdAt               DateTime                @default(now())
+
+    user                    Users                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    logo                    Photo?                  @relation(fields: [logoId], references: [id])
+
+    projectContributors     ProjectContributor[]
+    projectLinks            ProjectLink[]
+
+    @@index([userId])
+    @@map("project")
+}
+
+model ProjectContributor {
+    projectId       String
+    userId          String
+    role            String
+
+    createdAt       DateTime    @default(now())
+
+    project         Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    user            Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([projectId, userId])
+    @@index([projectId])
+    @@map("project_contributor")
+}
+
+model ProjectLink {
+    id              String      @id @default(uuid())
+    projectId       String
+    name            String
+
+    createdAt       DateTime    @default(now())
+
+    project         Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+    @@index([projectId])
+    @@map("project_link")
+}
+
+model Folder {
+    id              String              @id @default(uuid())
+    userId          String
+    url             String              @default("")
+    name            String
+
+    createdAt       DateTime            @default(now())
+
+    inCourses       FolderInCourse[]
+    files           File[]
+
+    @@unique([url, name])
+    @@index([url])
+    @@map("folder")
+}
+
+model FolderInCourse {
+    id              String          @id @default(uuid())
+    folderId        String
+    courseId        String
+
+    createdAt       DateTime        @default(now())
+
+    folder          Folder          @relation(fields: [folderId], references: [id], onDelete: Cascade)
+    course          Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+    @@index([courseId])
+    @@map("folder_in_course")
+}
+
+model File {
+    id              String          @id @default(uuid())
+    url             String
+    name            String
+    mimeType        String
+    size            Int
+    userId          String
+    folderId        String
+
+    createdAt       DateTime        @default(now())
+
+    user            Users           @relation(fields: [userId], references: [id], onDelete: Cascade)
+    folder          Folder          @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+    inCourses       FileInCourse[]
+    inPosts         FileInPost[]
+
+    @@unique([url, name])
+    @@index([url])
+    @@map("file")
+}
+
+model FileInCourse {
+    id              String          @id @default(uuid())
+    fileId          String
+    courseId        String
+
+    createdAt       DateTime        @default(now())
+
+    file            File            @relation(fields: [fileId], references: [id], onDelete: Cascade)
+    course          Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+    @@index([courseId])
+    @@map("file_in_course")
+}
+
+model FileInPost {
+    id              String          @id @default(uuid())
+    fileId          String
+    postId          String
+
+    createdAt       DateTime        @default(now())
+
+    file            File            @relation(fields: [fileId], references: [id], onDelete: Cascade)
+    post            Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+    @@index([postId])
+    @@map("file_in_post")
+}
+
+model Photo {
+    id              Int             @id @default(autoincrement())
+    userId          String
+    url             String          @default("photo")
+    name            String
+
+    createdAt       DateTime        @default(now())
+
+    user            Users           @relation("UploadedPhoto", fields: [userId], references: [id], onDelete: Cascade)
+    userAvatar      Users?          @relation("UserAvatar")
+    userBackground  Users?          @relation("UserBackground")
+    courseThumbnail Course?         @relation()
+    experience      Experience?     @relation()
+    education       Education?      @relation()
+    project         Project?        @relation()
+
+    @@map("photo")
 }
