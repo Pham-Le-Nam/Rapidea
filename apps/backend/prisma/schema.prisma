@@ -325,6 +325,7 @@ model ProjectLink {
     id              String      @id @default(uuid())
     projectId       String
     name            String
+    url             String
 
     createdAt       DateTime    @default(now())
 
@@ -339,19 +340,23 @@ model Folder {
     userId          String
     url             String              @default("")
     name            String
+    parentId        String?
 
     createdAt       DateTime            @default(now())
 
+    parentFolder    Folder?              @relation("ParentChildFolder" ,fields: [parentId], references: [id], onDelete: Cascade)
+
     inCourses       FolderInCourse[]
     files           File[]
+    childrenFolders Folder[]            @relation("ParentChildFolder")
 
     @@unique([url, name])
     @@index([url])
     @@map("folder")
 }
 
+
 model FolderInCourse {
-    id              String          @id @default(uuid())
     folderId        String
     courseId        String
 
@@ -360,6 +365,7 @@ model FolderInCourse {
     folder          Folder          @relation(fields: [folderId], references: [id], onDelete: Cascade)
     course          Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
+    @@unique([folderId, courseId])
     @@index([courseId])
     @@map("folder_in_course")
 }
@@ -387,7 +393,6 @@ model File {
 }
 
 model FileInCourse {
-    id              String          @id @default(uuid())
     fileId          String
     courseId        String
 
@@ -396,12 +401,12 @@ model FileInCourse {
     file            File            @relation(fields: [fileId], references: [id], onDelete: Cascade)
     course          Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
+    @@unique([fileId, courseId])
     @@index([courseId])
     @@map("file_in_course")
 }
 
 model FileInPost {
-    id              String          @id @default(uuid())
     fileId          String
     postId          String
 
@@ -410,6 +415,7 @@ model FileInPost {
     file            File            @relation(fields: [fileId], references: [id], onDelete: Cascade)
     post            Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
 
+    @@unique([fileId, postId])
     @@index([postId])
     @@map("file_in_post")
 }

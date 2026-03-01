@@ -6,7 +6,7 @@ import { UsersRepository } from '../../modules/users/users.repository';
 export class PrismaUsersRepository implements UsersRepository {
     constructor(private prisma: PrismaService) {}
 
-    async create(email: string, password: string, firstname: string, lastname: string, middlename?: string) {
+    async create(email: string, password: string, firstname: string, lastname: string, middlename?: string, avatarId?: number, backgroundId?: number) {
         if (!middlename) {
             middlename = '';
         }
@@ -14,7 +14,18 @@ export class PrismaUsersRepository implements UsersRepository {
             middlename += '.';
         }
         const username = await this.generateUsername(`${firstname} ${middlename} ${lastname}`);
-        return this.prisma.users.create({ data: { email, password, firstname, lastname, middlename, username } });
+        return this.prisma.users.create({ 
+            data: { 
+                email, 
+                password, 
+                firstname, 
+                lastname, 
+                middlename, 
+                username,
+                avatarId,
+                backgroundId,
+            },
+        });
     }
 
     async findAll() {
@@ -39,13 +50,15 @@ export class PrismaUsersRepository implements UsersRepository {
         })
     }
 
-    async updateById(id: string, firstname?: string, lastname?: string, middlename?: string): Promise<any | null> {
+    async updateById(id: string, firstname?: string, lastname?: string, middlename?: string, avatarId?: number, backgroundId?: number): Promise<any | null> {
         return this.prisma.users.update({
             where: { id },
             data: {
                 firstname,
                 lastname,
                 middlename,
+                avatarId,
+                backgroundId,
             },
         });
     }

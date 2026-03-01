@@ -68,10 +68,18 @@ export class PrismaFileRepository implements FileRepository {
         });        
     }
 
-    async findbyId(id: string): Promise<any> {
+    async findById(id: string): Promise<any> {
         return this.prisma.file.findUnique({
             where: { 
                 id, 
+            },
+        });
+    }
+
+    async findByFolderId(folderId: string): Promise<any> {
+        return this.prisma.file.findMany({
+            where: {
+                folderId,
             },
         });
     }
