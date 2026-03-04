@@ -23,6 +23,8 @@ model Users {
     username                String                  @unique
     avatarId                Int?                    @unique
     backgroundId            Int?                    @unique
+    headline                String?
+    bio                     String?
 
     postsCount              Int                     @default(0)
     coursesCount            Int                     @default(0)
@@ -54,8 +56,38 @@ model Users {
     projectContributors     ProjectContributor[]
     uploadedFiles           File[]
     uploadedPhotos          Photo[]                 @relation("UploadedPhoto")
+    socialLinks             SocialLink[]
     
     @@map("users")
+}
+
+model SocialLink {
+    id        String   @id @default(uuid())
+
+    platform  SocialPlatform
+    url       String
+
+    userId    String
+    user      Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    createdAt DateTime @default(now())
+
+    @@unique([userId, platform]) // user can only have 1 link per platform
+    @@index([userId])
+    @@map("social_link")
+}
+
+enum SocialPlatform {
+    FACEBOOK
+    INSTAGRAM
+    TWITTER
+    LINKEDIN
+    GITHUB
+    TIKTOK
+    YOUTUBE
+    DISCORD
+    TELEGRAM
+    WEBSITE
 }
 
 model PasswordResetToken {
@@ -88,12 +120,13 @@ model Follow {
 
 model Course {
     id                  String      @id @default(uuid())
-    title               String?
+    title               String
     description         String?
     userId              String
     price               Float       @default(0)
     currency            String      @default("AUD")
     thumbnailId         Int?        @unique
+    folderId            String      @unique
 
     subscribersCount    Int         @default(0)
     postsCount          Int         @default(0)
@@ -105,10 +138,11 @@ model Course {
 
     user                Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
     thumbnail           Photo?      @relation(fields: [thumbnailId], references: [id])
+    folder              Folder      @relation(fields: [folderId], references: [id])
 
     subscribers         Subscribe[]
     posts               PostInCourse[]
-    folders             FolderInCourse[]
+    // folders             FolderInCourse[]
     files               FileInCourse[]
 
     @@unique([userId, title])   // Prevent 2 courses having the same name
@@ -344,9 +378,10 @@ model Folder {
 
     createdAt       DateTime            @default(now())
 
-    parentFolder    Folder?              @relation("ParentChildFolder" ,fields: [parentId], references: [id], onDelete: Cascade)
+    parentFolder    Folder?             @relation("ParentChildFolder" ,fields: [parentId], references: [id], onDelete: Cascade)
+    course          Course?             @relation()
 
-    inCourses       FolderInCourse[]
+    // inCourses       FolderInCourse[]
     files           File[]
     childrenFolders Folder[]            @relation("ParentChildFolder")
 
@@ -356,19 +391,19 @@ model Folder {
 }
 
 
-model FolderInCourse {
-    folderId        String
-    courseId        String
+// model FolderInCourse {
+//     folderId        String
+//     courseId        String
 
-    createdAt       DateTime        @default(now())
+//     createdAt       DateTime        @default(now())
 
-    folder          Folder          @relation(fields: [folderId], references: [id], onDelete: Cascade)
-    course          Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+//     folder          Folder          @relation(fields: [folderId], references: [id], onDelete: Cascade)
+//     course          Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
-    @@unique([folderId, courseId])
-    @@index([courseId])
-    @@map("folder_in_course")
-}
+//     @@unique([folderId, courseId])
+//     @@index([courseId])
+//     @@map("folder_in_course")
+// }
 
 model File {
     id              String          @id @default(uuid())

@@ -6,7 +6,7 @@ import { CourseRepository } from '../../modules/course/course.repository';
 export class PrismaCourseRepository implements CourseRepository {
     constructor(private prisma: PrismaService) {}
 
-    async create(userId: string, title?: string, description?: string, price?: number, currency?: string) {
+    async create(userId: string, title: string, folderId: string, description?: string, price?: number, currency?: string) {
         const user = await this.prisma.users.findUnique({
             where: {
                 id: userId,
@@ -21,6 +21,7 @@ export class PrismaCourseRepository implements CourseRepository {
             data: {
                 userId,
                 title,
+                folderId,
                 description,
                 price,
                 currency,

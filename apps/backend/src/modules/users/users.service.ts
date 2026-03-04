@@ -1,15 +1,30 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, InternalServerErrorException } from '@nestjs/common';
 import { UsersRepository } from './users.repository';
+import { FolderService } from '../folder/folder.service';
 
 @Injectable()
 export class UsersService {
     constructor(
         @Inject('USERS_REPOSITORY')
         private readonly usersRepo: UsersRepository,
+        private folderService: FolderService,
     ) {}
 
     async createUser(email: string, password: string, firstname: string, lastname: string, middlename?: string) {
-        return this.usersRepo.create( email, password, firstname, lastname, middlename );
+        const user = await this.usersRepo.create( email, password, firstname, lastname, middlename );
+
+        if (!user) { 
+            throw new InternalServerErrorException("Couldn't create user");
+        }
+
+        const accountRootFolder = await this.folderService.createFolder(user.id, user.username);
+        const accountFreeFolder = await this.folderService.createFolder(user.id, "free", accountRootFolder.id);
+
+        if (!accountRootFolder || accountFreeFolder) {
+            throw new InternalServerErrorException("Couldn't create folders");
+        }
+
+        return user;
     }
 
     async getUsers() {

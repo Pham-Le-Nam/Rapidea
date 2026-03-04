@@ -6,7 +6,7 @@ import { UsersRepository } from '../../modules/users/users.repository';
 export class PrismaUsersRepository implements UsersRepository {
     constructor(private prisma: PrismaService) {}
 
-    async create(email: string, password: string, firstname: string, lastname: string, middlename?: string, avatarId?: number, backgroundId?: number) {
+    async create(email: string, password: string, firstname: string, lastname: string, middlename?: string) {
         if (!middlename) {
             middlename = '';
         }
@@ -22,8 +22,6 @@ export class PrismaUsersRepository implements UsersRepository {
                 lastname, 
                 middlename, 
                 username,
-                avatarId,
-                backgroundId,
             },
         });
     }
