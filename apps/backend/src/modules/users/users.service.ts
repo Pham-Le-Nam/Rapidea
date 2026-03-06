@@ -20,7 +20,7 @@ export class UsersService {
         const accountRootFolder = await this.folderService.createFolder(user.id, user.username);
         const accountFreeFolder = await this.folderService.createFolder(user.id, "free", accountRootFolder.id);
 
-        if (!accountRootFolder || accountFreeFolder) {
+        if (!accountRootFolder || !accountFreeFolder) {
             throw new InternalServerErrorException("Couldn't create folders");
         }
 

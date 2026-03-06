@@ -5,7 +5,7 @@ import { LoginDto } from './auth-dto/login.dto';
 import { ChangePasswordDto } from './auth-dto/change-password.dto';
 import { ResetPasswordDto } from './auth-dto/reset-password.dto';
 
-@Controller('auth')
+@Controller('api/auth')
 export class AuthController {
     constructor(private authService: AuthService) {}
 

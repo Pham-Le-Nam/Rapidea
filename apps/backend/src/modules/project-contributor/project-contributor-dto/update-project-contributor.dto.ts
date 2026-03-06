@@ -1,4 +1,4 @@
-import { IsString } from 'class-validator';
+import { IsString, IsOptional } from 'class-validator';
 
 export class UpdateProjectContributorDto {
     @IsString()
@@ -7,6 +7,7 @@ export class UpdateProjectContributorDto {
     @IsString()
     userId: string;
     
+    @IsOptional()
     @IsString()
     role?: string;
 }

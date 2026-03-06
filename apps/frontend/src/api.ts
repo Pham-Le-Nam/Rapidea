@@ -5,7 +5,7 @@ const API = axios.create({
 });
 
 export async function loginApi(email: string, password: string) {
-    const response = await API.post("/auth/login", {
+    const response = await API.post("api/auth/login", {
         email,
         password,
     });
@@ -14,7 +14,7 @@ export async function loginApi(email: string, password: string) {
 };
 
 export async function registerApi(email: string, password: string, confirmPassword: string, firstname: string, lastname: string, middlename?: string) {
-    const response = await API.post("/auth/register", {
+    const response = await API.post("api/auth/register", {
         email,
         password,
         confirmPassword,
@@ -27,7 +27,7 @@ export async function registerApi(email: string, password: string, confirmPasswo
 };
 
 export async function getResetPasswordLinkApi(email: string) {
-    const response = await API.post("/auth/reset-password", {
+    const response = await API.post("api/auth/reset-password", {
         email,
     })
 
@@ -35,7 +35,7 @@ export async function getResetPasswordLinkApi(email: string) {
 };
 
 export async function verifyResetPasswordLink(token: string) {
-    const response = await API.get("/auth/reset-password", {
+    const response = await API.get("api/auth/reset-password", {
         params: { token },
     })
 
@@ -43,7 +43,7 @@ export async function verifyResetPasswordLink(token: string) {
 }
 
 export async function resetPassword(password: string, confirmPassword: string, token: string) {
-    const response = await API.put("/auth/reset-password", {
+    const response = await API.put("api/auth/reset-password", {
         password,
         confirmPassword,
         token,

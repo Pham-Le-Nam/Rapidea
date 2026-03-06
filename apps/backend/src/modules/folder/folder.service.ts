@@ -4,10 +4,11 @@ import { mkdir, rm } from "fs/promises";
 
 @Injectable()
 export class FolderService {
+    private rootFolder = process.env.STORAGE_URL;
+
     constructor(
         @Inject('FOLDER_REPOSITORY')
         private readonly folderRepo: FolderRepository,
-        private rootFolder = process.env.STORAGE_URL,
     ) {}
 
     async createFolder (userId: string, folderName: string, parentId?: string) {

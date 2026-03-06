@@ -32,7 +32,13 @@ import { MailService } from '../mail/mail.service';
         }),
         PasswordResetTokenModule,
     ],
-    providers: [AuthService, JwtStrategy, MailService],
-    controllers: [AuthController],
+    providers: [
+        AuthService, 
+        JwtStrategy, 
+        MailService,
+    ],
+    controllers: [
+        AuthController,
+    ],
 })
 export class AuthModule {}

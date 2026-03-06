@@ -3,10 +3,11 @@ import { UsersService } from '../users/users.service';
 import { ProjectController } from './project.controller';
 import { ProjectService } from './project.service';
 import { PrismaProjectRepository } from 'src/database/prisma/prisma-project.repository';
+import { UsersModule } from '../users/users.module';
 
 @Module({
     imports: [
-        UsersService,
+        UsersModule,
     ],
     controllers: [
         ProjectController,
@@ -17,6 +18,9 @@ import { PrismaProjectRepository } from 'src/database/prisma/prisma-project.repo
             provide: "PROJECT_REPOSITORY",
             useClass: PrismaProjectRepository,
         },
+    ],
+    exports: [
+        ProjectService,
     ]
 })
 export class ProjectModule {}

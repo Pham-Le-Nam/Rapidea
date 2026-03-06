@@ -14,7 +14,7 @@ export class PrismaUsersRepository implements UsersRepository {
             middlename += '.';
         }
         
-        const username = await this.generateUsername(`${firstname} ${middlename} ${lastname}`);
+        const username = await this.generateUsername(`${firstname}.${middlename}${lastname}`);
         
         return this.prisma.users.create({ 
             data: { 

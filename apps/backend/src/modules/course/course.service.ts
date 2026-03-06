@@ -4,10 +4,11 @@ import { FolderService } from '../folder/folder.service';
 
 @Injectable()
 export class CourseService {
+    private folderService: FolderService;
+
     constructor(
         @Inject('COURSE_REPOSITORY')
         private readonly courseRepo: CourseRepository,
-        private folderService: FolderService,
     ) {}
 
     async createCourse(userId: string, title: string, description?: string, price?: number, currency?: string) {

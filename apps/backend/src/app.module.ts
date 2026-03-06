@@ -23,7 +23,7 @@ import { ProjectModule } from './modules/project/project.module';
 import { ProjectContributorModule } from './modules/project-contributor/project-contributor.module';
 import { ProjectLinkModule } from './modules/project-link/project-link.module';
 import { FolderModule } from './modules/folder/folder.module';
-import { FolderInCourseModule } from './modules/folder-in-course/folder-in-course.module';
+// import { FolderInCourseModule } from './modules/folder-in-course/folder-in-course.module';
 import { FileModule } from './modules/file/file.module';
 import { FileInCourseModule } from './modules/file-in-course/file-in-course.module';
 import { FileInPostModule } from './modules/file-in-post/file-in-post.module';
@@ -68,7 +68,7 @@ import { SocialLinkModule } from './modules/social-link/social-link.module';
     ProjectContributorModule,
     ProjectLinkModule,
     FolderModule,
-    FolderInCourseModule,
+    // FolderInCourseModule,
     FileModule,
     FileInCourseModule,
     FileInPostModule,
