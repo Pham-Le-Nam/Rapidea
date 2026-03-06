@@ -1,9 +1,9 @@
 import { Controller, Post, Get, Put, Body, Query } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
+import { RegisterDto } from './auth-dto/register.dto';
+import { LoginDto } from './auth-dto/login.dto';
+import { ChangePasswordDto } from './auth-dto/change-password.dto';
+import { ResetPasswordDto } from './auth-dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {

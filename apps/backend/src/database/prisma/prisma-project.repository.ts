@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ProjectRepository } from '../../modules/project/project.repository';
 
@@ -39,10 +39,11 @@ export class PrismaProjectRepository implements ProjectRepository {
         });
     }
 
-    async updateById(id: string, name?: string, role?: string, startedAt?: Date, endedAt?: Date, details?: string, logoId?: number): Promise<any> {
+    async updateById(id: string, userId: string, name?: string, role?: string, startedAt?: Date, endedAt?: Date, details?: string, logoId?: number): Promise<any> {
         return this.prisma.project.update({
             where: {
                 id,
+                userId,
             },
             data: {
                 name,
@@ -55,10 +56,11 @@ export class PrismaProjectRepository implements ProjectRepository {
         });
     }
 
-    async deleteById(id: string): Promise<any> {
+    async deleteById(id: string, userId: string): Promise<any> {
         return this.prisma.project.delete({
             where: {
                 id,
+                userId,
             },
         });
     }
@@ -116,5 +118,24 @@ export class PrismaProjectRepository implements ProjectRepository {
                 userId,
             },
         });
+    }
+
+    async checkOwner(id: string, userId: string): Promise<boolean> {
+        const project = await this.prisma.project.findUnique({
+            where: {
+                id,
+            },
+            select: {
+                userId: true,
+            },
+        });
+
+        if (!project) {
+            throw new NotFoundException("Project not found");
+        }
+        
+        const isOwner = project.userId === userId;
+
+        return isOwner;
     }
 }

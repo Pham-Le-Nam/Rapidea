@@ -41,10 +41,11 @@ export class PrismaExperienceRepository implements ExperienceRepository {
         });
     }
 
-    async updateById(id: string, name?: string, position?: string, role?: string, startedAt?: Date, endedAt?: Date, location?: string, achievement?: string, logoId?: number): Promise<any> {
+    async updateById(id: string, userId: string, name?: string, position?: string, role?: string, startedAt?: Date, endedAt?: Date, location?: string, achievement?: string, logoId?: number): Promise<any> {
         return this.prisma.experience.update({
             where: {
                 id,
+                userId,
             },
             data: {
                 name,
@@ -59,10 +60,11 @@ export class PrismaExperienceRepository implements ExperienceRepository {
         });
     }
 
-    async deleteById(id: string): Promise<any> {
+    async deleteById(id: string, userId: string): Promise<any> {
         return this.prisma.experience.delete({
             where: {
                 id,
+                userId,
             },
         });
     }

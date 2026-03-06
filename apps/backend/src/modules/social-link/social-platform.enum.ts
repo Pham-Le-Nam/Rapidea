@@ -1,0 +1,12 @@
+export enum SocialPlatform {
+    FACEBOOK = 'FACEBOOK',
+    INSTAGRAM = 'INSTAGRAM',
+    TWITTER = 'TWITTER',
+    LINKEDIN = 'LINKEDIN',
+    GITHUB = 'GITHUB',
+    TIKTOK = 'TIKTOK',
+    YOUTUBE = 'YOUTUBE',
+    DISCORD = 'DISCORD',
+    TELEGRAM = 'TELEGRAM',
+    WEBSITE = 'WEBSITE',
+}

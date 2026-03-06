@@ -50,7 +50,7 @@ export class PrismaProjectContributorRepository implements ProjectContributorRep
         });
     }
 
-    async delete(projectId: string, userId: string): Promise<any> {
+    async deleteOne(projectId: string, userId: string): Promise<any> {
         return this.prisma.projectContributor.delete({
             where: {
                 projectId_userId: {
@@ -59,6 +59,17 @@ export class PrismaProjectContributorRepository implements ProjectContributorRep
                 },
             },
         });
+    }
+
+    async deleteNotIn(projectId: string, userIds: string[]): Promise<boolean> {
+        await this.prisma.projectContributor.deleteMany({
+            where: {
+                projectId,
+                userId: { notIn: userIds },
+            },
+        });
+
+        return true;
     }
 
     async findContributors(projectId: string): Promise<any> {
@@ -80,4 +91,14 @@ export class PrismaProjectContributorRepository implements ProjectContributorRep
         });
     }
 
+    async findContributor(projectId: string, userId: string): Promise<any> {
+        return this.prisma.projectContributor.findUnique({
+            where: {
+                projectId_userId: {
+                    projectId,
+                    userId,
+                },
+            },
+        });
+    }
 }

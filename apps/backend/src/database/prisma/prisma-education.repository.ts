@@ -41,10 +41,11 @@ export class PrismaEducationRepository implements EducationRepository {
         });
     }
 
-    async updateById(id: string, name?: string, major?: string, degree?: string, startedAt?: Date, endedAt?: Date, location?: string, achievement?: string, logoId?: number): Promise<any> {
+    async updateById(userId: string, id: string, name?: string, major?: string, degree?: string, startedAt?: Date, endedAt?: Date, location?: string, achievement?: string, logoId?: number): Promise<any> {
         return this.prisma.education.update({
             where: {
                 id,
+                userId,
             },
             data: {
                 name,
@@ -59,10 +60,11 @@ export class PrismaEducationRepository implements EducationRepository {
         });
     }
 
-    async deleteById(id: string): Promise<any> {
+    async deleteById(id: string, userId: string): Promise<any> {
         return this.prisma.education.delete({
             where: {
                 id,
+                userId,
             },
         });
     }

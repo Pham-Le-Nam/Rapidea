@@ -26,7 +26,7 @@ export class PrismaProjectLinkRepository implements ProjectLinkRepository {
         });
     }
 
-    async update(id: string, projectId: string, name?: string, url?: string): Promise<any> {
+    async update(id: string, name?: string, url?: string): Promise<any> {
         return this.prisma.projectLink.update({
             where: {
                 id,
