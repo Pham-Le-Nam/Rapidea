@@ -1,4 +1,4 @@
-# Rapideia
+# Rapidea
 
 ## Roles
 - Users (Students, Teachers)
