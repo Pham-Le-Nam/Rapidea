@@ -1,6 +1,6 @@
 import { useState, useEffect  } from "react";
 import { useNavigate, Navigate, useSearchParams } from "react-router-dom";
-import { verifyResetPasswordLink, resetPassword } from "@/api";
+import { verifyResetPasswordLinkApi, resetPasswordApi } from "@/api";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Description } from "@/components/ui/description";
@@ -31,7 +31,7 @@ function ResetPassword() {
     useEffect(() => {
         const verify = async () => {
             try {
-                const response = await verifyResetPasswordLink(token);
+                const response = await verifyResetPasswordLinkApi(token);
                 setUser(response);
             } catch (error: any) {
                 setIsValidToken(false);
@@ -68,7 +68,7 @@ function ResetPassword() {
             setIsDisabled(true);
             setCountdown(30);
 
-            const response = await resetPassword(password, confirmPassword, token);
+            const response = await resetPasswordApi(password, confirmPassword, token);
             login(response.access_token);
             toast.success("Your password has been reset successfully, you will be redirect to the homepage");
             // redirect after login

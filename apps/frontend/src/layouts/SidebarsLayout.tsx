@@ -11,7 +11,7 @@ import {
 
 export default function Layout() {
     return (
-        <div className="flex w-full">
+        <div className="flex flex-row items-start w-full">
 
             {/* Automatically open if not in mobile device */}
             <SidebarProvider className="flex-1">
@@ -25,10 +25,8 @@ export default function Layout() {
             </SidebarProvider>
 
             {/* MAIN CONTENT */}
-            <div className="flex flex-col w-full">
-                <div className="py-16">
-                    <Outlet />
-                </div>
+            <div className="flex flex-col items-center w-full py-16">
+                <Outlet />
             </div>
 
             {/* Automatically open if not in mobile device */}

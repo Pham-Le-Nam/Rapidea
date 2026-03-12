@@ -19,7 +19,7 @@ async function bootstrap() {
         }),
     );
 
-    app.useStaticAssets(join(__dirname, '..', `${storage}`), {
+    app.useStaticAssets(join(__dirname, '../..', `${storage}`), {
         prefix: `/${storage}/`,
     });
 

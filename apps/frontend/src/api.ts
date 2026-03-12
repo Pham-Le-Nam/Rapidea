@@ -34,7 +34,7 @@ export async function getResetPasswordLinkApi(email: string) {
     return response.data;
 };
 
-export async function verifyResetPasswordLink(token: string) {
+export async function verifyResetPasswordLinkApi(token: string) {
     const response = await API.get("api/auth/reset-password", {
         params: { token },
     })
@@ -42,12 +42,36 @@ export async function verifyResetPasswordLink(token: string) {
     return response.data;
 }
 
-export async function resetPassword(password: string, confirmPassword: string, token: string) {
+export async function resetPasswordApi(password: string, confirmPassword: string, token: string) {
     const response = await API.put("api/auth/reset-password", {
         password,
         confirmPassword,
         token,
     })
+
+    return response.data;
+}
+
+export async function getProfileApi(username: string) {
+    const token = localStorage.getItem("token");
+    let response: any | undefined = undefined;
+    
+    if (token) {
+        response = await API.get(`api/users/${username}`, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        });
+    }
+    else {
+        response = await API.get(`api/users/${username}`);
+    } 
+
+    return response.data;
+}
+
+export async function getSocialLinkApi(username: string) {
+    const response = await API.get(`api/social-link/${username}`);
 
     return response.data;
 }

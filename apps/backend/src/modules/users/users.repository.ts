@@ -5,6 +5,7 @@ export interface UsersRepository {
     findByUsername(username: string): Promise<any | null>;
     findById(id: string): Promise<any | null>;
     updateById(id: string, firstname?: string, lastname? : string, middlename? : string, avatarId?: number, backgroundId?: number, headline?: string, bio?: string): Promise<any | null>;
+    updateByUsername(username: string, firstname?: string, lastname? : string, middlename? : string, avatarId?: number, backgroundId?: number, headline?: string, bio?: string): Promise<any | null>;
     updateSessionVersion(id: string): Promise<any>;
     validateSessionVersion(id: string, sessionVersion: number): Promise<boolean>;
     resetPassword(id: string, password: string): Promise<any>;

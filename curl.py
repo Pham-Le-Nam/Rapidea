@@ -1,9 +1,9 @@
 import requests
 from datetime import datetime
 
-url = "http://localhost:1234/api/experience/lenampham"
+url = "http://localhost:1234/api/social-link/add"
 
-jwt_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyZGUyNmI2ZS04ZmZlLTQ4ZjYtYWZiZi0zMzdjODhiYmZlNTUiLCJlbWFpbCI6ImxlbmFtLnBoYW1Ac3R1ZGVudC51dHMuZWR1LmF1Iiwic2Vzc2lvblZlcnNpb24iOjIsImlhdCI6MTc3Mjc4MjIzMCwiZXhwIjoxNzcyODY4NjMwfQ.a1p0xEM_Ul24KeyWKceFCY6imvNlsu31sdLhxH_SZgA"
+jwt_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NTYwMmUzNC00MzQ3LTQwNGYtOWQ4My0yMWE4NmVlZjYyNjIiLCJlbWFpbCI6InBoYW1sZW5hbTk3QGdtYWlsLmNvbSIsInNlc3Npb25WZXJzaW9uIjo1LCJpYXQiOjE3NzMyODE0NDMsImV4cCI6MTc3MzM2Nzg0M30.ds3F5OlHMpSAbrfmeVODUSI3SnoYph6x2LziveScW7Q"
 startedAt = datetime(2025,11,10)
 endedAt = datetime(2026,2,13)
 
@@ -11,8 +11,8 @@ endedAt = datetime(2026,2,13)
 data = {
     "email":"lenam.pham@student.uts.edu.au",
     "password":"Password",
-    # "platform": "INSTAGRAM",
-    "url": "https://github.com/Pham-Le-Nam/Rapideia",
+    "platform": "WEBSITE",
+    "url": "https://github.com/Pham-Le-Nam/iOS-programming",
     # "id": "a05b69ad-d93a-491e-9501-a206411d02b2",
     "name": "Optik Consultancy",
     "role": "Software Engineer",
@@ -31,5 +31,5 @@ headers = {
     "Authorization": f"Bearer {jwt_token}",
 }
 
-response = requests.get(url, json=data, headers=headers)
+response = requests.post(url, json=data, headers=headers)
 print(response.json())

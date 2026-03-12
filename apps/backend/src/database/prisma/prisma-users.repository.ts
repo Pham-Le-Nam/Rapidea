@@ -7,14 +7,14 @@ export class PrismaUsersRepository implements UsersRepository {
     constructor(private prisma: PrismaService) {}
 
     async create(email: string, password: string, firstname: string, lastname: string, middlename?: string) {
+        let username: string;
+
         if (!middlename) {
-            middlename = '';
+            username = await this.generateUsername(`${firstname}.${lastname}`);
         }
         else {
-            middlename += '.';
+            username = await this.generateUsername(`${firstname}.${middlename}.${lastname}`);
         }
-        
-        const username = await this.generateUsername(`${firstname}.${middlename}${lastname}`);
         
         return this.prisma.users.create({ 
             data: { 
@@ -53,6 +53,21 @@ export class PrismaUsersRepository implements UsersRepository {
     async updateById(id: string, firstname?: string, lastname?: string, middlename?: string, avatarId?: number, backgroundId?: number, headline?: string, bio?: string): Promise<any | null> {
         return this.prisma.users.update({
             where: { id },
+            data: {
+                firstname,
+                lastname,
+                middlename,
+                avatarId,
+                backgroundId,
+                headline,
+                bio,
+            },
+        });
+    }
+
+    async updateByUsername(username: string, firstname?: string, lastname?: string, middlename?: string, avatarId?: number, backgroundId?: number, headline?: string, bio?: string): Promise<any | null> {
+        return this.prisma.users.update({
+            where: { username },
             data: {
                 firstname,
                 lastname,
