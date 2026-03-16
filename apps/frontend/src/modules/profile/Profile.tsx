@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { getProfileApi, getSocialLinkApi } from "@/api";
 import facebookLogo from '/facebook.png'
@@ -12,9 +12,11 @@ import youtubeLogo from '/youtube.png'
 import discordLogo from '/discord.png'
 import telegramLogo from '/telegram.png'
 import otherwebsiteLogo from '/otherwebsite.png'
-import Education from "./Education";
+import { Education } from "./Education";
 import Experience from "./Experience";
 import Project from "./Project";
+import toast from "react-hot-toast";
+import { useAuth } from "@/context/AuthContext";
 
 function Profile() {
     type SocialLink = {
@@ -37,6 +39,9 @@ function Profile() {
     const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
     const [isUser, setIsUser] = useState(false);
     const [isOwner, setIsOwner] = useState(false);
+
+    const navigate = useNavigate();
+    const { logout } = useAuth();
 
     const socialIcons = {
         'FACEBOOK': facebookLogo,
@@ -114,7 +119,10 @@ function Profile() {
 
             } catch (error: any) {
                 if (error.response?.status === 401) {
-                    throw new Error("U")
+                    console.error("Token Expired");
+                    logout();
+                    toast.error("Token Expired. You have been logged out. Please log in to continue");
+                    navigate('/login')
                 // handle logout or redirect
                 }
                 throw error;
@@ -124,7 +132,7 @@ function Profile() {
     }, [username]);
 
     useEffect(() => {
-        const loadSocialLinks = async () =>{
+        const loadSocialLinks = async () => {
             try {
                 const response = await getSocialLinkApi(username);
                 setSocialLinks(response.socialLinks);

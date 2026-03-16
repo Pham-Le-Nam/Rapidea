@@ -117,6 +117,9 @@ export class PrismaProjectRepository implements ProjectRepository {
             where: {
                 userId,
             },
+            orderBy: {
+                order: "desc",
+            },
         });
     }
 

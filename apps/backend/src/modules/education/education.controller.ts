@@ -103,14 +103,14 @@ export class EducationController {
     }
 
     @UseGuards(JwtAuthGuard)
-    @Post('delete/')
+    @Post('delete')
     async deleteEducation(
         @Request() req: any,
-        @Body() id: string,
+        @Body('id') id: string,
     ) {
         const user = req.user;
-
-        const deletedEducation = this.educationService.deleteEducationById(id, user.userId);
+        const userId = String(user.userId);
+        const deletedEducation = this.educationService.deleteEducationById(id, userId);
 
         if (!deletedEducation) {
             throw new InternalServerErrorException("Couldn't delete education");

@@ -36,6 +36,7 @@ export class UpdateExperienceDto {
     achievement?: string; 
     
     @IsOptional()
+    @Type(() => Number)
     @IsInt()
     logoId?: number
 }

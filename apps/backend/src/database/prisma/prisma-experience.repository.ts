@@ -41,7 +41,7 @@ export class PrismaExperienceRepository implements ExperienceRepository {
         });
     }
 
-    async updateById(id: string, userId: string, name?: string, position?: string, role?: string, startedAt?: Date, endedAt?: Date, location?: string, achievement?: string, logoId?: number): Promise<any> {
+    async updateById(userId: string, id: string, name?: string, position?: string, role?: string, startedAt?: Date, endedAt?: Date, location?: string, achievement?: string, logoId?: number): Promise<any> {
         return this.prisma.experience.update({
             where: {
                 id,
@@ -55,7 +55,7 @@ export class PrismaExperienceRepository implements ExperienceRepository {
                 endedAt,
                 location,
                 achievement,
-                logoId
+                logoId,
             }
         });
     }
@@ -120,6 +120,9 @@ export class PrismaExperienceRepository implements ExperienceRepository {
         return this.prisma.experience.findMany({
             where: {
                 userId,
+            },
+            orderBy: {
+                order: "desc",
             },
         });
     }

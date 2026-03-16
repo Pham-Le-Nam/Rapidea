@@ -36,6 +36,7 @@ export class UpdateEducationDto {
     achievement?: string; 
     
     @IsOptional()
+    @Type(() => Number)
     @IsInt()
     logoId?: number
 }

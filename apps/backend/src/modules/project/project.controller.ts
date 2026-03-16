@@ -99,10 +99,10 @@ export class ProjectController {
     }
 
     @UseGuards(JwtAuthGuard)
-    @Post('delete/')
+    @Post('delete')
     async deleteProject(
         @Request() req: any,
-        @Body() id: string,
+        @Body('id') id: string,
     ) {
         const user = req.user;
 

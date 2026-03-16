@@ -61,10 +61,10 @@ export class PrismaEducationRepository implements EducationRepository {
     }
 
     async deleteById(id: string, userId: string): Promise<any> {
-        return this.prisma.education.delete({
+        return this.prisma.education.deleteMany({
             where: {
-                id,
-                userId,
+                id: id,
+                userId: userId,
             },
         });
     }
@@ -120,6 +120,9 @@ export class PrismaEducationRepository implements EducationRepository {
         return this.prisma.education.findMany({
             where: {
                 userId,
+            },
+            orderBy: {
+                order: "desc",
             },
         });
     }

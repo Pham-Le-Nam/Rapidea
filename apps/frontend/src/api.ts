@@ -76,3 +76,166 @@ export async function getSocialLinkApi(username: string) {
     return response.data;
 }
 
+export async function getExperienceApi(username: string) {
+    const response = await API.get(`api/experience/${username}`);
+
+    return response.data;
+}
+
+export async function getEducationApi(username: string) {
+    const response = await API.get(`api/education/${username}`);
+
+    return response.data;
+}
+
+export async function getProjectApi(username: string) {
+    const response = await API.get(`api/project/${username}`);
+
+    return response.data;
+}
+
+export async function getProjectLinkApi(projectId: string) {
+    const response = await API.get(`api/project-link/${projectId}`)
+
+    return response.data;
+}
+
+export async function updateEducationApi(educationId: string, schoolName?: string, location?: string, major?: string, degree?: string, startedAt?: string, endedAt?: string, description?: string, logoId?: number) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        "api/education/update", 
+        {
+            id: educationId,
+            name: schoolName,
+            location: location,
+            major: major,
+            degree: degree,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            achievement: description,
+            logoId: logoId,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function addEducationApi(schoolName: string, location?: string, major?: string, degree?: string, startedAt?: string, endedAt?: string, description?: string, logoId?: number) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        "api/education/add", 
+        {
+            name: schoolName,
+            location: location,
+            major: major,
+            degree: degree,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            achievement: description,
+            logoId: logoId,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function updateExperienceApi(experienceId: string, organizationName?: string, location?: string, position?: string, role?: string, startedAt?: string, endedAt?: string, description?: string, logoId?: number) {
+    const token = localStorage.getItem("token");
+    console.log(experienceId);
+
+    const response = await API.post(
+        "api/experience/update", 
+        {
+            id: experienceId,
+            name: organizationName,
+            location: location,
+            role: role,
+            position: position,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            achievement: description,
+            logoId: logoId,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function addExperienceApi(organizationName: string, location?: string, position?: string, role?: string, startedAt?: string, endedAt?: string, description?: string, logoId?: number) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        "api/experience/add", 
+        {
+            name: organizationName,
+            location: location,
+            position: position,
+            role: role,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            achievement: description,
+            logoId: logoId,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function deleteEducationApi (id: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        "api/education/delete", 
+        {
+            id
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function deleteExperienceApi (id: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        "api/experience/delete", 
+        {
+            id
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+

@@ -106,7 +106,7 @@ export class ExperienceController {
     @Post('delete/')
     async deleteExperience(
         @Request() req: any,
-        @Body() id: string,
+        @Body('id') id: string,
     ) {
         const user = req.user;
 
