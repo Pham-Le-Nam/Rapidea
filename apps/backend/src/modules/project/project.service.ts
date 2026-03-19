@@ -15,7 +15,7 @@ export class ProjectService {
             throw new InternalServerErrorException("Couldn't create project");
         }
 
-        return this.projectRepo.getByUserId(userId);
+        return project;
     }
 
     async deleteProjectById(id: string, userId: string) {
@@ -25,7 +25,7 @@ export class ProjectService {
             throw new InternalServerErrorException("Couldn't create project");
         }
 
-        return this.projectRepo.getByUserId(userId);
+        return project;
     }
 
     async updateProjectById(id: string, userId: string, name?: string, role?: string, startedAt?: Date, endedAt?: Date, details?: string, logoId?: number) {
@@ -35,7 +35,7 @@ export class ProjectService {
             throw new InternalServerErrorException("Couldn't create project");
         }
 
-        return this.projectRepo.getByUserId(userId);
+        return project;
     }
 
     async getProjectByUserId(userId: string) {

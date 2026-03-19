@@ -47,7 +47,7 @@ export class PrismaProjectLinkRepository implements ProjectLinkRepository {
     }
 
     async findById(id: string): Promise<any> {
-        return this.prisma.projectLink.findMany({
+        return this.prisma.projectLink.findUnique({
             where: {
                 id,
             },

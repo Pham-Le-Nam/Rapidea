@@ -239,3 +239,125 @@ export async function deleteExperienceApi (id: string) {
     return response.data;
 }
 
+export async function deleteProjectLinkApi (id: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        "api/project-link/delete", 
+        {
+            id
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function addProjectLinkApi (projectId: string, name: string, url: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        "api/project-link/add", 
+        {
+            projectId,
+            name,
+            url
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function updateProjectLinkApi (id: string, name: string, url: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        "api/project-link/update", 
+        {
+            id,
+            name,
+            url
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function updateProjectApi (id: string, name?: string, role?: string, startedAt?: string, endedAt?: string, details?: string, logoId?: number) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        "api/project/update", 
+        {
+            id,
+            name,
+            role,
+            startedAt,
+            endedAt,
+            details,
+            logoId,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function addProjectApi (name: string, role?: string, startedAt?: string, endedAt?: string, details?: string, logoId?: number) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        "api/project/add", 
+        {
+            name,
+            role,
+            startedAt,
+            endedAt,
+            details,
+            logoId,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function deleteProjectApi (id: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        "api/project/delete", 
+        {
+            id
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}

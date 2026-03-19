@@ -106,7 +106,6 @@ export class ProjectLinkController {
         if(!isOwner) {
             throw new InternalServerErrorException("deleter is not owner");
         }
-
         const deletedProjectLink = await this.projectLinkService.deleteProjectLink(data.id);
 
         if (!deletedProjectLink) {

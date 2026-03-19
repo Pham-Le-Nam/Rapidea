@@ -69,7 +69,7 @@ export class ProjectController {
             throw new InternalServerErrorException("Couldn't add project");
         }
 
-        return this.projectService.getProjectByUserId(user.userId);
+        return project;
     }
 
     @UseGuards(JwtAuthGuard)
@@ -95,7 +95,7 @@ export class ProjectController {
             throw new InternalServerErrorException("Couldn't update project");
         }
 
-        return this.projectService.getProjectByUserId(user.userId);
+        return project;
     }
 
     @UseGuards(JwtAuthGuard)
@@ -112,6 +112,6 @@ export class ProjectController {
             throw new InternalServerErrorException("Couldn't delete project");
         }
 
-        return this.projectService.getProjectByUserId(user.userId);
+        return deletedProject;
     }
 }
