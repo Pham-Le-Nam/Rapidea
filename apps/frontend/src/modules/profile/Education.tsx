@@ -3,14 +3,14 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { FormatDate, FormatDateInput } from "./FormatDate";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "@/components/ui/dialog"
 import { Field, FieldGroup } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -257,7 +257,7 @@ function AddEducation({ reloadEducation }: AddEducationProps) {
     return (
         <Dialog>
             <DialogTrigger asChild>
-                <Button variant="outline" className="bg-main hover:bg-main-hover text-white">
+                <Button variant="outline" className="bg-main hover:bg-main-hover text-white hover:text-white">
                     Add
                 </Button>
             </DialogTrigger>

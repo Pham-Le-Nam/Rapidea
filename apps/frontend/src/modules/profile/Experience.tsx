@@ -260,7 +260,7 @@ function AddExperience({ reloadExperience }: AddExperienceProps) {
     return (
         <Dialog>
             <DialogTrigger asChild>
-                <Button variant="outline" className="bg-main hover:border-main-hover text-white">
+                <Button variant="outline" className="bg-main hover:bg-main-hover text-white hover:text-white">
                     Add
                 </Button>
             </DialogTrigger>
