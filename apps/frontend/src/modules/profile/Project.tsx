@@ -123,13 +123,13 @@ function Project({ username, isOwner = false }: projectProps) {
                                 Project Links:{" "}
                                 {(projectsLinksLists[index] ?? []).map((link, i) => (
                                     <span key={link.url}>
-                                    <a
-                                        href={link.url}
-                                        className="text-main hover:text-main-hover hover:underline"
-                                    >
-                                        {link.name}
-                                    </a>
-                                    {i < (projectsLinksLists[index]?.length ?? 0) - 1 && ", "}
+                                        <a
+                                            href={link.url}
+                                            className="text-main hover:text-main-hover hover:underline"
+                                        >
+                                            {link.name}
+                                        </a>
+                                        {i < (projectsLinksLists[index]?.length ?? 0) - 1 && ", "}
                                     </span>
                                 ))}
                             </p>

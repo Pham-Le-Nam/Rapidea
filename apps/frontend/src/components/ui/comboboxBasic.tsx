@@ -8,15 +8,6 @@ import {
     ComboboxItem,
     ComboboxList,
 } from "@/components/ui/combobox"
-import type React from "react";
-
-const frameworks = [
-    "Next.js",
-    "SvelteKit",
-    "Nuxt.js",
-    "Remix",
-    "Astro",
-] as const
 
 type comboboxBasicProp = {
     values: string[];
@@ -27,8 +18,8 @@ type comboboxBasicProp = {
 export function ComboboxBasic({ values, value, setValue } : comboboxBasicProp) {
     return (
         <Combobox items={values} value={value} onValueChange={(val) => setValue(val ?? "")}>
-            <ComboboxInput placeholder="Select a framework" value={value}/>
-            <ComboboxContent>
+            <ComboboxInput placeholder="Select a framework" />
+            <ComboboxContent className="z-50 pointer-events-auto">
                 <ComboboxEmpty>
                     No items found.
                 </ComboboxEmpty>

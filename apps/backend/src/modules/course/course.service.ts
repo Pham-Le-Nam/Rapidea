@@ -4,11 +4,10 @@ import { FolderService } from '../folder/folder.service';
 
 @Injectable()
 export class CourseService {
-    private folderService: FolderService;
-
     constructor(
         @Inject('COURSE_REPOSITORY')
         private readonly courseRepo: CourseRepository,
+        private readonly folderService: FolderService,
     ) {}
 
     async createCourse(userId: string, title: string, description?: string, price?: number, currency?: string) {
@@ -25,5 +24,11 @@ export class CourseService {
         return this.courseRepo.updateById(id, title, description, price, currency);
     }
 
-    
+    async deleteCourse(id: string) {
+        return this.courseRepo.deleteCourseById(id);
+    }   
+
+    async getCourse(userId: string) {
+        return this.courseRepo.findByUserId(userId, "id", "asc");
+    }
 }

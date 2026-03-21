@@ -361,3 +361,57 @@ export async function deleteProjectApi (id: string) {
 
     return response.data;
 }
+
+export async function getCoursesApi (username: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.get (
+        `api/course/${username}`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function addCourseApi(title: string, description?: string, price?: number, currency?: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/course/add`,
+        {
+            title,
+            description,
+            price,
+            currency,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function deleteCourseApi(id: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/course/delete`,
+        {
+            id,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
