@@ -33,7 +33,7 @@ export class PrismaCourseRepository implements CourseRepository {
         }
 
         // Update user courses count
-        this.prisma.users.update({
+        await this.prisma.users.update({
             where: {
                 id: userId,
             },

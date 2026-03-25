@@ -36,10 +36,15 @@ export class FolderService {
         }
 
         if (folder.url != "") {
-            await rm(`${this.rootFolder}/${folder.url}/${folder.name}`);
-        }
-        else {
-            await rm(`${this.rootFolder}/${folder.name}`);
+            await rm(`${this.rootFolder}/${folder.url}/${folder.name}`, {
+                recursive: true,
+                force: true,
+            });
+        } else {
+            await rm(`${this.rootFolder}/${folder.name}`, {
+                recursive: true,
+                force: true,
+            });
         }
 
         return folder;

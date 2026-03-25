@@ -46,8 +46,6 @@ export class CourseController {
     ) {
         const user = req.user;
 
-        console.log(addCourseDto);
-
         const course = await this.courseService.createCourse(
             user.userId,
             addCourseDto.title,

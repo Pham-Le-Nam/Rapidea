@@ -201,9 +201,9 @@ function Profile() {
                 
                 <div className="flex flex-row flex-wrap justify-center gap-2 pb-2 px-2">
                     <Button asChild className="bg-white hover:bg-gray-100 text-black border-2 w-28">
-                        <p>
+                        <a href={`/courses/${username}`}>
                             {`${coursesCount} Courses`}
-                        </p>
+                        </a>
                     </Button>
                     <Button asChild className="bg-white hover:bg-gray-100 text-black border-2 w-28">
                         <p>
