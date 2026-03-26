@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FolderRepository } from '../../modules/folder/folder.repository';
 
@@ -17,42 +17,78 @@ export class PrismaFolderRepository implements FolderRepository {
             throw new InternalServerErrorException("User not found");
         }
 
-        let url = "";
-
-        if (parentId) {
-            const parentFolder = await this.prisma.folder.findUnique({
-                where: {
-                    id: parentId,
-                },
-                select: {
-                    url: true,
-                    name: true,
-                },
-            });
-
-            if (!parentFolder) {
-                throw new InternalServerErrorException("Parent folder not found");
-            }
-
-            url = `${parentFolder.url}/${parentFolder.name}`;
-        }
-
         return this.prisma.folder.create({
             data: {
                 userId,
                 parentId,
-                url,
                 name,
             },
         });
     }
 
-    async delete(id: string): Promise<any> {
+    async delete(id: string, userId: string): Promise<any> {
         return this.prisma.folder.delete({
+            where: {
+                id,
+                userId,
+            },
+        });
+    }
+
+    async rename(id: string, userId: string, name: string): Promise<any> {
+        const folder = this.prisma.folder.update({
+            where: {
+                id,
+                userId,
+            },
+            data: {
+                name,
+            },
+        });
+
+        if(!folder) {
+            throw new InternalServerErrorException("Couldn't update the folder");
+        }
+
+        return folder;
+    }
+
+    async move(id: string, userId: string, parentId: string): Promise<any> {
+        const folder = this.prisma.folder.update({
+            where: {
+                id,
+            },
+            data: {
+                parentId,
+            },
+        });
+
+        if(!folder) {
+            throw new InternalServerErrorException("Couldn't update the folder");
+        }
+
+        return folder;
+    }
+
+    async getUrl(id: string): Promise<string> {
+        const folder = await this.prisma.folder.findUnique({
             where: {
                 id,
             },
         });
+
+        if(!folder) {
+            throw new NotFoundException("Folder not found");
+        }
+
+        if(folder.parentId) {
+            const parentUrl = this.getUrl(folder.parentId);
+            const url = `${parentUrl}/${folder.name}`;
+            return url;
+        }
+        else {
+            return folder.name;
+        }
     }
 
     async findById(id: string): Promise<any> {
@@ -63,21 +99,13 @@ export class PrismaFolderRepository implements FolderRepository {
         });
     }
 
-    async findByLocation(url: string, name: string): Promise<any> {
+    async findByLocation(parentId: string, name: string): Promise<any> {
         return this.prisma.folder.findUnique({
             where: {
-                url_name: {
-                    url,
+                parentId_name: {
+                    parentId,
                     name,
                 },
-            },
-        });
-    }
-
-    async findByUrl(url: string): Promise<any> {
-        return this.prisma.folder.findMany({
-            where: {
-                url,
             },
         });
     }

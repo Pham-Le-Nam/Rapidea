@@ -35,7 +35,8 @@ function Profile() {
     const [subscribersCount, setSubscribersCount] = useState(0);
     const [ratingCount, setRatingCount] = useState("");
     const [rating, setRating] = useState(0);
-    const [avatarUrl, setAvatarUrl] = useState("");
+    const [avatarUrl, setAvatarUrl] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`);
+    const [backgroundUrl, setBackgroundUrl] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`)
     const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
     const [isUser, setIsUser] = useState(false);
     const [isOwner, setIsOwner] = useState(false);
@@ -146,11 +147,11 @@ function Profile() {
     return(
         <div className="flex flex-col items-center justify-start px-2 gap-3 w-full max-w-350">
             <div className="flex flex-col items-center justify-start rounded-md border shadow-md w-full gap-3">
-                <img src={`${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`} className="w-full aspect-3/1 object-cover rounded-md" />
+                <img src={backgroundUrl} className="w-full aspect-3/1 object-cover rounded-md" />
                 
                 <div className="flex flex-row items-start justify-around w-full gap-2 px-2">
                     <div className="flex flex-col items-center justify-center -mt-15 gap-4 w-40">
-                        <img src={`${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`} className="rounded-full border-4 w-40 aspect-square"/>
+                        <img src={avatarUrl} className="rounded-full border-4 w-40 aspect-square"/>
                         <div className="flex flex-col md:flex-row items-center content-center justify-center w-full gap-2">
                             {isOwner && (
                                 <Button asChild className="bg-white hover:bg-gray-100 text-black border-2 w-full md:w-25">

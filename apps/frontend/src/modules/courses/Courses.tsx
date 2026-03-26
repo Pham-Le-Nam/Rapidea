@@ -101,7 +101,6 @@ function CourseComponent ({ course, isOwner, loadCourses }: CourseComponentProp)
             shorten = ratingCount.toString();
         }
 
-
         return shorten;
     }
 

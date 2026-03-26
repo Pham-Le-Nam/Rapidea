@@ -18,33 +18,45 @@ export class FolderService {
             throw new InternalServerErrorException("Couldn't create folder");
         }
 
-        if (parentId) {
-            await mkdir(`${this.rootFolder}/${folder.url}/${folderName}`, { recursive: true });
-        }
-        else {
-            await mkdir(`${this.rootFolder}/${folderName}`, { recursive: true });
-        }
+        const url = await this.folderRepo.getUrl(folder.id);
+
+        await mkdir(`${this.rootFolder}/${url}`, { recursive: true });
 
         return folder;
     }
 
-    async deleteFolder (folderId: string) {
-        const folder = await this.folderRepo.delete(folderId);
+    async deleteFolder (folderId: string, userId: string) {
+        const url = await this.folderRepo.getUrl(folderId);
+
+        const folder = await this.folderRepo.delete(folderId, userId);
 
         if (!folder) {
             throw new InternalServerErrorException("Couldn't delete folder");
         }
 
-        if (folder.url != "") {
-            await rm(`${this.rootFolder}/${folder.url}/${folder.name}`, {
-                recursive: true,
-                force: true,
-            });
-        } else {
-            await rm(`${this.rootFolder}/${folder.name}`, {
-                recursive: true,
-                force: true,
-            });
+        await rm(`${this.rootFolder}/${url}`, {
+            recursive: true,
+            force: true,
+        });
+
+        return folder;
+    }
+
+    async renameFolder (folderId: string, userId: string, name: string) {
+        const folder = await this.folderRepo.rename(folderId, userId, name);
+
+        if(!folder) {
+            throw new InternalServerErrorException("Couldn't rename the folder");
+        }
+
+        return folder;
+    }
+
+    async moveFolder (folderId: string, userId: string, parentId: string) {
+        const folder = await this.folderRepo.move(folderId, userId, parentId);
+
+        if(!folder) {
+            throw new InternalServerErrorException("Couldn't move the folder");
         }
 
         return folder;
@@ -54,12 +66,8 @@ export class FolderService {
         return this.folderRepo.findById(folderId);
     }
 
-    async findFolderByLocation (folderUrl: string, folderName: string) {
-        return this.folderRepo.findByLocation(folderUrl, folderName);
-    }
-
-    async findFolderByUrl (folderUrl: string) {
-        return this.folderRepo.findByUrl(folderUrl);
+    async findFolderByLocation (parentId: string, folderName: string) {
+        return this.folderRepo.findByLocation(parentId, folderName);
     }
 
     async findChildrenFolders (folderId: string) {

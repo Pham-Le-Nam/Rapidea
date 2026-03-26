@@ -45,9 +45,12 @@ export class PrismaCourseRepository implements CourseRepository {
         return course;
     }
 
-    async updateById(id: string, title?: string, description?: string, price?: number, currency?: string) {
+    async updateById(id: string, userId: string, title?: string, description?: string, price?: number, currency?: string) {
         return this.prisma.course.update({
-            where: { id },
+            where: { 
+                id,
+                userId,
+            },
             data: {
                 title,
                 description,

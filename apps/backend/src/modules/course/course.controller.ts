@@ -26,7 +26,7 @@ export class CourseController {
             throw new NotFoundException("User not found");
         }
 
-        const course = await this.courseService.getCourse(owner.id);
+        const course = await this.courseService.getCourseByUserId(owner.id);
 
         if (!course) {
             throw new NotFoundException("Courses not found");
@@ -35,6 +35,25 @@ export class CourseController {
         return {
             course,
             isOwner: viewer?.userId === owner.id,
+        };
+    }
+
+    @UseGuards(OptionalJwtAuthGuard)
+    @Get('id/:id')
+    async getCourse (
+        @Param('id') id: string,
+        @Request() req: any,
+    ) {
+        const viewer = req.user;
+        const course = await this.courseService.getCourseById(id);
+
+        if (!course) {
+            throw new NotFoundException('Course not found');
+        }
+
+        return {
+            course,
+            isOwner: viewer?.userId === course.userId,
         };
     }
 
@@ -68,7 +87,7 @@ export class CourseController {
         @Body() data: { id: string },
     ) {
         const user = req.user;
-        const course = await this.courseService.deleteCourse(data.id);
+        const course = await this.courseService.deleteCourse(data.id, user.userId);
 
         if (!course) {
             throw new InternalServerErrorException("Couldn't delete this course");

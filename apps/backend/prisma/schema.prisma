@@ -372,7 +372,7 @@ model ProjectLink {
 model Folder {
     id              String              @id @default(uuid())
     userId          String
-    url             String              @default("")
+    // url             String              @default("")
     name            String
     parentId        String?
 
@@ -385,8 +385,8 @@ model Folder {
     files           File[]
     childrenFolders Folder[]            @relation("ParentChildFolder")
 
-    @@unique([url, name])
-    @@index([url])
+    @@unique([parentId, name])
+    @@index([parentId])
     @@map("folder")
 }
 
@@ -407,7 +407,7 @@ model Folder {
 
 model File {
     id              String          @id @default(uuid())
-    url             String
+    // url             String
     name            String
     mimeType        String
     size            Int
@@ -422,8 +422,8 @@ model File {
     inCourses       FileInCourse[]
     inPosts         FileInPost[]
 
-    @@unique([url, name])
-    @@index([url])
+    @@unique([folderId, name])
+    @@index([folderId])
     @@map("file")
 }
 

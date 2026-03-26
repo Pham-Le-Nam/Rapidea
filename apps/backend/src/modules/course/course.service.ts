@@ -30,18 +30,18 @@ export class CourseService {
         return this.courseRepo.create(userId, title, folder.id, description, price, currency);
     }
 
-    async updateCourse(id: string, title?: string, description?: string, price?: number, currency?: string) {
-        return this.courseRepo.updateById(id, title, description, price, currency);
+    async updateCourse(id: string, userId: string, title?: string, description?: string, price?: number, currency?: string) {
+        return this.courseRepo.updateById(id, userId, title, description, price, currency);
     }
 
-    async deleteCourse(id: string) {
+    async deleteCourse(id: string, userId: string) {
         const course = await this.courseRepo.deleteCourseById(id);
 
         if (!course) {
             throw new InternalServerErrorException("Couldn't delete the course");
         }
 
-        const folder = await this.folderService.deleteFolder(course.folderId);
+        const folder = await this.folderService.deleteFolder(course.folderId, userId);
 
         if (!folder) {
             throw new InternalServerErrorException("Couldn't delete the folder");
@@ -50,7 +50,11 @@ export class CourseService {
         return course;
     }   
 
-    async getCourse(userId: string) {
+    async getCourseByUserId(userId: string) {
         return this.courseRepo.findByUserId(userId, "id", "asc");
+    }
+
+    async getCourseById (id: string) {
+        return this.courseRepo.findById(id);
     }
 }

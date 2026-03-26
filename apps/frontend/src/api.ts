@@ -415,3 +415,18 @@ export async function deleteCourseApi(id: string) {
 
     return response.data;
 }
+
+export async function getCourseApi (id: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.get(
+        `api/course/id/${id}`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
