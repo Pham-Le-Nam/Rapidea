@@ -80,7 +80,7 @@ function Course () {
                     </h1>
 
                     <h2 className="text-lg">
-                        {`${4.5}⭐ ${shortenRatingCount(1230)} Ratings`}
+                        {`${rating}⭐ ${shortenRatingCount(ratingCount)} Ratings`}
                     </h2>
                 </div>
 

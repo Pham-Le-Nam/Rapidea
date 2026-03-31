@@ -12,7 +12,6 @@ export class PrismaFileRepository implements FileRepository {
                 id: folderId,
             },
             select: {
-                url: true,
                 name: true,
             },
         });
@@ -21,11 +20,8 @@ export class PrismaFileRepository implements FileRepository {
             throw new InternalServerErrorException("Folder not found");
         }
 
-        const url = `${folder.url}/${folder.name}`;
-
         return this.prisma.file.create({
             data: {
-                url,
                 name,
                 mimeType,
                 size,
@@ -35,31 +31,11 @@ export class PrismaFileRepository implements FileRepository {
         });
     }
 
-    async updateById(id: string, folderId?: string, name?: string): Promise<any> {
-        let url: undefined | string = undefined;
-
-        if (folderId) {
-
-            const folder = await this.prisma.folder.findUnique({
-                where: {
-                    id: folderId,
-                },
-                select: {
-                    url: true,
-                    name: true,
-                },
-            });
-
-            if (!folder) {
-                throw new InternalServerErrorException("Folder not found");
-            }
-
-            url = `${folder.url}/${folder.name}`;
-        }
-
+    async updateById(id: string, userId: string, folderId?: string, name?: string): Promise<any> {
         return this.prisma.file.update({
             where: {
                 id,
+                userId,
             },
             data: {
                 folderId,
@@ -84,10 +60,11 @@ export class PrismaFileRepository implements FileRepository {
         });
     }
 
-    async deleteById(id: string): Promise<any> {
+    async deleteById(id: string, userId: string): Promise<any> {
         return this.prisma.file.delete({
             where: { 
                 id,
+                userId,
             },
         });
     }

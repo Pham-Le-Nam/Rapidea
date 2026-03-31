@@ -19,7 +19,11 @@ export class CourseService {
             throw new NotFoundException('User not found');
         }
 
-        const parentFolder = await this.folderService.findFolderByLocation("", user.username);
+        const parentFolder = await this.folderService.findFolderByLocation(user.username);
+
+        if (!parentFolder) {
+            throw new InternalServerErrorException('Folder not found');
+        }
 
         const folder = await this.folderService.createFolder(userId, title, parentFolder.id);
 
@@ -31,6 +35,15 @@ export class CourseService {
     }
 
     async updateCourse(id: string, userId: string, title?: string, description?: string, price?: number, currency?: string) {
+        if (title) {
+            const course = await this.courseRepo.findById(id);
+            const courseFolder = await this.folderService.renameFolder(course.folderId, userId, title);
+
+            if (!courseFolder) {
+                throw new InternalServerErrorException("", "Couldn't rename the folder");
+            }
+        }
+
         return this.courseRepo.updateById(id, userId, title, description, price, currency);
     }
 

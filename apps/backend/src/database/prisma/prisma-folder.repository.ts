@@ -81,8 +81,8 @@ export class PrismaFolderRepository implements FolderRepository {
             throw new NotFoundException("Folder not found");
         }
 
-        if(folder.parentId) {
-            const parentUrl = this.getUrl(folder.parentId);
+        if (folder.parentId) {
+            const parentUrl = await this.getUrl(folder.parentId);
             const url = `${parentUrl}/${folder.name}`;
             return url;
         }
@@ -99,15 +99,25 @@ export class PrismaFolderRepository implements FolderRepository {
         });
     }
 
-    async findByLocation(parentId: string, name: string): Promise<any> {
-        return this.prisma.folder.findUnique({
-            where: {
-                parentId_name: {
-                    parentId,
+    async findByLocation(name: string, parentId?: string): Promise<any> {
+        if (parentId) {
+            return this.prisma.folder.findUnique({
+                where: {
+                    parentId_name: {
+                        parentId,
+                        name,
+                    },
+                },
+            });
+        }
+        else {
+            return this.prisma.folder.findFirst({
+                where: {
+                    parentId: null,
                     name,
                 },
-            },
-        });
+            });
+        }
     }
 
     async findChildrenFolders(id: string): Promise<any> {

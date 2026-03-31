@@ -112,7 +112,7 @@ export class FolderController {
         const folder = await this.folderService.deleteFolder(data.folderId, user.userId);
 
         if (!folder) {
-            throw new InternalServerErrorException("Couldn't move the folder");
+            throw new InternalServerErrorException("","Couldn't delete the folder");
         }
 
         return folder;

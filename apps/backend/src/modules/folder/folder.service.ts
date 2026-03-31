@@ -1,10 +1,11 @@
 import { Injectable, Inject, InternalServerErrorException } from '@nestjs/common';
 import { FolderRepository } from './folder.repository';
-import { mkdir, rm } from "fs/promises";
+import { mkdir, rm, rename } from "fs/promises";
+import path from 'path';
 
 @Injectable()
 export class FolderService {
-    private rootFolder = process.env.STORAGE_URL;
+    private rootFolder = process.env.STORAGE_URL as string;
 
     constructor(
         @Inject('FOLDER_REPOSITORY')
@@ -43,21 +44,35 @@ export class FolderService {
     }
 
     async renameFolder (folderId: string, userId: string, name: string) {
+        const oldUrl = await this.folderRepo.getUrl(folderId);
         const folder = await this.folderRepo.rename(folderId, userId, name);
+        const newUrl = await this.folderRepo.getUrl(folder.id);
 
-        if(!folder) {
+        if(!newUrl || !oldUrl) {
             throw new InternalServerErrorException("Couldn't rename the folder");
         }
+
+        const oldPath = path.join(this.rootFolder, oldUrl);
+        const newPath = path.join(this.rootFolder, newUrl);
+
+        await rename(oldPath, newPath);        
 
         return folder;
     }
 
     async moveFolder (folderId: string, userId: string, parentId: string) {
+        const oldUrl = await this.folderRepo.getUrl(folderId);
         const folder = await this.folderRepo.move(folderId, userId, parentId);
+        const newUrl = await this.folderRepo.getUrl(folder.id);
 
-        if(!folder) {
+        if(!newUrl || !oldUrl) {
             throw new InternalServerErrorException("Couldn't move the folder");
         }
+
+        const oldPath = path.join(this.rootFolder, oldUrl);
+        const newPath = path.join(this.rootFolder, newUrl);
+
+        await rename(oldPath, newPath); 
 
         return folder;
     }
@@ -66,8 +81,8 @@ export class FolderService {
         return this.folderRepo.findById(folderId);
     }
 
-    async findFolderByLocation (parentId: string, folderName: string) {
-        return this.folderRepo.findByLocation(parentId, folderName);
+    async findFolderByLocation ( folderName: string, parentId?: string) {
+        return this.folderRepo.findByLocation(folderName, parentId);
     }
 
     async findChildrenFolders (folderId: string) {
@@ -80,5 +95,9 @@ export class FolderService {
 
     async findAllChildren (folderId: string) {
         return this.folderRepo.findAllChildren(folderId);
+    }
+
+    async getFolderUrl (folderId: string) {
+        return this.folderRepo.getUrl(folderId);
     }
 }

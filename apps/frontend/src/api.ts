@@ -430,3 +430,91 @@ export async function getCourseApi (id: string) {
 
     return response.data;
 }
+
+export async function getFolderApi (folderId: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.get(
+        `api/folder/${folderId}`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function createFolderApi (folderName: string, parentId: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/folder/add`,
+        {
+            folderName,
+            parentId,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function renameFolderApi (folderId: string, name: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/folder/rename`,
+        {
+            folderId,
+            name,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function uploadFileApi(folderId: string, file: File) {
+    const token = localStorage.getItem("token");
+
+    const formData = new FormData();
+    formData.append("file", file); // MUST match "file"
+    formData.append("folderId", folderId); // goes into @Body()
+
+    const response = await API.post(
+        `api/file/add`,
+        formData,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function getFileApi(fileId: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.get(
+        `api/file/${fileId}`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}

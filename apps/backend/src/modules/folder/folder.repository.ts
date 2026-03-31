@@ -5,7 +5,7 @@ export interface FolderRepository {
     move(id: string, userId: string, parentId: string): Promise<any>;
     getUrl(id: string): Promise<string>;
     findById(id: string): Promise<any>;
-    findByLocation(parentId: string, name: string): Promise<any>;
+    findByLocation(name: string, parentId?: string): Promise<any>;
     findChildrenFolders(id: string): Promise<any>;
     findChildrenFiles(id: string): Promise<any>;
     findAllChildren(id: string): Promise<any>;
