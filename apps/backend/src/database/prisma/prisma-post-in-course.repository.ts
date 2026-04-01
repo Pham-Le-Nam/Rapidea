@@ -6,7 +6,7 @@ import { PostInCourseRepository } from '../../modules/post-in-course/post-in-cou
 export class PrismaPostInCourseRepository implements PostInCourseRepository {
     constructor(private prisma: PrismaService) {}
 
-    async create(courseId: string, postId: string): Promise<any | null> {
+    async create(courseId: string, postId: string): Promise<any> {
         const course = await this.prisma.course.findUnique({
             where: {
                 id: courseId,
@@ -51,7 +51,7 @@ export class PrismaPostInCourseRepository implements PostInCourseRepository {
         return postInCourse;
     }
 
-    async delete(courseId: string, postId: string): Promise<any | null> {
+    async delete(courseId: string, postId: string): Promise<any> {
         const deleted = await this.prisma.postInCourse.delete({
             where: {
                 courseId_postId: {
@@ -77,15 +77,18 @@ export class PrismaPostInCourseRepository implements PostInCourseRepository {
         return deleted;
     }
 
-    async findByCourseId(courseId: string): Promise<any | null> {
+    async findByCourseId(courseId: string): Promise<any> {
         return this.prisma.postInCourse.findMany({
             where: {
                 courseId,
             },
+            orderBy: {
+                createdAt: 'desc',
+            },
         });
     }
 
-    async findByPostId(postId: string): Promise<any | null> {
+    async findByPostId(postId: string): Promise<any> {
         return this.prisma.postInCourse.findMany({
             where: {
                 postId,

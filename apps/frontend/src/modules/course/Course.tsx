@@ -6,6 +6,7 @@ import Files from './Files';
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
+import Posts from "./Posts";
 
 function Course () {
     const { id } = useParams();
@@ -116,6 +117,7 @@ function Course () {
             </div>
 
             {viewMode === 'file' && (<Files course={course}/>)}
+            {viewMode === 'post' && (<Posts />)}
         </div>
     )
 }

@@ -484,6 +484,24 @@ export async function renameFolderApi (folderId: string, name: string) {
     return response.data;
 }
 
+export async function deleteFolderApi (folderId: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/folder/delete`,
+        {
+            folderId,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
 export async function uploadFileApi(folderId: string, file: File) {
     const token = localStorage.getItem("token");
 
@@ -527,6 +545,24 @@ export async function updateFileApi (fileId: string, name: string) {
         {
             fileId,
             name,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function deleteFileApi (fileId: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/file/delete`,
+        {
+            fileId,
         },
         {
             headers: {

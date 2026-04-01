@@ -15,7 +15,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { createFolderApi, getFileApi, getFolderApi, renameFolderApi, updateFileApi, uploadFileApi } from "@/api";
+import { createFolderApi, deleteFileApi, deleteFolderApi, getFileApi, getFolderApi, renameFolderApi, updateFileApi, uploadFileApi } from "@/api";
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import {
     Dialog,
@@ -180,6 +180,51 @@ function Files ({ course }: FilesProp) {
             throw error;
         }
     }
+
+    const deleteFolder = async (folderId: string) => {
+        try {
+            const response = await deleteFolderApi(folderId);
+            console.log(response);
+
+            if (!response) {
+                toast.error("Something wrong happened! Couldn't delete folder.");
+            }
+
+            loadFolder(folder?.id);
+        } catch (error: any) {
+            if (error.response?.status === 401) {
+                console.error("Token Expired");
+                logout();
+                toast.error("Token Expired. You have been logged out. Please log in to continue");
+                navigate('/login')
+            // handle logout or redirect
+            }
+            throw error;
+        }   
+    }
+
+    const deleteFile = async (fileId: string) => {
+        try {
+            const response = await deleteFileApi(fileId);
+            console.log(response);
+
+            if (!response) {
+                toast.error("Something wrong happened! Couldn't delete file.");
+            }
+
+            loadFolder(folder?.id);
+        } catch (error: any) {
+            if (error.response?.status === 401) {
+                console.error("Token Expired");
+                logout();
+                toast.error("Token Expired. You have been logged out. Please log in to continue");
+                navigate('/login')
+            // handle logout or redirect
+            }
+            throw error;
+        }   
+    }
+    
     useEffect(() => {
         loadFolder(course.folderId);
     }, [course]);
@@ -222,7 +267,7 @@ function Files ({ course }: FilesProp) {
             </div>
             
             <div className="flex flex-col justify-center items-center px-2 mb-2 w-full">
-                {childrenFolders.map((childFolder: any, index: number) => (
+                {childrenFolders.map((childFolder: any) => (
                     <div className="flex flex-row justify-start items-center w-full" key={childFolder.name}>
                         <Button 
                             className="flex-1 min-w-0 flex items-center justify-start gap-2 rounded-full bg-white hover:bg-gray-100 text-black text-lg p-2 font-normal [&>svg]:w-5 [&>svg]:h-5"
@@ -245,8 +290,8 @@ function Files ({ course }: FilesProp) {
                                         <DocumentName submit={() => renameFolder(childFolder.id, newFolderName)} value={newFolderName} setValue={setNewFolderName} title="Rename" className="hover:bg-gray-100 w-full text-lg"/>
                                     </DropdownMenuItem>
 
-                                    <DropdownMenuItem>
-                                        Delete
+                                    <DropdownMenuItem asChild>
+                                        <DeleteDocument title="Folder" submit={deleteFolder} document={childFolder} className="hover:bg-gray-100 w-full text-lg"/>
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -254,7 +299,7 @@ function Files ({ course }: FilesProp) {
                     </div>
                 ))}
 
-                {childrenFiles.map((childFile: any, index: number) => (
+                {childrenFiles.map((childFile: any) => (
                     <div className="flex flex-row justify-start items-center w-full" key={childFile.name}>
                         <Button 
                             className="flex-1 min-w-0 flex items-center justify-start gap-2 rounded-full bg-white hover:bg-gray-100 text-black text-lg p-2 font-normal [&>svg]:w-5 [&>svg]:h-5"
@@ -277,8 +322,8 @@ function Files ({ course }: FilesProp) {
                                         <DocumentName submit={() => renameFile(childFile.id, newFileName)} value={newFileName} setValue={setNewFileName} title="Rename File" className="hover:bg-gray-100 w-full text-lg"/>
                                     </DropdownMenuItem>
 
-                                    <DropdownMenuItem>
-                                        Delete
+                                    <DropdownMenuItem asChild>
+                                        <DeleteDocument title="File" submit={deleteFile} document={childFile} className="hover:bg-gray-100 w-full text-lg"/>
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -339,7 +384,7 @@ function DocumentName ({ submit, value, setValue, title, className }: DocumentNa
                             <Button variant="outline">Cancel</Button>
                         </DialogClose>
                         <DialogClose asChild>
-                            <Button type="submit">
+                            <Button type="submit" className="bg-main hover:bg-main-hover">
                                 Save changes
                             </Button>
                         </DialogClose>
@@ -450,12 +495,54 @@ function FileUpload ({ className, folderId, reloadFolder }: FileUploadProps) {
                             <Button variant="outline">Cancel</Button>
                         </DialogClose>
                         <DialogClose asChild>
-                            <Button type="submit">
+                            <Button type="submit" className="bg-main hover:bg-main-hover">
                                 Upload
                             </Button>
                         </DialogClose>
                     </DialogFooter>
                     </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+
+type DeleteDocumentProps = {
+    className?: string;
+    title: string;
+    submit: (documentId: string) => Promise<void>;
+    document: any;
+}
+
+function DeleteDocument ({ className, title, submit, document }: DeleteDocumentProps) {
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <span className={className}>
+                    Delete
+                </span>
+            </DialogTrigger>
+            <DialogContent className="flex flex-col items-center">
+                <DialogHeader className="flex flex-col items-center">
+                    <DialogTitle>
+                        {`Delete ${title} ${document.name}?`}
+                    </DialogTitle>
+                </DialogHeader>
+                <DialogDescription>
+                    This action cannot be undone.
+                </DialogDescription>
+                <DialogFooter className="pt-3 w-full">
+                    <DialogClose asChild>
+                        <Button variant="outline" className="flex-1">
+                            Cancel
+                        </Button>
+                    </DialogClose>
+                    <DialogClose asChild>
+                        <Button type="submit" className="bg-main hover:bg-main-hover flex-1" onClick={() => submit(document.id)}>
+                            Delete
+                        </Button>
+                    </DialogClose>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );

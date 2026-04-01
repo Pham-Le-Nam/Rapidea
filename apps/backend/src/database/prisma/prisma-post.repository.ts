@@ -6,7 +6,7 @@ import { PostRepository } from '../../modules/post/post.repository';
 export class PrismaPostRepository implements PostRepository {
     constructor(private prisma: PrismaService) {}
 
-    async create(userId: string, title?: string, content?: any): Promise<any | null> {
+    async create (userId: string, title?: string, content?: any): Promise<any> {
         const user = await this.prisma.users.findUnique({
             where: {
                 id: userId,
@@ -42,10 +42,12 @@ export class PrismaPostRepository implements PostRepository {
 
         return post;
     }
-    async deleteById(id: string): Promise<any | null> {
+
+    async deleteById (id: string, userId: string): Promise<any> {
         const deletedPost = await this.prisma.post.delete({
             where: {
                 id,
+                userId,
             },
         });
 
@@ -64,10 +66,12 @@ export class PrismaPostRepository implements PostRepository {
 
         return  deletedPost;
     }
-    async updateById(id: string, title?: string, content?: any): Promise<any | null> {
+
+    async updateById (id: string, userId: string, title?: string, content?: any): Promise<any> {
         return this.prisma.post.update({
             where: {
                 id,
+                userId,
             },
             data: {
                 title,
@@ -75,7 +79,8 @@ export class PrismaPostRepository implements PostRepository {
             },
         });
     }
-    async findById(id: string): Promise<any | null> {
+
+    async findById (id: string): Promise<any> {
         return this.prisma.post.findUnique({
             where: {
                 id,
