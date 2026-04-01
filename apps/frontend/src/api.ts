@@ -518,3 +518,22 @@ export async function getFileApi(fileId: string) {
 
     return response.data;
 }
+
+export async function updateFileApi (fileId: string, name: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/file/update`,
+        {
+            fileId,
+            name,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}

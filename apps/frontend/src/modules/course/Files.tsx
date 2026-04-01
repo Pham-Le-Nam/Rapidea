@@ -15,7 +15,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { createFolderApi, getFileApi, getFolderApi, renameFolderApi, uploadFileApi } from "@/api";
+import { createFolderApi, getFileApi, getFolderApi, renameFolderApi, updateFileApi, uploadFileApi } from "@/api";
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import {
     Dialog,
@@ -44,6 +44,7 @@ function Files ({ course }: FilesProp) {
     const [childrenFiles, setChildrenFiles] = useState([]);
     const [isRootFolder, setIsRootFolder] = useState(true);
     const [newFolderName, setNewFolderName] = useState("");
+    const [newFileName, setNewFileName] = useState("");
 
     const loadFolder = async (folderId: string) => {
         try {
@@ -53,10 +54,15 @@ function Files ({ course }: FilesProp) {
                 throw Error("No response found");
             }
 
+            const folders = response.childrenFolders;
+            folders.sort((a: any, b: any) => a.name.localeCompare(b.name));
+            const files = response.childrenFiles;
+            files.sort((a: any, b: any) => a.name.localeCompare(b.name));
+
             setFolder(response.folder);
             setIsOwner(response.isOwner);
-            setChildrenFolder(response.childrenFolders);
-            setChildrenFiles(response.childrenFiles);
+            setChildrenFolder(folders);
+            setChildrenFiles(files);
             setIsRootFolder(folderId === course.folderId);
         } catch (error: any) {
             if (error.response?.status === 401) {
@@ -148,6 +154,32 @@ function Files ({ course }: FilesProp) {
         }   
     }
 
+    const renameFile = async (fileId: string, name: string) => {
+        try {
+            if (name === "") {
+                toast.error("Please input file name");
+                throw Error("File name not found");
+            }
+            const response = await updateFileApi(fileId, name);
+
+            if (!response) {
+                toast.error("Something wrong happened! Couldn't rename file.");
+            }
+
+            if (folder) {
+                loadFolder(folder.id);
+            }
+        } catch (error: any) {
+            if (error.response?.status === 401) {
+                console.error("Token Expired");
+                logout();
+                toast.error("Token Expired. You have been logged out. Please log in to continue");
+                navigate('/login')
+            // handle logout or redirect
+            }  
+            throw error;
+        }
+    }
     useEffect(() => {
         loadFolder(course.folderId);
     }, [course]);
@@ -168,50 +200,57 @@ function Files ({ course }: FilesProp) {
                     {folder ? folder.name : "Loading..."}
                 </p>
 
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild className="absolute right-0 hover:bg-gray-100 h-full bg-white">
-                        <Button variant="outline" className="border-0 border-l-2">
-                            <PlusIcon />
-                        </Button>
-                    </DropdownMenuTrigger>
+                {isOwner && (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild className="absolute right-0 hover:bg-gray-100 h-full bg-white">
+                            <Button variant="outline" className="border-0 border-l-2">
+                                <PlusIcon />
+                            </Button>
+                        </DropdownMenuTrigger>
 
-                    <DropdownMenuContent>
-                        <DropdownMenuItem asChild>
-                            <FolderName submit={createFolder} value={newFolderName} setValue={setNewFolderName} title="Create Folder" className="hover:bg-gray-100 w-full text-lg"/>
-                        </DropdownMenuItem>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem asChild>
+                                <DocumentName submit={createFolder} value={newFolderName} setValue={setNewFolderName} title="Create Folder" className="hover:bg-gray-100 w-full text-lg"/>
+                            </DropdownMenuItem>
 
-                        <DropdownMenuItem asChild>
-                            <FileUpload className="hover:bg-gray-100 w-full text-lg" folderId={folder?.id} reloadFolder={loadFolder}/>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                            <DropdownMenuItem asChild>
+                                <FileUpload className="hover:bg-gray-100 w-full text-lg" folderId={folder?.id} reloadFolder={loadFolder}/>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
             </div>
             
             <div className="flex flex-col justify-center items-center px-2 mb-2 w-full">
                 {childrenFolders.map((childFolder: any, index: number) => (
                     <div className="flex flex-row justify-start items-center w-full" key={childFolder.name}>
-                        <Button className="flex-1 min-w-0 flex items-center justify-start gap-2 rounded-full bg-white hover:bg-gray-100 text-black text-lg p-2 font-normal [&>svg]:w-5 [&>svg]:h-5">
+                        <Button 
+                            className="flex-1 min-w-0 flex items-center justify-start gap-2 rounded-full bg-white hover:bg-gray-100 text-black text-lg p-2 font-normal [&>svg]:w-5 [&>svg]:h-5"
+                            onClick={() => loadFolder(childFolder.id)}
+                        >
                             <FolderIcon />
                             {childFolder.name}
                         </Button>
 
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild className="hover:bg-gray-100 h-full bg-white">
-                                <Button variant="outline" className="border-0 rounded-full">
-                                    <PlusIcon />
-                                </Button>
-                            </DropdownMenuTrigger>
+                        {isOwner && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild className="hover:bg-gray-100 h-full bg-white">
+                                    <Button variant="outline" className="border-0 rounded-full">
+                                        <PlusIcon />
+                                    </Button>
+                                </DropdownMenuTrigger>
 
-                            <DropdownMenuContent>
-                                <DropdownMenuItem asChild>
-                                    <FolderName submit={() => renameFolder(childFolder.id, newFolderName)} value={newFolderName} setValue={setNewFolderName} title="Rename" className="hover:bg-gray-100 w-full text-lg"/>
-                                </DropdownMenuItem>
+                                <DropdownMenuContent>
+                                    <DropdownMenuItem asChild>
+                                        <DocumentName submit={() => renameFolder(childFolder.id, newFolderName)} value={newFolderName} setValue={setNewFolderName} title="Rename" className="hover:bg-gray-100 w-full text-lg"/>
+                                    </DropdownMenuItem>
 
-                                <DropdownMenuItem>
-                                    Delete
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                    <DropdownMenuItem>
+                                        Delete
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
                     </div>
                 ))}
 
@@ -225,23 +264,25 @@ function Files ({ course }: FilesProp) {
                             {childFile.name}
                         </Button>
 
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild className="hover:bg-gray-100 h-full bg-white">
-                                <Button variant="outline" className="border-0 rounded-full">
-                                    <PlusIcon />
-                                </Button>
-                            </DropdownMenuTrigger>
+                        {isOwner && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild className="hover:bg-gray-100 h-full bg-white">
+                                    <Button variant="outline" className="border-0 rounded-full">
+                                        <PlusIcon />
+                                    </Button>
+                                </DropdownMenuTrigger>
 
-                            <DropdownMenuContent>
-                                <DropdownMenuItem>
-                                    Rename
-                                </DropdownMenuItem>
+                                <DropdownMenuContent>
+                                    <DropdownMenuItem asChild>
+                                        <DocumentName submit={() => renameFile(childFile.id, newFileName)} value={newFileName} setValue={setNewFileName} title="Rename File" className="hover:bg-gray-100 w-full text-lg"/>
+                                    </DropdownMenuItem>
 
-                                <DropdownMenuItem>
-                                    Delete
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                    <DropdownMenuItem>
+                                        Delete
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}                        
                     </div>
                 ))}
             </div>
@@ -253,7 +294,8 @@ export default Files;
 
 
 
-type FolderNameProps = {
+// Handle both create and rename folder with the same component to avoid code duplication
+type DocumentNameProps = {
     submit: () => Promise<void>;
     value?: string;
     setValue: Dispatch<SetStateAction<string>>;
@@ -261,7 +303,7 @@ type FolderNameProps = {
     className?: string;
 }
 
-function FolderName ({ submit, value, setValue, title, className }: FolderNameProps) {
+function DocumentName ({ submit, value, setValue, title, className }: DocumentNameProps) {
     return (
         <Dialog>
             <DialogTrigger asChild>
@@ -282,12 +324,12 @@ function FolderName ({ submit, value, setValue, title, className }: FolderNamePr
                         </DialogTitle>
                     </DialogHeader>
                     <DialogDescription>
-                        Please input folder name
+                        Please input name
                     </DialogDescription>
                     <FieldGroup>
                         <Field>
                             <Label htmlFor={`${title}`} className="mt-2">
-                                Folder Name
+                                Name
                             </Label>
                             <Input id={`${title}`} name={title} value={value ?? ""} onChange={(n) => setValue(n.target.value)}/>
                         </Field>
@@ -307,6 +349,7 @@ function FolderName ({ submit, value, setValue, title, className }: FolderNamePr
         </Dialog>
     );
 }
+
 
 type FileUploadProps = {
     className?: string;

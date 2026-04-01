@@ -60,9 +60,17 @@ export class FileService {
 
     async updateFile (fileId: string, userId: string, folderId?: string, name?: string) {
         const oldFile = await this.fileRepo.findById(fileId);
-        const updatedFile = await this.fileRepo.updateById(fileId, userId, folderId, name);
 
-        // Get URL of the parent folder
+        const ext = path.extname(oldFile.name); // ".png", ".pdf", etc.
+
+        const newFileName = name
+            ? name.endsWith(ext)
+            ? name
+            : `${name}${ext}`
+            : oldFile.name;
+
+        const updatedFile = await this.fileRepo.updateById(fileId, userId, folderId, newFileName);
+
         const oldFolderUrl = await this.folderService.getFolderUrl(oldFile.folderId);
         const updatedFolderUrl = await this.folderService.getFolderUrl(updatedFile.folderId);
 
@@ -71,7 +79,7 @@ export class FileService {
         }
 
         const oldPath = path.join(this.rootFolder, oldFolderUrl, oldFile.name);
-        const newPath = path.join(this.rootFolder, updatedFolderUrl, updatedFile.name);
+        const newPath = path.join(this.rootFolder, updatedFolderUrl, newFileName);
 
         await fs.rename(oldPath, newPath);
 
@@ -82,8 +90,6 @@ export class FileService {
         const file = await this.fileRepo.findById(fileId);
         const folderUrl = await this.folderService.getFolderUrl(file.folderId);
         const fileUrl = path.join(this.rootFolder, folderUrl, file.name);
-
-        console.log(fileUrl);
 
         return fileUrl;
     }
