@@ -165,7 +165,7 @@ function EditExperience({ experience, reloadExperience }: EditExperienceProps) {
             <DialogTrigger asChild>
                 <Button variant="outline">Edit</Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[90%]">
+            <DialogContent className="sm:max-w-[90%] max-h-[90%] overflow-y-auto">
                 <form
                     onSubmit={(e) => {
                     e.preventDefault();
@@ -199,7 +199,7 @@ function EditExperience({ experience, reloadExperience }: EditExperienceProps) {
                                 <Input id="role-1" name="role" value={role} onChange={(n) => setRole(n.target.value)}/>
                             </Field>
                         </div>
-                        <div className="flex flex-row gap-3">
+                        <div className="flex flex-col sm:flex-row gap-3 w-full">
                             <Field>
                                 <Label htmlFor="started-at-1">Started At</Label>
                                 <Input id="started-at-1" name="started-at" type="date" value={FormatDateInput(startedAt)} onChange={(n) => setStartedAt(n.target.value)}/>
@@ -264,7 +264,7 @@ function AddExperience({ reloadExperience }: AddExperienceProps) {
                     Add
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[90%]">
+            <DialogContent className="sm:max-w-[90%] max-h-[90%] overflow-y-auto">
                 <form
                     onSubmit={(e) => {
                     e.preventDefault();
@@ -298,7 +298,7 @@ function AddExperience({ reloadExperience }: AddExperienceProps) {
                                 <Input id="role-1" name="role" value={role} onChange={(n) => setRole(n.target.value)}/>
                             </Field>
                         </div>
-                        <div className="flex flex-row gap-3">
+                        <div className="flex flex-col sm:flex-row gap-3 w-full">
                             <Field>
                                 <Label htmlFor="started-at-1">Started At</Label>
                                 <Input id="started-at-1" name="started-at" type="date" value={FormatDateInput(startedAt)} onChange={(n) => setStartedAt(n.target.value)}/>

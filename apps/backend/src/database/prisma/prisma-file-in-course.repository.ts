@@ -6,7 +6,7 @@ import { FileInCourseRepository } from '../../modules/file-in-course/file-in-cou
 export class PrismaFileInCourseRepository implements FileInCourseRepository {
     constructor(private prisma: PrismaService) {}
 
-    async create(fileId: string, courseId: string): Promise<any> {
+    async create(fileId: string, courseId: string, userId: string): Promise<any> {
         const file = await this.prisma.file.findUnique({
             where: {
                 id: fileId,
@@ -37,19 +37,21 @@ export class PrismaFileInCourseRepository implements FileInCourseRepository {
             data: {
                 fileId,
                 courseId,
+                userId,
             },
         });
 
         return fileInCourse;
     }
 
-    async delete(fileId: string, courseId: string): Promise<any> {
+    async delete(fileId: string, courseId: string, userId: string): Promise<any> {
         return this.prisma.fileInCourse.delete({
             where: {
                 fileId_courseId: {
                     fileId,
                     courseId,
                 },
+                userId,
             },
         });
     }

@@ -162,7 +162,7 @@ function EditEducation({ education, reloadEducation }: EditEducationProps) {
             <DialogTrigger asChild>
                 <Button variant="outline">Edit</Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[90%]">
+            <DialogContent className="sm:max-w-[90%] max-h-[90%] overflow-y-auto">
                 <form
                     onSubmit={(e) => {
                     e.preventDefault();
@@ -196,7 +196,7 @@ function EditEducation({ education, reloadEducation }: EditEducationProps) {
                                 <Input id="degree-1" name="degree" value={degree} onChange={(n) => setDegree(n.target.value)}/>
                             </Field>
                         </div>
-                        <div className="flex flex-row gap-3">
+                        <div className="flex flex-col sm:flex-row gap-3 w-full">
                             <Field>
                                 <Label htmlFor="started-at-1">Started At</Label>
                                 <Input id="started-at-1" name="started-at" type="date" value={FormatDateInput(startedAt)} onChange={(n) => setStartedAt(n.target.value)}/>
@@ -261,7 +261,7 @@ function AddEducation({ reloadEducation }: AddEducationProps) {
                     Add
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[90%]">
+            <DialogContent className="sm:max-w-[90%] max-h-[90%] overflow-y-auto">
                 <form
                     onSubmit={(e) => {
                     e.preventDefault();
@@ -295,7 +295,7 @@ function AddEducation({ reloadEducation }: AddEducationProps) {
                                 <Input id="degree-1" name="degree" value={degree} onChange={(n) => setDegree(n.target.value)}/>
                             </Field>
                         </div>
-                        <div className="flex flex-row gap-3">
+                        <div className="flex flex-col sm:flex-row gap-3 w-full">
                             <Field>
                                 <Label htmlFor="started-at-1">Started At</Label>
                                 <Input id="started-at-1" name="started-at" type="date" value={FormatDateInput(startedAt)} onChange={(n) => setStartedAt(n.target.value)}/>

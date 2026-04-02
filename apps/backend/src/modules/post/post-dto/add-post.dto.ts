@@ -1,10 +1,9 @@
-import { IsJSON, IsString } from "class-validator";
-
+import { IsObject, IsString } from "class-validator";
 
 export class AddPostDto {
     @IsString()
     title: string;
 
-    @IsJSON()
-    content: JSON;
+    @IsObject()
+    content: Record<string, any>;
 }

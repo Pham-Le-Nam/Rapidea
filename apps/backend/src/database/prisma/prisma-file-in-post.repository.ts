@@ -6,7 +6,7 @@ import { FileInPostRepository } from '../../modules/file-in-post/file-in-post.re
 export class PrismaFileInPostRepository implements FileInPostRepository {
     constructor(private prisma: PrismaService) {}
 
-    async create(fileId: string, postId: string): Promise<any> {
+    async create(fileId: string, postId: string, userId: string): Promise<any> {
         const file = await this.prisma.file.findUnique({
             where: {
                 id: fileId,
@@ -37,17 +37,19 @@ export class PrismaFileInPostRepository implements FileInPostRepository {
             data: {
                 fileId,
                 postId,
+                userId,
             },
         });
     }
 
-    async delete(fileId: string, postId: string): Promise<any> {
+    async delete(fileId: string, postId: string, userId: string): Promise<any> {
         return this.prisma.fileInPost.delete({
             where: {
                 fileId_postId: {
                     fileId,
                     postId,
                 },
+                userId,
             },
         });
     }

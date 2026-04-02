@@ -24,7 +24,7 @@ export class FileController {
     ) {}
 
     @UseGuards(OptionalJwtAuthGuard)
-    @Get(':id')
+    @Get('url/:id')
     async getFileUrl (
         @Request() req: any,
         @Param('id') id: string,
@@ -35,6 +35,23 @@ export class FileController {
         // Need logic to check if the user is the owner or subscribed to the course
 
         return fileUrl;
+    }
+
+    @UseGuards(OptionalJwtAuthGuard)
+    @Get(':id')
+    async getFile (
+        @Request() req: any,
+        @Param('id') id: string,
+    ) {
+        const user = req.user;
+        const file = await this.fileService.getFileById(id);
+
+        // Need logic to check if the user is the owner or subscribed to the course
+
+        return{
+            file,
+            isOwner: user ? file.userId === user.userId : false,
+        };
     }
 
     @UseGuards(JwtAuthGuard)

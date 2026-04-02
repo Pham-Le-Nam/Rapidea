@@ -86,6 +86,16 @@ export class FileService {
         return updatedFile;
     }
 
+    async getFileById (fileId: string) {
+        const file = await this.fileRepo.findById(fileId);
+
+        if (!file) {
+            throw new NotFoundException("", "File not found");
+        }
+        
+        return file;
+    }
+
     async getFileUrl (fileId: string) {
         const file = await this.fileRepo.findById(fileId);
         const folderUrl = await this.folderService.getFolderUrl(file.folderId);

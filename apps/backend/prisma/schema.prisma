@@ -57,6 +57,8 @@ model Users {
     uploadedFiles           File[]
     uploadedPhotos          Photo[]                 @relation("UploadedPhoto")
     socialLinks             SocialLink[]
+    FilesInCourses         FileInCourse[]
+    FilesInPosts           FileInPost[]
     
     @@map("users")
 }
@@ -430,11 +432,13 @@ model File {
 model FileInCourse {
     fileId          String
     courseId        String
+    userId          String
 
     createdAt       DateTime        @default(now())
 
     file            File            @relation(fields: [fileId], references: [id], onDelete: Cascade)
     course          Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+    user            Users           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([fileId, courseId])
     @@index([courseId])
@@ -444,11 +448,13 @@ model FileInCourse {
 model FileInPost {
     fileId          String
     postId          String
+    userId          String
 
     createdAt       DateTime        @default(now())
 
     file            File            @relation(fields: [fileId], references: [id], onDelete: Cascade)
     post            Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+    user            Users           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([fileId, postId])
     @@index([postId])

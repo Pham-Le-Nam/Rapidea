@@ -526,7 +526,7 @@ export async function getFileApi(fileId: string) {
     const token = localStorage.getItem("token");
 
     const response = await API.get(
-        `api/file/${fileId}`,
+        `api/file/url/${fileId}`,
         {
             headers: {
                 Authorization: `Bearer ${token}`
