@@ -16,8 +16,8 @@ export class PostService {
         return this.postRepo.deleteById(id, userId);
     }
 
-    async updatePostById(id: string, title?: string, content?: any) {
-        return this.postRepo.updateById(id, title, content);
+    async updatePostById(id: string, userId: string, title?: string, content?: any) {
+        return this.postRepo.updateById(id, userId, title, content);
     }
 
     async getPostById(id: string) {

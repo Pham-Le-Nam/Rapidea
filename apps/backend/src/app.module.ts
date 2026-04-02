@@ -12,7 +12,7 @@ import { FollowModule } from './modules/follow/follow.module';
 import { CourseModule } from './modules/course/course.module';
 import { SubscribeModule } from './modules/subscribe/subscribe.module';
 import { PostModule } from './modules/post/post.module';
-import { InCourseModule } from './modules/post-in-course/post-in-course.module';
+import { PostInCourseModule } from './modules/post-in-course/post-in-course.module';
 import { RatePostModule } from './modules/rate-post/rate-post.module';
 import { DiscussionModule } from './modules/discussion/discussion.module';
 import { ReplyDiscussionModule } from './modules/reply-discussion/reply-discussion.module';
@@ -31,51 +31,51 @@ import { PhotoModule } from './modules/photo/photo.module';
 import { SocialLinkModule } from './modules/social-link/social-link.module';
 
 @Module({
-  imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
-    MailerModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        transport: {
-          host: 'smtp.gmail.com',
-          port: 587,
-          secure: false,
-          auth: {
-            user: config.get<string>('MAIL_USER'),
-            pass: config.get<string>('MAIL_PASSWORD'),
-          },
-        },
-      }),
-    }),
-    UsersModule,
-    FollowersModule,
-    AuthModule,
-    PasswordResetTokenModule,
-    FollowModule,
-    CourseModule,
-    SubscribeModule,
-    PostModule,
-    InCourseModule,
-    RatePostModule,
-    DiscussionModule,
-    ReplyDiscussionModule,
-    RateDiscussionModule,
-    ExperienceModule,
-    EducationModule,
-    ProjectModule,
-    ProjectContributorModule,
-    ProjectLinkModule,
-    FolderModule,
-    // FolderInCourseModule,
-    FileModule,
-    FileInCourseModule,
-    FileInPostModule,
-    PhotoModule,
-    SocialLinkModule,
-  ],
-  controllers: [AppController],
-  providers: [AppService],
+    imports: [
+        ConfigModule.forRoot({
+            isGlobal: true,
+        }),
+        MailerModule.forRootAsync({
+            inject: [ConfigService],
+            useFactory: (config: ConfigService) => ({
+                transport: {
+                    host: 'smtp.gmail.com',
+                    port: 587,
+                    secure: false,
+                    auth: {
+                        user: config.get<string>('MAIL_USER'),
+                        pass: config.get<string>('MAIL_PASSWORD'),
+                    },
+                },
+            }),
+        }),
+        UsersModule,
+        FollowersModule,
+        AuthModule,
+        PasswordResetTokenModule,
+        FollowModule,
+        CourseModule,
+        SubscribeModule,
+        PostModule,
+        PostInCourseModule,
+        RatePostModule,
+        DiscussionModule,
+        ReplyDiscussionModule,
+        RateDiscussionModule,
+        ExperienceModule,
+        EducationModule,
+        ProjectModule,
+        ProjectContributorModule,
+        ProjectLinkModule,
+        FolderModule,
+        // FolderInCourseModule,
+        FileModule,
+        FileInCourseModule,
+        FileInPostModule,
+        PhotoModule,
+        SocialLinkModule,
+    ],
+    controllers: [AppController],
+    providers: [AppService],
 })
 export class AppModule {}
