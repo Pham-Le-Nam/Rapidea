@@ -20,5 +20,8 @@ import { FolderModule } from '../folder/folder.module';
             useClass: PrismaCourseRepository,
         }
     ],
+    exports: [
+        CourseService,
+    ],
 })
 export class CourseModule {}

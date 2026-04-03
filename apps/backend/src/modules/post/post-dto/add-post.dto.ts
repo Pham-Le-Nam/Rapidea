@@ -1,4 +1,4 @@
-import { IsObject, IsString } from "class-validator";
+import { IsObject, IsOptional, IsString } from "class-validator";
 
 export class AddPostDto {
     @IsString()
@@ -6,4 +6,8 @@ export class AddPostDto {
 
     @IsObject()
     content: Record<string, any>;
+
+    @IsOptional()
+    @IsString()
+    courseId?: string;
 }

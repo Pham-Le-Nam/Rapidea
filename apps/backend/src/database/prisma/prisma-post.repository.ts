@@ -6,7 +6,7 @@ import { PostRepository } from '../../modules/post/post.repository';
 export class PrismaPostRepository implements PostRepository {
     constructor(private prisma: PrismaService) {}
 
-    async create (userId: string, title?: string, content?: any): Promise<any> {
+    async create (userId: string, title?: string, content?: any, courseId?: string): Promise<any> {
         const user = await this.prisma.users.findUnique({
             where: {
                 id: userId,
@@ -23,6 +23,7 @@ export class PrismaPostRepository implements PostRepository {
                 title,
                 content,
                 userId,
+                courseId,
             },
         });
 
@@ -84,6 +85,17 @@ export class PrismaPostRepository implements PostRepository {
         return this.prisma.post.findUnique({
             where: {
                 id,
+            },
+        });
+    }
+
+    async findByCourseId (courseId: string): Promise<any> {
+        return this.prisma.post.findMany({
+            where: {
+                courseId,
+            },
+            orderBy: {
+                createdAt: 'desc',
             },
         });
     }

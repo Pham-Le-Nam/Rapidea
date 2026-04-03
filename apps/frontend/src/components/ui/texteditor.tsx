@@ -7,16 +7,16 @@ import {
     Bold,
     Italic,
     Underline,
-    Heading1,
     Heading2,
     Link as LinkIcon,
     Type as ColorIcon,
 } from "lucide-react"
+import Heading from "@tiptap/extension-heading";
 import { Toggle } from "./toggle"
 
 type EditorContentType = Record<string, any>
 
-export default function TextEditor({
+function TextEditor({
     value,
     onChange,
 }: {
@@ -28,6 +28,12 @@ export default function TextEditor({
             StarterKit,
             TextStyle,
             Color,
+            Heading.configure({ 
+                HTMLAttributes: {
+                    class: "text-xl font-bold",
+                    levels: [2],
+                },
+            }),
         ],
         content: value || "<p>Start writing your post...</p>",
         onUpdate: ({ editor }) => {
@@ -45,6 +51,21 @@ export default function TextEditor({
     )
 }
 
+type TextRendererProps = {
+    content: EditorContentType;
+    className?: string;
+}
+
+const TextRenderer = ({ content, className }: TextRendererProps) => {
+    const editor = useEditor({
+        extensions: [StarterKit],
+        content, // 👈 your JSON here
+        editable: false, // if you're just displaying
+    });
+
+    return <EditorContent editor={editor} className={className} />;
+};
+
 function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
     const editorState = useEditorState({
         editor,
@@ -52,7 +73,6 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
             bold: editor.isActive("bold"),
             italic: editor.isActive("italic"),
             underline: editor.isActive("underline"),
-            h1: editor.isActive("heading", { level: 1 }),
             h2: editor.isActive("heading", { level: 2 }),
             red: editor.isActive("textStyle", { color: "red" }),
         }),
@@ -91,15 +111,6 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
 
             <Toggle
                 size="sm"
-                pressed={editorState.h1}
-                onPressedChange={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                variant="outline"
-            >
-                <Heading1 className="h-4 w-4" />
-            </Toggle>
-
-            <Toggle
-                size="sm"
                 pressed={editorState.h2}
                 onPressedChange={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
                 variant="outline"
@@ -117,4 +128,9 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
             </Toggle>
         </div>
     )
+}
+
+export {
+    TextEditor,
+    TextRenderer,
 }

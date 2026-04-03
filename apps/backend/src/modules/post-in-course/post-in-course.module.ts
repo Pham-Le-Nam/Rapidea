@@ -1,13 +1,17 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { PostInCourseService } from './post-in-course.service';
 import { PrismaPostInCourseRepository } from 'src/database/prisma/prisma-post-in-course.repository';
+import { CourseModule } from '../course/course.module';
+import { PostInCourseController } from './post-in-course.controller';
+import { PostModule } from '../post/post.module';
 
 @Module({
     imports: [
-
+        CourseModule,
+        forwardRef(() => PostModule),
     ],
     controllers: [
-
+        PostInCourseController,
     ],
     providers: [
         PostInCourseService,

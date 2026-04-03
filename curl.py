@@ -2,15 +2,15 @@ import requests
 from datetime import datetime
 
 # url = "http://localhost:1234/api/auth/login"
-url = "http://localhost:1234/api/course/add"
+url = "http://localhost:1234/api/file-in-post/add"
 
-jwt_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyZGUyNmI2ZS04ZmZlLTQ4ZjYtYWZiZi0zMzdjODhiYmZlNTUiLCJlbWFpbCI6ImxlbmFtLnBoYW1Ac3R1ZGVudC51dHMuZWR1LmF1Iiwic2Vzc2lvblZlcnNpb24iOjE4LCJpYXQiOjE3NzQwODQzNjUsImV4cCI6MTc3NDE3MDc2NX0._q910SKylzYNXMot4rM20aFAHrtW_-pRz2Un3KSD0uA"
+jwt_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2NTYwMmUzNC00MzQ3LTQwNGYtOWQ4My0yMWE4NmVlZjYyNjIiLCJlbWFpbCI6InBoYW1sZW5hbTk3QGdtYWlsLmNvbSIsInNlc3Npb25WZXJzaW9uIjoyNSwiaWF0IjoxNzc1MTg2MzM0LCJleHAiOjE3NzUyNzI3MzR9.hRceumpcHp9mrylHCvbKplBz4OrpGwpng0krbz8qeAQ"
 startedAt = datetime(2022,8,28)
 endedAt = datetime(2024,12,28)
 
 # Login body
 data = {
-    # "email":"lenam.pham@student.uts.edu.au",
+    # "email":"phamlenam97@gmail.com",
     # "password":"Password",
     # "platform": "WEBSITE",
     # "url": "https://www.facebook.com/pham.lenam.5",
@@ -27,7 +27,9 @@ data = {
     # "achievement": "Top 32 OISP Presentation Contest. Average GPA: 3.6. Implemented shortest-path program in Neo4j.",
     # "position": "Intern",
     # "projectId": "9c1b2afa-484d-4d0f-804c-b5992e070836"
-    "title": "title",
+    # "title": "title",
+    "fileId": "18f2e216-0057-47cb-8196-5d3d0c5c799e",
+    "postId": "65d00122-4965-4013-95fa-f682b44ef89f", 
 }
 
 headers = {

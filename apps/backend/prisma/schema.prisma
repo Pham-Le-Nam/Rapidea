@@ -59,6 +59,7 @@ model Users {
     socialLinks             SocialLink[]
     FilesInCourses         FileInCourse[]
     FilesInPosts           FileInPost[]
+    PostsInCourse           PostInCourse[]
     
     @@map("users")
 }
@@ -143,9 +144,11 @@ model Course {
     folder              Folder      @relation(fields: [folderId], references: [id])
 
     subscribers         Subscribe[]
-    posts               PostInCourse[]
+    postsInCourse       PostInCourse[]
     // folders             FolderInCourse[]
     files               FileInCourse[]
+    posts               Post[]
+
 
     @@unique([userId, title])   // Prevent 2 courses having the same name
     @@index([userId])
@@ -177,6 +180,7 @@ model Post {
     title           String?
     content         Json?
     userId          String
+    courseId        String?
 
     // rating = ratingTotal / ratingCount
     ratingCount     Int         @default(0)
@@ -185,6 +189,7 @@ model Post {
     createdAt       DateTime    @default(now())
 
     user            Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    course          Course?     @relation(fields: [courseId], references: [id], onDelete: Cascade)
     
     inCourses       PostInCourse[]
     discussions     Discussion[]
@@ -198,11 +203,14 @@ model Post {
 model PostInCourse {
     courseId        String
     postId          String
+    userId          String
 
     createdAt       DateTime    @default(now())
 
     course         Course       @relation(fields: [courseId], references: [id])
     post           Post         @relation(fields: [postId], references: [id])
+    user           Users        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
 
     @@unique([courseId, postId])
     @@index([courseId])

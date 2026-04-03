@@ -6,7 +6,7 @@ import { PostInCourseRepository } from '../../modules/post-in-course/post-in-cou
 export class PrismaPostInCourseRepository implements PostInCourseRepository {
     constructor(private prisma: PrismaService) {}
 
-    async create(courseId: string, postId: string): Promise<any> {
+    async create(courseId: string, postId: string, userId: string): Promise<any> {
         const course = await this.prisma.course.findUnique({
             where: {
                 id: courseId,
@@ -32,6 +32,7 @@ export class PrismaPostInCourseRepository implements PostInCourseRepository {
             data: {
                 courseId,
                 postId,
+                userId,
             },
         });
 
@@ -51,13 +52,14 @@ export class PrismaPostInCourseRepository implements PostInCourseRepository {
         return postInCourse;
     }
 
-    async delete(courseId: string, postId: string): Promise<any> {
+    async delete(courseId: string, postId: string, userId: string): Promise<any> {
         const deleted = await this.prisma.postInCourse.delete({
             where: {
                 courseId_postId: {
                     courseId,
                     postId,
                 },
+                userId
             },
         });
 
@@ -77,15 +79,32 @@ export class PrismaPostInCourseRepository implements PostInCourseRepository {
         return deleted;
     }
 
+    // This method returns the posts in a course, ordered by creation date (newest first)
     async findByCourseId(courseId: string): Promise<any> {
-        return this.prisma.postInCourse.findMany({
+        const postInCourse = await this.prisma.postInCourse.findMany({
             where: {
                 courseId,
             },
             orderBy: {
                 createdAt: 'desc',
             },
+            select: {
+                postId: true,
+            },
         });
+
+        const postIds = postInCourse.map(pic => pic.postId);
+
+        const posts = await this.prisma.post.findMany({
+            where: {
+                id: { in: postIds },
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+        });
+
+        return posts;
     }
 
     async findByPostId(postId: string): Promise<any> {

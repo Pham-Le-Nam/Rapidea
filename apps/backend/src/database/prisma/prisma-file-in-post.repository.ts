@@ -93,10 +93,12 @@ export class PrismaFileInPostRepository implements FileInPostRepository {
 
         const ids = files.map(post => post.fileId);
 
-        return this.prisma.file.findMany({
+        const fileList = await this.prisma.file.findMany({
             where: {
                 id: { in: ids },
             },
         });
+
+        return fileList;
     }
 }

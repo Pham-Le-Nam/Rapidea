@@ -31,6 +31,27 @@ export class UsersController {
         };
     }
 
+    @UseGuards(OptionalJwtAuthGuard)
+    @Get('id/:id')
+    async getProfileById(
+        @Param('id') id: string,
+        @Request() req: any,
+    ) {
+        const viewer = req.user; // This will be undefined if the user is not authenticated
+
+        const profile = await this.usersService.getUserById(id);
+
+        if (!profile) {
+            throw new NotFoundException('User not found');
+        }
+
+        return {
+            profile,
+            viewerId: viewer?.userId,
+            profileId: profile.id,
+        };
+    }
+
     @UseGuards(JwtAuthGuard)
     @Post(':username')
     async editProfile(

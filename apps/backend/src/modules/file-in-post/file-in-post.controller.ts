@@ -15,7 +15,7 @@ import { AddFileInPostDto } from './file-in-post-dto/add-file-in-post.dto';
 import { DeleteFileInPostDto } from './file-in-post-dto/delete-file-in-post.dto';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt.guard';
 
-@Controller('file-in-post')
+@Controller('api/file-in-post')
 export class FileInPostController {
     constructor(
         private readonly fileInPostService: FileInPostService,
@@ -54,7 +54,7 @@ export class FileInPostController {
     }
 
     @UseGuards(OptionalJwtAuthGuard)
-    @Get(':postId/files')
+    @Get('post/:postId')
     async getFilesOfPost(
         @Request() req: any,
         @Param() data: { postId: string },

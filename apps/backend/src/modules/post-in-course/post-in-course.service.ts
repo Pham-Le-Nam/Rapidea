@@ -8,13 +8,13 @@ export class PostInCourseService {
         private readonly postInCourseRepo: PostInCourseRepository,
     ) {}
 
-    async addPostToCourse (courseId: string, postId: string) {
-        const postInCourse = await this.postInCourseRepo.create(courseId, postId);
+    async addPostToCourse (courseId: string, postId: string, userId: string) {
+        const postInCourse = await this.postInCourseRepo.create(courseId, postId, userId);
         return postInCourse;
     }
 
-    async removePostFromCourse (courseId: string, postId: string) {
-        const deleted = await this.postInCourseRepo.delete(courseId, postId);
+    async removePostFromCourse (courseId: string, postId: string, userId: string) {
+        const deleted = await this.postInCourseRepo.delete(courseId, postId, userId);
         return deleted;
     }
 

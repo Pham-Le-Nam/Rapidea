@@ -8,8 +8,8 @@ export class PostService {
         private readonly postRepo: PostRepository,
     ) {}
 
-    async createPost(userId: string, title?: string, content?: any) {
-        return this.postRepo.create(userId, title, content);
+    async createPost(userId: string, title?: string, content?: any, courseId?: string) {
+        return this.postRepo.create(userId, title, content, courseId);
     }
 
     async deletePostById(id: string, userId: string) {
@@ -22,5 +22,9 @@ export class PostService {
 
     async getPostById(id: string) {
         return this.postRepo.findById(id);
+    }
+
+    async getPostsByCourseId(courseId: string) {
+        return this.postRepo.findByCourseId(courseId);
     }
 }

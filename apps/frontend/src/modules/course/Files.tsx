@@ -33,9 +33,10 @@ import { Label } from "@/components/ui/label";
 
 type FilesProp = {
     course: any,
+    addFile?: (file: any) => Promise<void>,
 }
 
-function Files ({ course }: FilesProp) {
+function Files ({ course, addFile }: FilesProp) {
     const { logout } = useAuth();
     const navigate = useNavigate();
     const [folder, setFolder] = useState<any>();
@@ -303,7 +304,8 @@ function Files ({ course }: FilesProp) {
                     <div className="flex flex-row justify-start items-center w-full" key={childFile.name}>
                         <Button 
                             className="flex-1 min-w-0 flex items-center justify-start gap-2 rounded-full bg-white hover:bg-gray-100 text-black text-lg p-2 font-normal [&>svg]:w-5 [&>svg]:h-5"
-                            onClick={() => openFile(childFile.id)}
+                            onClick={() => addFile ? addFile(childFile) : openFile(childFile.id)}
+                            onDoubleClick={() => openFile(childFile.id)}
                         >
                             <FileIcon />
                             {childFile.name}
