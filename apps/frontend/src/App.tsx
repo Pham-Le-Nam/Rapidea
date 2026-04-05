@@ -12,6 +12,7 @@ import { BrowserRouter as Router, Routes, Route} from 'react-router-dom';
 import { Toaster } from "react-hot-toast";
 import Courses from './modules/courses/Courses.tsx';
 import Course from './modules/course/Course.tsx';
+import { Post } from './modules/course/Posts.tsx';
 
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
                     <Route path="/profile/:username" element={<Profile />} />
                     <Route path="/courses/:username" element={<Courses />} />
                     <Route path="/course/:id" element={<Course />} />
+                    <Route path="/post/:id" element={<Post />} />
                 </Route>
                 </Route>
             </Routes>

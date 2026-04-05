@@ -7,7 +7,7 @@ import { PostModule } from '../post/post.module';
 
 @Module({
     imports: [
-        CourseModule,
+        forwardRef(() => CourseModule),
         forwardRef(() => PostModule),
     ],
     controllers: [

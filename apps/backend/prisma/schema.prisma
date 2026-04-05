@@ -207,8 +207,8 @@ model PostInCourse {
 
     createdAt       DateTime    @default(now())
 
-    course         Course       @relation(fields: [courseId], references: [id])
-    post           Post         @relation(fields: [postId], references: [id])
+    course         Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+    post           Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
     user           Users        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
 
@@ -461,7 +461,7 @@ model FileInPost {
     createdAt       DateTime        @default(now())
 
     file            File            @relation(fields: [fileId], references: [id], onDelete: Cascade)
-    post            Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+    post            Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
     user            Users           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([fileId, postId])

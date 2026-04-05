@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
 import { ComboboxBasic } from "@/components/ui/comboboxBasic";
 import { useAuth } from "@/context/AuthContext";
 import toast from "react-hot-toast";
-import { addCourseApi, deleteCourseApi, getCoursesApi } from "@/api";
+import { addCourseApi, deleteCourseApi, getCoursesApi, udpateCourseApi } from "@/api";
 
 
 function Courses() {
@@ -129,16 +129,19 @@ function CourseComponent ({ course, isOwner, loadCourses }: CourseComponentProp)
 
                 <div className="flex flex-row justify-between w-full pt-1">
                     <p>
-                        {`${course.rating} ⭐`}
+                        {`${course.rating} ⭐ from ${shortenRatingCount(course.ratingCount)} Ratings`}
                     </p>
                     <p>
-                        {`${shortenRatingCount(course.ratingCount)} Ratings`}
+                        {`Price: ${course.price} ${course.currency}`}
                     </p>
                 </div>
             </div>
 
             {isOwner && (
-                <DeleteCourse course={course} reloadCourses={loadCourses}/>
+                <div className="flex flex-row w-full">
+                    <UpdateCourse course={course} reloadCourses={loadCourses} className="flex-1 rounded-r-none"/>
+                    <DeleteCourse course={course} reloadCourses={loadCourses} className="flex-1 rounded-l-none"/>
+                </div>  
             )}
         </div>
     )
@@ -147,9 +150,10 @@ function CourseComponent ({ course, isOwner, loadCourses }: CourseComponentProp)
 type DeleteCourseProp = {
     course: any;
     reloadCourses: () => Promise<void>;
+    className?: string;
 }
 
-function DeleteCourse ({ course, reloadCourses }: DeleteCourseProp) {
+function DeleteCourse ({ course, reloadCourses, className }: DeleteCourseProp) {
     const { logout } = useAuth();
     const navigate = useNavigate();
 
@@ -177,7 +181,7 @@ function DeleteCourse ({ course, reloadCourses }: DeleteCourseProp) {
     return (
         <Dialog>
             <DialogTrigger asChild>
-                <Button variant="outline" className="">
+                <Button variant="outline" className={className}>
                     Delete
                 </Button>
             </DialogTrigger>
@@ -264,9 +268,9 @@ function CreateCourse ({ reloadCourses }: CreateCourseProp) {
             <DialogContent className="sm:max-w-[90%] pointer-events-auto">
                 <form
                     onSubmit={(e) => {
-                    e.preventDefault();
-                    createCourse();
-                }}
+                        e.preventDefault();
+                        createCourse();
+                    }}
                 >
                     <DialogHeader>
                         <DialogTitle>Create new course</DialogTitle>
@@ -287,7 +291,17 @@ function CreateCourse ({ reloadCourses }: CreateCourseProp) {
                         <div className="flex flex-row gap-3">
                             <Field>
                                 <Label htmlFor="price-1">Price</Label>
-                                <Input id="price-1" name="price" type="number" value={price} onChange={(n) => setPrice(Number(n.target.value))}/>
+                                <Input 
+                                    id="price-1" 
+                                    name="price" 
+                                    type="number" 
+                                    min={0} 
+                                    value={price} 
+                                    onChange={(n) => {
+                                        const value = Math.max(0, Number(n.target.value));
+                                        setPrice(Number(value))   
+                                    }}
+                                />
                             </Field>
                             
                             <Field>
@@ -305,6 +319,123 @@ function CreateCourse ({ reloadCourses }: CreateCourseProp) {
                         <DialogClose asChild>
                             <Button type="submit">
                                 Create
+                            </Button>
+                        </DialogClose>
+                    </DialogFooter>
+                    </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+type UpdateCourseProp = {
+    course: any;
+    reloadCourses: () => Promise<void>;
+    className?: string;
+}
+
+function UpdateCourse ({ course, reloadCourses, className }: UpdateCourseProp) {
+    const currencies = [
+        'AUD',
+        'VND',
+        'USD',
+    ];
+    const [currency, setCurrency] = useState(course?.currency);
+    const { logout } = useAuth();
+    const navigate = useNavigate();
+    const [title, setTitle] = useState(course?.title);
+    const [description, setDescription] = useState<string>(course?.description);
+    const [price, setPrice] = useState(course?.price);
+
+    const updateCourse = async () => {
+        try {
+            if (title == "") {
+                toast.error("Please add title for the course");
+                throw new Error("Title not found");
+            }
+
+            const response = await udpateCourseApi(course?.id, title, description, price, currency);
+
+            if (!response) {
+                throw new Error("Couldn't update the course course");
+            }
+
+            reloadCourses();
+        } catch (error: any) {
+            if (error.response?.status === 401) {
+                console.error("Token Expired");
+                logout();
+                toast.error("Token Expired. You have been logged out. Please log in to continue");
+                navigate('/login')
+            // handle logout or redirect
+            }
+            throw error;
+        }
+    }
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" className={className}>
+                    Update
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[90%] pointer-events-auto">
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        updateCourse();
+                    }}
+                >
+                    <DialogHeader>
+                        <DialogTitle>
+                            Update Course {course?.title}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Make changes to your course here. Click save when you&apos;re
+                            done.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <FieldGroup>
+                        <Field>
+                            <Label htmlFor="title-1">Title</Label>
+                            <Input id="title-1" name="title" value={title} onChange={(n) => setTitle(n.target.value)}/>
+                        </Field>
+                        <Field>
+                            <Label htmlFor="description-1">Description</Label>
+                            <Input id="description-1" name="description" value={description} onChange={(n) => setDescription(n.target.value)}/>
+                        </Field>
+                        <div className="flex flex-row gap-3">
+                            <Field>
+                                <Label htmlFor="price-1">Price</Label>
+                                <Input 
+                                    id="price-1" 
+                                    name="price" 
+                                    type="number" 
+                                    min={0} 
+                                    value={price} 
+                                    onChange={(n) => {
+                                        const value = Math.max(0, Number(n.target.value));
+                                        setPrice(Number(value))   
+                                    }}
+                                />
+                            </Field>
+                            
+                            <Field>
+                                <Label htmlFor="currency-1">Currency</Label>
+                                <ComboboxBasic values={currencies} value={currency} setValue={setCurrency} />
+                            </Field>
+                        </div>
+                    </FieldGroup>
+                    <DialogFooter className="pt-3">
+                        <DialogClose asChild>
+                            <Button variant="outline">
+                                Cancel
+                            </Button>
+                        </DialogClose>
+                        <DialogClose asChild>
+                            <Button type="submit">
+                                Save
                             </Button>
                         </DialogClose>
                     </DialogFooter>

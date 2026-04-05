@@ -431,6 +431,27 @@ export async function deleteCourseApi(id: string) {
     return response.data;
 }
 
+export async function udpateCourseApi(id: string, title: string, description?: string, price?: number, currency?: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/course/update/${id}`,
+        {
+            title,
+            description,
+            price,
+            currency,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
 export async function getCourseApi (id: string) {
     const token = localStorage.getItem("token");
 
@@ -609,6 +630,44 @@ export async function addPostApi (title: string, content: any, courseId?: string
     return response.data;
 }
 
+export async function updatePostApi (title: string, content: any, postId?: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/post/update`,
+        {
+            postId,
+            title,
+            content,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function deletePostApi (postId: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/post/delete`,
+        {
+            postId,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
 export async function getPostApi (postId: string) {
     const token = localStorage.getItem("token");
 
@@ -629,6 +688,25 @@ export async function addFileToPostApi (fileId: string, postId: string) {
 
     const response = await API.post(
         `api/file-in-post/add`,
+        {
+            fileId,
+            postId,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function removeFileToPostApi (fileId: string, postId: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/file-in-post/delete`,
         {
             fileId,
             postId,

@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import Heading from "@tiptap/extension-heading";
 import { Toggle } from "./toggle"
+import { useEffect } from "react"
 
 type EditorContentType = Record<string, any>
 
@@ -59,9 +60,15 @@ type TextRendererProps = {
 const TextRenderer = ({ content, className }: TextRendererProps) => {
     const editor = useEditor({
         extensions: [StarterKit],
-        content, // 👈 your JSON here
-        editable: false, // if you're just displaying
+        content: content ?? "", // initial fallback
+        editable: false,
     });
+
+    useEffect(() => {
+        if (editor && content) {
+            editor.commands.setContent(content);
+        }
+    }, [editor, content]);
 
     return <EditorContent editor={editor} className={className} />;
 };

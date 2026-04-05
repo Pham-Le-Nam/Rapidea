@@ -2,6 +2,7 @@ import { JwtAuthGuard } from "../auth/jwt.guard";
 import { OptionalJwtAuthGuard } from "../auth/optional-jwt.guard";
 import { UsersService } from "../users/users.service";
 import { AddCourseDto } from "./course-dto/add-course.dto";
+import { UpdateCourseDto } from "./course-dto/update-course.dto";
 import { CourseService } from "./course.service";
 import { Controller, Post, Get, Param, Request, NotFoundException, Body, InternalServerErrorException, UseGuards } from "@nestjs/common";
 
@@ -92,6 +93,27 @@ export class CourseController {
         if (!course) {
             throw new InternalServerErrorException("Couldn't delete this course");
         }
+
+        return course;
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('update/:courseId')
+    async updateCourse (
+        @Param('courseId') courseId: string,
+        @Request() req: any,
+        @Body() updateCourseDto: UpdateCourseDto,
+    ) {
+        const user = req.user;
+        const userId = user.userId;
+        const course = await this.courseService.updateCourse(
+            courseId, 
+            userId,
+            updateCourseDto.title,
+            updateCourseDto.description,
+            updateCourseDto.price,
+            updateCourseDto.currency, 
+        );
 
         return course;
     }

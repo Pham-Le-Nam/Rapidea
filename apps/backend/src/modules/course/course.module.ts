@@ -1,14 +1,16 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { CourseService } from './course.service';
 import { PrismaCourseRepository } from 'src/database/prisma/prisma-course.repository';
 import { CourseController } from './course.controller';
 import { UsersModule } from '../users/users.module';
 import { FolderModule } from '../folder/folder.module';
+import { PostInCourseModule } from '../post-in-course/post-in-course.module';
 
 @Module({
     imports: [
         UsersModule,
         FolderModule,
+        forwardRef(() => PostInCourseModule),
     ],
     controllers: [
         CourseController,

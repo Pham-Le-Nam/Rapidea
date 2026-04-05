@@ -18,6 +18,16 @@ export class PostInCourseService {
         return deleted;
     }
 
+    async removeAllPost (courseId: string) {
+        const deletedPost = await this.postInCourseRepo.deleteCourse(courseId);
+        return deletedPost;
+    }
+
+    async removeFromAllCourse (postId: string) {
+        const deletedCourses = await this.postInCourseRepo.deletePost(postId);
+        return deletedCourses;
+    }
+
     async findPosts (courseId: string) {
         return this.postInCourseRepo.findByCourseId(courseId);
     }

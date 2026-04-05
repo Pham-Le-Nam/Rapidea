@@ -79,6 +79,24 @@ export class PrismaPostInCourseRepository implements PostInCourseRepository {
         return deleted;
     }
 
+    async deleteCourse(courseId: string): Promise<any> {
+        const deletedPost = await this.prisma.postInCourse.deleteMany({
+            where: {
+                courseId,
+            },
+        });
+
+        return deletedPost;
+    }
+
+    async deletePost(postId: string): Promise<any> {
+        const deletedCourse = await this.prisma.postInCourse.deleteMany({
+            where: {
+                postId,
+            },
+        });
+    }
+
     // This method returns the posts in a course, ordered by creation date (newest first)
     async findByCourseId(courseId: string): Promise<any> {
         const postInCourse = await this.prisma.postInCourse.findMany({

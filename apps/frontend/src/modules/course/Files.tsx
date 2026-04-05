@@ -136,7 +136,6 @@ function Files ({ course, addFile }: FilesProp) {
     const openFile = async (fileId: string) => {
         try {
             const response = await getFileApi(fileId);
-            console.log(response);
 
             if (!response) {
                 toast.error("Something wrong happened! Couldn't retrieve file URL.");
