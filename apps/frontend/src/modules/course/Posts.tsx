@@ -28,6 +28,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import CommentSection from "./Comment";
 
 function Posts({
     course
@@ -92,7 +93,7 @@ function Post ({ post, reloadPosts }: PostProps) {
     const [files, setFiles] = useState<any[]>([]);
     const [viewFile, setViewFile] = useState<any>();
     const [loadedPost, setLoadedPost] = useState(post);
-    const containerWidth = post ? "w-full" : "w-full md:w-[80%]";
+    const containerWidth = post ? "w-full" : "w-full";
 
     const loadPostDetails = async () => {
         try {
@@ -174,6 +175,39 @@ function Post ({ post, reloadPosts }: PostProps) {
         toast.success("Link copied to clipboard!");
     };
 
+    const formatPostgresDate = ( dateString: string, timeZone: string = "UTC" ) => {
+        const date = new Date(dateString);
+
+        // Convert to target timezone
+        const zonedDate = new Date(
+            date.toLocaleString("en-US", { timeZone })
+        );
+
+        const now = new Date(
+            new Date().toLocaleString("en-US", { timeZone })
+        );
+
+        const diffMs = now.getTime() - zonedDate.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 30) {
+            return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`;
+        }
+
+        const diffMonths = Math.floor(diffDays / 30);
+
+        if (diffMonths < 12) {
+            return `${diffMonths} month${diffMonths !== 1 ? "s" : ""} ago`;
+        }
+
+        // Format dd-mm-yyyy
+        const day = String(zonedDate.getDate()).padStart(2, "0");
+        const month = String(zonedDate.getMonth() + 1).padStart(2, "0");
+        const year = zonedDate.getFullYear();
+
+        return `${day}-${month}-${year}`;
+    }
+
     useEffect(() => {
         loadPostDetails();
     }, [loadedPost?.id, id]);
@@ -190,9 +224,13 @@ function Post ({ post, reloadPosts }: PostProps) {
                     <a className="font-bold text-lg hover:underline" href={`/course/${course?.id}`}>
                         {course?.title}
                     </a>
-                    <a className="text-gray-500 hover:underline" href={`/profile/${owner?.username}`}>
-                        {owner?.firstname} {owner?.middlename} {owner?.lastname}
-                    </a>
+                    
+                    <span className="text-gray-500">
+                        <a className="text-gray-500 hover:underline" href={`/profile/${owner?.username}`}>
+                            {owner?.firstname} {owner?.middlename} {owner?.lastname}
+                        </a>
+                        {` - ${formatPostgresDate(loadedPost?.createdAt, "Australia/Sydney")}`}
+                    </span>
                 </div>
 
                 <DropdownMenu>
@@ -282,6 +320,35 @@ function Post ({ post, reloadPosts }: PostProps) {
             {viewFile &&
                 <FileViewer file={viewFile} />
             }
+
+            <div className="flex flex-row items-center justify-between pt-2 pl-3 w-full">
+                <a>
+                    {loadedPost?.rating}⭐
+                </a>
+                <a>
+                    32 Comments
+                </a>
+            </div>
+
+            <div className="flex flex-row items-center justify-start pt-2 w-full">
+                <Button variant="outline" className="flex-1 font-normal">
+                    <span className="wrap-anywhere whitespace-break-spaces">
+                        Rate
+                    </span>
+                </Button>
+                <Button variant="outline" className="flex-1 font-normal">
+                    <span className="wrap-anywhere whitespace-break-spaces">
+                        Discussion
+                    </span>
+                </Button>
+                <Button variant="outline" className="flex-1 font-normal">
+                    <span className="wrap-anywhere whitespace-break-spaces">
+                        Share
+                    </span>
+                </Button>
+            </div>
+
+            <CommentSection post={loadedPost} />
         </div>
     )
 }

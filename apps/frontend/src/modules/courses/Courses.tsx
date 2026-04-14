@@ -122,7 +122,7 @@ function CourseComponent ({ course, isOwner, loadCourses }: CourseComponentProp)
                             className="font-semibold text-main hover:text-main-hover hover:underline cursor-pointer ml-1"
                             onClick={() => setShowAllDescription(!showAllDescription)}
                         >
-                            {showAllDescription ? " Show Less" : "Show More"}
+                            {showAllDescription ? "Show Less" : " Show More"}
                         </span>
                     )}
                 </p>
