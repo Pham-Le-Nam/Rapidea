@@ -14,6 +14,10 @@ export class RatePostService {
     ) {}
 
     async createRatePost (postId: string, userId: string, rating: number) {
+        if (rating < 0 || rating > 5) {
+            throw new InternalServerErrorException("Invalid rating it must be from 0 to 5", "Invalid rating");
+        }
+
         const ratePost = await this.ratePostRepo.create(postId, userId, rating);
 
         if (!ratePost) {
@@ -24,6 +28,10 @@ export class RatePostService {
     }
 
     async updateRatePostById (id: string, userId: string, rating: number) {
+        if (rating < 0 || rating > 5) {
+            throw new InternalServerErrorException("Invalid rating it must be from 0 to 5", "Invalid rating");
+        }
+
         const ratePost = await this.ratePostRepo.updateById(id, userId, rating);
 
         if (!ratePost) {
@@ -34,6 +42,10 @@ export class RatePostService {
     }
 
     async updateRatePostByPostId (postId: string, userId: string, rating: number) {
+        if (rating < 0 || rating > 5) {
+            throw new InternalServerErrorException("Invalid rating it must be from 0 to 5", "Invalid rating");
+        }
+        
         const ratePost = await this.ratePostRepo.updateByPostId(postId, userId, rating);
 
         if (!ratePost) {

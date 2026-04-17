@@ -2,7 +2,7 @@ import { IsOptional, IsString } from "class-validator";
 
 export class UpdateFileDto {
     @IsString()
-    fileId: string;
+    fileId!: string;
     
     @IsOptional()
     @IsString()

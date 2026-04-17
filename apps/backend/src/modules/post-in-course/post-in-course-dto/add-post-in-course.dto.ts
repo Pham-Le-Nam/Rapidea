@@ -2,8 +2,8 @@ import { IsString } from "class-validator";
 
 export class AddPostInCourseDto {
     @IsString()
-    postId: string;
+    postId!: string;
 
     @IsString()
-    courseId: string;
+    courseId!: string;
 }

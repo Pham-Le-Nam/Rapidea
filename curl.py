@@ -1,10 +1,10 @@
 import requests
 from datetime import datetime
 
-# url = "http://localhost:8000/api/auth/login"
-url = "http://localhost:8000/api/user/lenam.pham"
+# url = "http://localhost:1234/api/auth/login"
+url = "http://localhost:1234/api/rate-post/user/2de26b6e-8ffe-48f6-afbf-337c88bbfe55"
 
-jwt_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlZWMwZWJkZS05NWI4LTRiMDgtYjdiMi00MjVlMTI3M2YxZjAiLCJlbWFpbCI6ImxlbmFtLnBoYW1Ac3R1ZGVudC51dHMuZWR1LmF1Iiwic2Vzc2lvblZlcnNpb24iOjIsImlhdCI6MTc3NjM5MzI5MCwiZXhwIjoxNzc2NDc5NjkwfQ.I4lasnHSCZz7MXx6WzyqgZvf3qPEJsf2xiYozH0xIgk"
+jwt_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyZGUyNmI2ZS04ZmZlLTQ4ZjYtYWZiZi0zMzdjODhiYmZlNTUiLCJlbWFpbCI6ImxlbmFtLnBoYW1Ac3R1ZGVudC51dHMuZWR1LmF1Iiwic2Vzc2lvblZlcnNpb24iOjI5LCJpYXQiOjE3NzY0MjA2ODksImV4cCI6MTc3NjUwNzA4OX0.pG_DeF909a306XbzyruGqy9LWZ0N0Ab2HSMFirwPZM4"
 startedAt = datetime(2022,8,28)
 endedAt = datetime(2024,12,28)
 
@@ -29,11 +29,17 @@ data = {
     # "projectId": "9c1b2afa-484d-4d0f-804c-b5992e070836"
     # "title": "Test Note 123",
     # "fileId": "18f2e216-0057-47cb-8196-5d3d0c5c799e",
-    # "postId": "65d00122-4965-4013-95fa-f682b44ef89f", 
+    # "postId": "430dc6ce-a857-4292-bacc-df3dfc5ca53a", 
     # "studySpaceId": "efe6458f-a208-40b6-af34-40127948fb79",
     # "spaceId": "efe6458f-a208-40b6-af34-40127948fb79",
     # "content": {},
-    "fullname": "Nam Pham",
+    # "fullname": "Nam Pham",
+    # "rating": 3.5,
+}
+
+params = {
+    "postId": "430dc6ce-a857-4292-bacc-df3dfc5ca53a",
+    "raterId": "2de26b6e-8ffe-48f6-afbf-337c88bbfe55",
 }
 
 headers = {
@@ -50,6 +56,6 @@ files = {
 #     ("images", ("Profile Page.png", open("Profile Page.png", "rb"), "image/png")),
 # ]
 
-response = requests.post(url, data=data, headers=headers)
+response = requests.get(url, json=data, headers=headers, params=params)
 # response = requests.post(url, json=data, headers=headers, files=files)
 print(response.json())

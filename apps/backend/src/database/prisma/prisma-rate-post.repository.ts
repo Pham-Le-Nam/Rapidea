@@ -56,7 +56,7 @@ export class PrismaRatePostRepository implements RatePostRepository {
         const newRating = newRatingTotal / newRatingCount;
 
         // Update rating for the post
-        this.prisma.post.update({
+        await this.prisma.post.update({
             where: {
                 id: postId,
             },
@@ -71,6 +71,13 @@ export class PrismaRatePostRepository implements RatePostRepository {
     }
 
     async updateById(id: string, userId: string, rating: number): Promise<any> {
+        const oldRatePost = await this.prisma.ratePost.findUnique({
+            where: {
+                id,
+                userId,
+            },
+        });
+
         const ratePost = await this.prisma.ratePost.update({
             where: {
                 id,
@@ -81,7 +88,7 @@ export class PrismaRatePostRepository implements RatePostRepository {
             },
         });
 
-        if (!ratePost) {
+        if (!ratePost || !oldRatePost) {
             throw new InternalServerErrorException("Couldn't update rating for this post");
         }
 
@@ -102,11 +109,11 @@ export class PrismaRatePostRepository implements RatePostRepository {
         const currentRatingCount = post.ratingCount;
         const currentRatingTotal = post.ratingTotal;
         
-        const newRatingCount = currentRatingCount + 1;
-        const newRatingTotal = currentRatingTotal + rating;
+        const newRatingCount = currentRatingCount;
+        const newRatingTotal = currentRatingTotal - oldRatePost.rating + rating;
         const newRating = newRatingTotal / newRatingCount;
 
-        this.prisma.post.update({
+        await this.prisma.post.update({
             where: {
                 id: ratePost.postId,
             },
@@ -121,6 +128,15 @@ export class PrismaRatePostRepository implements RatePostRepository {
     }
 
     async updateByPostId(postId: string, userId: string, rating: number): Promise<any> {
+        const oldRatePost = await this.prisma.ratePost.findUnique({
+            where: {
+                postId_userId: {
+                    postId,
+                    userId,
+                },
+            },
+        });
+
         const ratePost = await this.prisma.ratePost.update({
             where: {
                 postId_userId: {
@@ -133,7 +149,7 @@ export class PrismaRatePostRepository implements RatePostRepository {
             },
         });
 
-        if (!ratePost) {
+        if (!ratePost || !oldRatePost) {
             throw new InternalServerErrorException("Couldn't update rating for this post");
         }
 
@@ -154,11 +170,11 @@ export class PrismaRatePostRepository implements RatePostRepository {
         const currentRatingCount = post.ratingCount;
         const currentRatingTotal = post.ratingTotal;
         
-        const newRatingCount = currentRatingCount + 1;
-        const newRatingTotal = currentRatingTotal + rating;
+        const newRatingCount = currentRatingCount;
+        const newRatingTotal = currentRatingTotal - oldRatePost.rating + rating;
         const newRating = newRatingTotal / newRatingCount;
 
-        this.prisma.post.update({
+        await this.prisma.post.update({
             where: {
                 id: ratePost.postId,
             },
