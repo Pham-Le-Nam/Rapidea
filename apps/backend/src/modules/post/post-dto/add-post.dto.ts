@@ -2,10 +2,10 @@ import { IsObject, IsOptional, IsString } from "class-validator";
 
 export class AddPostDto {
     @IsString()
-    title: string;
+    title!: string;
 
     @IsObject()
-    content: Record<string, any>;
+    content!: Record<string, any>;
 
     @IsOptional()
     @IsString()

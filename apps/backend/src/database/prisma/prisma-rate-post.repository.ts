@@ -70,10 +70,63 @@ export class PrismaRatePostRepository implements RatePostRepository {
         return ratePost;
     }
 
-    async updateById(id: string, rating: number): Promise<any> {
+    async updateById(id: string, userId: string, rating: number): Promise<any> {
         const ratePost = await this.prisma.ratePost.update({
             where: {
                 id,
+                userId,
+            },
+            data: {
+                rating,
+            },
+        });
+
+        if (!ratePost) {
+            throw new InternalServerErrorException("Couldn't update rating for this post");
+        }
+
+        const post = await this.prisma.post.findUnique({
+            where: {
+                id: ratePost.postId,
+            },
+            select: {
+                ratingCount: true,
+                ratingTotal: true,
+            },
+        });
+
+        if (!post) {
+            throw new InternalServerErrorException("Post not found");
+        }
+
+        const currentRatingCount = post.ratingCount;
+        const currentRatingTotal = post.ratingTotal;
+        
+        const newRatingCount = currentRatingCount + 1;
+        const newRatingTotal = currentRatingTotal + rating;
+        const newRating = newRatingTotal / newRatingCount;
+
+        this.prisma.post.update({
+            where: {
+                id: ratePost.postId,
+            },
+            data: {
+                ratingCount: newRatingCount,
+                ratingTotal: newRatingTotal,
+                rating: newRating,
+            },
+        });
+
+        return ratePost;
+    }
+
+    async updateByPostId(postId: string, userId: string, rating: number): Promise<any> {
+        const ratePost = await this.prisma.ratePost.update({
+            where: {
+                postId_userId: {
+                    postId,
+                    userId,
+                },
             },
             data: {
                 rating,
@@ -130,4 +183,19 @@ export class PrismaRatePostRepository implements RatePostRepository {
         });
     }
 
+    async findByPostId(postId: string): Promise<any> {
+        return this.prisma.ratePost.findMany({
+            where: {
+                postId,
+            },
+        });
+    }
+
+    async findByUserId(userId: string): Promise<any> {
+        return this.prisma.ratePost.findMany({
+            where: {
+                userId,
+            },
+        });
+    }
 }
