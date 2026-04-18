@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
-import { deletePostApi, getCourseApi, getFilesOfPostApi, getPostApi, getPostsOfCourseApi, getProfileApi, getProfileByIdApi } from "@/api";
+import { addRatePostApi, deletePostApi, getCourseApi, getFilesOfPostApi, getPostApi, getPostsOfCourseApi, getProfileApi, getProfileByIdApi, getRatePostApi, updateRatePostApi } from "@/api";
 import { TextRenderer } from "@/components/ui/texteditor";
 import { 
     FileIcon, 
@@ -29,6 +29,12 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import CommentSection from "./Comment";
+import { 
+    HoverCard, 
+    HoverCardContent, 
+    HoverCardTrigger 
+} from "@/components/ui/hover-card";
+import StarRating from "@/components/StarRating";
 
 function Posts({
     course
@@ -85,7 +91,7 @@ function Post ({ post, reloadPosts }: PostProps) {
     const { id } = useParams();
     const [courseImg, setCourseImg] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`);
     const [ownerAvatar, setOwnerAvatar] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`);
-    const { logout } = useAuth();
+    const { logout, isLoggedIn } = useAuth();
     const navigate = useNavigate();
     const [course, setCourse] = useState<any>();
     const [isOwner, setIsOwner] = useState(false);
@@ -93,6 +99,8 @@ function Post ({ post, reloadPosts }: PostProps) {
     const [files, setFiles] = useState<any[]>([]);
     const [viewFile, setViewFile] = useState<any>();
     const [loadedPost, setLoadedPost] = useState(post);
+    const [rating, setRating] = useState(0);
+    const [isRated, setIsRated] = useState(false);
     const containerWidth = post ? "w-full" : "w-full";
 
     const loadPostDetails = async () => {
@@ -126,6 +134,16 @@ function Post ({ post, reloadPosts }: PostProps) {
             if (fileResponse) {
                 setFiles(fileResponse);
                 setViewFile(fileResponse[0]);
+            }
+
+            if (isLoggedIn  && loadedPost) {
+                const ratePostResponse = await getRatePostApi(loadedPost.id);
+
+                if (ratePostResponse?.isRated) {
+                    const ratePost = ratePostResponse.ratePost;
+                    setRating(ratePost.rating);
+                    setIsRated(true);
+                }
             }
 
             if (reloadPosts) {
@@ -206,6 +224,36 @@ function Post ({ post, reloadPosts }: PostProps) {
         const year = zonedDate.getFullYear();
 
         return `${day}-${month}-${year}`;
+    }
+
+    const ratePost = async (value: number) => {
+        try {
+            let ratingResponse: any;
+
+            if (isRated) {
+                ratingResponse = await updateRatePostApi(loadedPost?.id, value);
+            }
+            else {
+                ratingResponse = await addRatePostApi(loadedPost?.id, value);
+                setIsRated(true);
+            }
+
+            console.log(ratingResponse);
+
+            setRating(value);
+
+            // Reload to update rating of the post
+            loadPostDetails();
+        } catch (error: any) {
+            if (error.response?.status === 401) {
+                console.error("Token Expired");
+                logout();
+                toast.error("Token Expired. You have been logged out. Please log in to continue");
+                navigate('/login')
+            // handle logout or redirect
+            }
+            throw error;
+        }
     }
 
     useEffect(() => {
@@ -331,16 +379,26 @@ function Post ({ post, reloadPosts }: PostProps) {
             </div>
 
             <div className="flex flex-row items-center justify-start pt-2 w-full">
-                <Button variant="outline" className="flex-1 font-normal">
-                    <span className="wrap-anywhere whitespace-break-spaces">
-                        Rate
-                    </span>
-                </Button>
+                <HoverCard openDelay={100} closeDelay={100}>
+                    <HoverCardTrigger asChild>
+                        <Button variant="outline" className="flex-1 w-full font-normal">
+                            <span className="wrap-anywhere whitespace-break-spaces">
+                                {isRated ? `${rating}⭐` : "Rate"}
+                            </span>
+                        </Button>
+                    </HoverCardTrigger>
+
+                    <HoverCardContent side="top" className="flex flex-col items-center w-50">
+                        <StarRating value={rating} onChange={ratePost} />
+                    </HoverCardContent>
+                </HoverCard>
+
                 <Button variant="outline" className="flex-1 font-normal">
                     <span className="wrap-anywhere whitespace-break-spaces">
                         Discussion
                     </span>
                 </Button>
+
                 <Button variant="outline" className="flex-1 font-normal">
                     <span className="wrap-anywhere whitespace-break-spaces">
                         Share

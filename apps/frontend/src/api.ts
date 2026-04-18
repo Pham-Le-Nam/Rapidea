@@ -769,3 +769,71 @@ export async function getPostsOfCourseApi (courseId: string) {
 
     return response.data;
 }
+
+export async function getRatePostApi (postId: string) {
+    const token = localStorage.getItem("token");
+
+    try {
+        const response = await API.get(
+            `api/rate-post/${postId}`, 
+            {
+                headers: { 
+                    Authorization: `Bearer ${token}`
+                },
+            }
+        );
+
+        return response.data;
+    } catch (error) {
+        console.error("getRatePostApi error:", error);
+        throw error;
+    }
+}
+
+export async function addRatePostApi (postId: string, rating: number) {
+    const token = localStorage.getItem("token");
+
+    try {
+        const response = await API.post(
+            `api/rate-post/add`,
+            {
+                postId,
+                rating,
+            },
+            {
+                headers: { 
+                    Authorization: `Bearer ${token}`
+                },
+            }
+        );
+
+        return response.data;
+    } catch (error) {
+        console.error("getRatePostApi error:", error);
+        throw error;
+    }
+}
+
+export async function updateRatePostApi (postId: string, rating?: number) {
+    const token = localStorage.getItem("token");
+
+    try {
+        const response = await API.post(
+            `api/rate-post/update`,
+            {
+                postId,
+                rating,
+            },
+            {
+                headers: { 
+                    Authorization: `Bearer ${token}`
+                },
+            }
+        );
+
+        return response.data;
+    } catch (error) {
+        console.error("getRatePostApi error:", error);
+        throw error;
+    }
+}

@@ -22,10 +22,9 @@ export class RatePostController {
     ) {}
 
     @UseGuards(JwtAuthGuard)
-    @Get('')
+    @Get(':id')
     async getRating (
-        @Query('postId') postId: string,
-        @Query('raterId') raterId: string,
+        @Param('id') id: string,
         @Request() req: any,
     ) {
         const user = req.user;
@@ -35,15 +34,13 @@ export class RatePostController {
             throw new NotFoundException("User not found", "User not found");
         }
 
-        const ratePost = await this.ratePostService.findRatePost(postId, raterId);
+        const ratePost = await this.ratePostService.findRatePost(id, userId);
 
         const isRated = !!ratePost;
-        const isOwner = (userId === raterId);
 
         if (isRated) {
             return {
                 isRated,
-                isOwner,
                 ratePost,
             };
         }
