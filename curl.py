@@ -2,9 +2,9 @@ import requests
 from datetime import datetime
 
 # url = "http://localhost:1234/api/auth/login"
-url = "http://localhost:1234/api/rate-post/user/2de26b6e-8ffe-48f6-afbf-337c88bbfe55"
+url = "http://localhost:1234/api/discussion/delete"
 
-jwt_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyZGUyNmI2ZS04ZmZlLTQ4ZjYtYWZiZi0zMzdjODhiYmZlNTUiLCJlbWFpbCI6ImxlbmFtLnBoYW1Ac3R1ZGVudC51dHMuZWR1LmF1Iiwic2Vzc2lvblZlcnNpb24iOjI5LCJpYXQiOjE3NzY0MjA2ODksImV4cCI6MTc3NjUwNzA4OX0.pG_DeF909a306XbzyruGqy9LWZ0N0Ab2HSMFirwPZM4"
+jwt_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyZGUyNmI2ZS04ZmZlLTQ4ZjYtYWZiZi0zMzdjODhiYmZlNTUiLCJlbWFpbCI6ImxlbmFtLnBoYW1Ac3R1ZGVudC51dHMuZWR1LmF1Iiwic2Vzc2lvblZlcnNpb24iOjMxLCJpYXQiOjE3NzY1ODA2NjksImV4cCI6MTc3NjY2NzA2OX0.VftnGbfHNkscZIhicRMo7ovMVEJZwCSf8VqDYXR8ZvY"
 startedAt = datetime(2022,8,28)
 endedAt = datetime(2024,12,28)
 
@@ -14,7 +14,7 @@ data = {
     # "password":"Password",
     # "platform": "WEBSITE",
     # "url": "https://www.facebook.com/pham.lenam.5",
-    # "id": "8c24db94-58f9-456e-bee6-83d5202878a2",
+    "id": "f8d07690-2392-4155-b89b-28660c4bf6dc",
     # "name": "Test Photo",
     # "role": "Software Engineer",
     # "startedAt": "2022-08-28",
@@ -35,11 +35,15 @@ data = {
     # "content": {},
     # "fullname": "Nam Pham",
     # "rating": 3.5,
+    # "discussion": {"type": "doc", "content": [{"type": "paragraph", "content": [{"text": "This post have a lot of files. Yes! A lot of files", "type": "text"}]}]},
+    # "repliedId": "a413b2b1-4089-4f61-8294-cb1e288d2571",
 }
 
 params = {
     "postId": "430dc6ce-a857-4292-bacc-df3dfc5ca53a",
     "raterId": "2de26b6e-8ffe-48f6-afbf-337c88bbfe55",
+    "startIndex": 0,
+    "amount": 5,
 }
 
 headers = {
@@ -56,6 +60,6 @@ files = {
 #     ("images", ("Profile Page.png", open("Profile Page.png", "rb"), "image/png")),
 # ]
 
-response = requests.get(url, json=data, headers=headers, params=params)
+response = requests.post(url, json=data, headers=headers, params=params)
 # response = requests.post(url, json=data, headers=headers, files=files)
 print(response.json())

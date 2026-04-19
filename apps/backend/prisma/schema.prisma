@@ -240,44 +240,31 @@ model Discussion {
     rating              Float               @default(5)
     postId              String
     userId              String
+    repliedId           String?
+
     createdAt           DateTime            @default(now())
 
     post                Post                @relation(fields: [postId], references: [id], onDelete: Cascade)
     user                Users               @relation(fields: [userId], references: [id])
+    repliedDiscussion   Discussion?         @relation("replying" ,fields: [repliedId], references: [id], onDelete: Cascade)
 
-    repliedDiscussions  ReplyDiscussion[]   @relation("repliedDiscussion")
-    replyingDiscussions ReplyDiscussion[]   @relation("replyingDiscussion")
     rateDiscussion      RateDiscussion[]
+    replyingDiscussions Discussion[]        @relation("replying")
 
     @@index([postId])
     @@map("discussion")
 }
 
-model ReplyDiscussion {
-    id                  String      @id @default(uuid())
-
-    repliedId           String
-    replyingId          String
-
-    createdAt           DateTime    @default(now())
-
-    repliedDiscussion   Discussion  @relation("repliedDiscussion", fields: [repliedId], references: [id], onDelete: Cascade)
-    replyingDiscussion  Discussion  @relation("replyingDiscussion", fields: [replyingId], references: [id], onDelete: Cascade)
-
-    @@index([repliedId])
-    @@map("reply_discussion")
-}
-
 model RateDiscussion {
-    id              String      @id @default(uuid())
-    discussionId    String
-    userId          String
-    rating          Float       
+    id                  String              @id @default(uuid())
+    discussionId        String
+    userId              String
+    rating              Float       
 
-    createdAt       DateTime    @default(now())
+    createdAt           DateTime            @default(now())
 
-    discussion      Discussion  @relation(fields: [discussionId], references: [id], onDelete: Cascade)
-    user            Users       @relation(fields: [userId], references: [id])
+    discussion          Discussion          @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+    user                Users               @relation(fields: [userId], references: [id])
 
     @@unique([discussionId, userId])
     @@map("rate_dicussion")

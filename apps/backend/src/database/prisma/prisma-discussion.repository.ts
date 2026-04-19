@@ -6,42 +6,51 @@ import { DiscussionRepository } from '../../modules/discussion/discussion.reposi
 export class PrismaDiscussionRepository implements DiscussionRepository {
     constructor(private prisma: PrismaService) {}
 
-    async create(discussion: any, postId: string, userId: string) {
+    async create(discussion: any, postId: string, userId: string, repliedId?: string) {
         return this.prisma.discussion.create({
             data: {
                 discussion,
                 postId,
                 userId,
-            }
+                repliedId,
+            },
         });
     }
 
-    async updateById(id: string, discussion: any) {
+    async updateById(id: string, userId: string, discussion: any) {
         return this.prisma.discussion.update({
-            where: { id },
+            where: { 
+                id,
+                userId,
+            },
             data: {
                 discussion,
             }
         });
     }
 
-    async deleteById(id: string) {
+    async deleteById(id: string, userId: string) {
         const deletedDiscussion = await this.prisma.discussion.delete({
-            where: { id },
+            where: {
+                id,
+                userId,
+            },
+            include: {
+                replyingDiscussions: true,
+            },
         });
 
-        const replyindDiscussions = await this.prisma.replyDiscussion.findMany({
-            where: {
-                repliedId: id,
-            },
-            select: {
-                replyingId: true,
-            },
-        });
+        const replyindDiscussions = deletedDiscussion.replyingDiscussions;
 
         if (replyindDiscussions) {
             // Delete all discussions replying given discussion
-            replyindDiscussions.map(replyingDiscussion => this.deleteById(replyingDiscussion.replyingId));
+            replyindDiscussions.map(async (replyingDiscussion) => {
+                await this.prisma.discussion.delete({
+                    where: {
+                        id: replyingDiscussion.id,
+                    },
+                });
+            });
         }
 
         return deletedDiscussion;
@@ -53,10 +62,43 @@ export class PrismaDiscussionRepository implements DiscussionRepository {
         });
     }
 
-    async findByPostId(postId: string) {
-        return this.prisma.discussion.findMany({
-            where: { postId }
+    async findByPostId(postId: string, startIndex: number = 0, amount: number = 5) {
+        const discussion = await this.prisma.discussion.findMany({
+            where: {
+                postId,
+                repliedId: null,
+            },
+            orderBy: {
+                createdAt: "asc",
+            },
+            skip: startIndex,
+            take: amount,
         });
+
+        return {
+            discussion,
+            startIndex,
+            amount,
+        };
+    }
+
+    async findReplyingById(repliedId: string, startIndex: number = 0, amount: number = 5): Promise<any> {
+        const discussion = await this.prisma.discussion.findMany({
+            where: {
+                repliedId,
+            },
+            orderBy: {
+                createdAt: "asc",
+            },
+            skip: startIndex,
+            take: amount,
+        });
+
+        return {
+            discussion,
+            startIndex,
+            amount,
+        };
     }
 
     async addRatingById(id: string, rating: number) {

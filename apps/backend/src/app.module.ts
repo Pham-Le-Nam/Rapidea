@@ -15,7 +15,7 @@ import { PostModule } from './modules/post/post.module';
 import { PostInCourseModule } from './modules/post-in-course/post-in-course.module';
 import { RatePostModule } from './modules/rate-post/rate-post.module';
 import { DiscussionModule } from './modules/discussion/discussion.module';
-import { ReplyDiscussionModule } from './modules/reply-discussion/reply-discussion.module';
+// import { ReplyDiscussionModule } from './modules/reply-discussion/reply-discussion.module';
 import { RateDiscussionModule } from './modules/rate-discussion/rate-discussion.module';
 import { ExperienceModule } from './modules/experience/experience.module';
 import { EducationModule } from './modules/education/education.module';
@@ -60,7 +60,7 @@ import { SocialLinkModule } from './modules/social-link/social-link.module';
         PostInCourseModule,
         RatePostModule,
         DiscussionModule,
-        ReplyDiscussionModule,
+        // ReplyDiscussionModule,
         RateDiscussionModule,
         ExperienceModule,
         EducationModule,
