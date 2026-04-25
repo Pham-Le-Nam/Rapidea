@@ -56,7 +56,7 @@ export class PrismaRateDiscussionRepository implements RateDiscussionRepository 
         const newRating = newRatingTotal / newRatingCount;
 
         // Update rating for the discussion
-        this.prisma.discussion.update({
+        await this.prisma.discussion.update({
             where: {
                 id: discussionId,
             },
@@ -70,17 +70,25 @@ export class PrismaRateDiscussionRepository implements RateDiscussionRepository 
         return rateDiscussion;
     }
 
-    async updateById(id: string, rating: number): Promise<any> {
+    async updateById(id: string, userId: string, rating: number): Promise<any> {
+        const oldRateDiscussion = await this.prisma.rateDiscussion.findUnique({
+            where: {
+                id,
+                userId,
+            },
+        });
+
         const rateDiscussion = await this.prisma.rateDiscussion.update({
             where: {
                 id,
+                userId,
             },
             data: {
                 rating,
             },
         });
 
-        if (!rateDiscussion) {
+        if (!rateDiscussion || !oldRateDiscussion) {
             throw new InternalServerErrorException("Couldn't update rating for this discussion");
         }
 
@@ -101,11 +109,72 @@ export class PrismaRateDiscussionRepository implements RateDiscussionRepository 
         const currentRatingCount = discussion.ratingCount;
         const currentRatingTotal = discussion.ratingTotal;
         
-        const newRatingCount = currentRatingCount + 1;
-        const newRatingTotal = currentRatingTotal + rating;
+        const newRatingCount = currentRatingCount;
+        const newRatingTotal = currentRatingTotal - oldRateDiscussion.rating + rating;
         const newRating = newRatingTotal / newRatingCount;
 
-        this.prisma.discussion.update({
+        await this.prisma.discussion.update({
+            where: {
+                id: rateDiscussion.discussionId,
+            },
+            data: {
+                ratingCount: newRatingCount,
+                ratingTotal: newRatingTotal,
+                rating: newRating,
+            },
+        });
+
+        return rateDiscussion;
+    }
+
+    async updateByDiscussionId(discussionId: string, userId: string, rating: number): Promise<any> {
+        const oldRateDiscussion = await this.prisma.rateDiscussion.findUnique({
+            where: {
+                discussionId_userId: {
+                    discussionId,
+                    userId,
+                },
+            },
+        });
+
+        const rateDiscussion = await this.prisma.rateDiscussion.update({
+            where: {
+                discussionId_userId: {
+                    discussionId,
+                    userId,
+                },
+            },
+            data: {
+                rating,
+            },
+        });
+
+        if (!rateDiscussion || !oldRateDiscussion) {
+            throw new InternalServerErrorException("Couldn't update rating for this discussion");
+        }
+
+        const discussion = await this.prisma.discussion.findUnique({
+            where: {
+                id: rateDiscussion.discussionId,
+            },
+            select: {
+                ratingCount: true,
+                ratingTotal: true,
+            },
+        });
+
+        if (!discussion) {
+            throw new InternalServerErrorException("Discussion not found");
+        }
+
+        const currentRatingCount = discussion.ratingCount;
+        const currentRatingTotal = discussion.ratingTotal;
+        
+        const newRatingCount = currentRatingCount;
+        const newRatingTotal = currentRatingTotal - oldRateDiscussion.rating + rating;
+        const newRating = newRatingTotal / newRatingCount;
+
+        await this.prisma.discussion.update({
             where: {
                 id: rateDiscussion.discussionId,
             },

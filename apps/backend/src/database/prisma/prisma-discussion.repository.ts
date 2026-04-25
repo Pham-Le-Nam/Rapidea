@@ -36,23 +36,7 @@ export class PrismaDiscussionRepository implements DiscussionRepository {
                 id,
                 userId,
             },
-            include: {
-                replyingDiscussions: true,
-            },
         });
-
-        const replyindDiscussions = deletedDiscussion.replyingDiscussions;
-
-        if (replyindDiscussions) {
-            // Delete all discussions replying given discussion
-            replyindDiscussions.map(async (replyingDiscussion) => {
-                await this.prisma.discussion.delete({
-                    where: {
-                        id: replyingDiscussion.id,
-                    },
-                });
-            });
-        }
 
         return deletedDiscussion;
     }

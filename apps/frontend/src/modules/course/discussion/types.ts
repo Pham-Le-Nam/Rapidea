@@ -9,6 +9,8 @@ export type Discussion = {
     id: string;
     discussion: any;
     rating?: number;
+    ratingCount?: number;
+    ratingTotal?: number;
     postId: string;
     userId: string;
     parentId?: string | null;

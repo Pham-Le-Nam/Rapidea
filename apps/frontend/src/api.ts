@@ -949,3 +949,56 @@ export async function deleteDiscussionApi (id: string) {
 
     return response.data;
 }
+
+export async function getRateDiscussionApi (discussionId: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.get(
+        `api/rate-discussion/${discussionId}`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function addRateDiscussionApi (discussionId: string, rating: number) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/rate-discussion/add`,
+        {
+            discussionId,
+            rating,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function updateRateDiscussionApi (discussionId: string, rating: number) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/rate-discussion/update`,
+        {
+            discussionId,
+            rating,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}

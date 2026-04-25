@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Discussion, Profile } from "./types";
 import { DEFAULT_AVATAR } from "./constants";
 import { formatDate, getDiscussionText, getProfileName, handleDiscussionTextareaKeyDown, LinkedDiscussionText } from "./text";
+import { DiscussionRating } from "./DiscussionRating";
 
 type DiscussionItemProps = {
     discussion: Discussion;
@@ -20,6 +21,7 @@ type DiscussionItemProps = {
     onUpdate: (discussion: Discussion) => void;
     onDelete: (discussion: Discussion) => void;
     onOpenProfile: (profile?: Profile) => void;
+    onRated?: () => Promise<void> | void;
 }
 
 export function DiscussionItem ({
@@ -37,6 +39,7 @@ export function DiscussionItem ({
     onUpdate,
     onDelete,
     onOpenProfile,
+    onRated,
 }: DiscussionItemProps) {
     return (
         <article className="flex w-full items-start gap-3">
@@ -109,45 +112,54 @@ export function DiscussionItem ({
                 </div>
 
                 {!isEditing && (
-                    <div className="mt-1 flex flex-wrap items-center gap-1">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="xs"
-                            className="px-2 text-gray-600"
-                            onClick={() => onReply(discussion)}
-                        >
-                            <Reply className="size-3" />
-                            Reply
-                        </Button>
+                    <>
+                        <DiscussionRating
+                            discussionId={discussion.id}
+                            averageRating={discussion.rating}
+                            ratingCount={discussion.ratingCount}
+                            onRated={onRated}
+                        />
 
-                        {isOwner && (
-                            <>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="xs"
-                                    className="px-2 text-gray-600"
-                                    onClick={() => onEdit(discussion)}
-                                >
-                                    <Pencil className="size-3" />
-                                    Edit
-                                </Button>
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="xs"
+                                className="px-2 text-gray-600"
+                                onClick={() => onReply(discussion)}
+                            >
+                                <Reply className="size-3" />
+                                Reply
+                            </Button>
 
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="xs"
-                                    className="px-2 text-red-600 hover:text-red-700"
-                                    disabled={isSubmitting}
-                                    onClick={() => onDelete(discussion)}
-                                >
-                                    <Trash2 className="size-3" />
-                                    Delete
-                                </Button>
-                            </>
-                        )}
-                    </div>
+                            {isOwner && (
+                                <>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="xs"
+                                        className="px-2 text-gray-600"
+                                        onClick={() => onEdit(discussion)}
+                                    >
+                                        <Pencil className="size-3" />
+                                        Edit
+                                    </Button>
+
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="xs"
+                                        className="px-2 text-red-600 hover:text-red-700"
+                                        disabled={isSubmitting}
+                                        onClick={() => onDelete(discussion)}
+                                    >
+                                        <Trash2 className="size-3" />
+                                        Delete
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                    </>
                 )}
             </div>
         </article>

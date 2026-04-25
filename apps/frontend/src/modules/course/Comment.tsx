@@ -336,6 +336,28 @@ function CommentSection ({
         navigate(`/profile/${profile.username}`);
     }
 
+    const refreshDiscussion = async (discussionId: string) => {
+        const response = await getDiscussionByIdApi(discussionId);
+        const updatedDiscussion = response.discusssion ?? response.discussion;
+
+        if (!updatedDiscussion) return;
+
+        setComments((currentComments) => currentComments.map((discussion) => (
+            discussion.id === discussionId ? updatedDiscussion : discussion
+        )));
+        setChildrenByParentId((currentChildrenByParentId) => {
+            const nextChildrenByParentId = { ...currentChildrenByParentId };
+
+            Object.entries(nextChildrenByParentId).forEach(([parentId, children]) => {
+                nextChildrenByParentId[parentId] = children.map((discussion) => (
+                    discussion.id === discussionId ? updatedDiscussion : discussion
+                ));
+            });
+
+            return nextChildrenByParentId;
+        });
+    }
+
     useEffect(() => {
         loadComments();
     }, [post?.id]);
@@ -389,6 +411,7 @@ function CommentSection ({
                                 onUpdate={updateDiscussion}
                                 onDelete={deleteDiscussion}
                                 onOpenProfile={openProfile}
+                                onRated={() => refreshDiscussion(comment.id)}
                             />
 
                             {replyingTo?.id === comment.id && (
@@ -448,6 +471,7 @@ function CommentSection ({
                                                 onUpdate={updateDiscussion}
                                                 onDelete={deleteDiscussion}
                                                 onOpenProfile={openProfile}
+                                                onRated={() => refreshDiscussion(reply.id)}
                                             />
 
                                             {replyingTo?.id === reply.id && (
