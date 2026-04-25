@@ -458,6 +458,39 @@ export async function udpateCourseApi(id: string, title: string, description?: s
     return response.data;
 }
 
+export async function getSubscriptionApi(courseId: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.get(
+        `api/subscribe/${courseId}`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function subscribeCourseApi(courseId: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/subscribe/add`,
+        {
+            courseId,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
 export async function getCourseApi (id: string) {
     const token = localStorage.getItem("token");
 
@@ -732,25 +765,6 @@ export async function getFilesOfPostApi (postId: string) {
 
     const response = await API.get(
         `api/file-in-post/post/${postId}`,
-        {
-            headers: {
-                Authorization: `Bearer ${token}`
-            },
-        },
-    );
-
-    return response.data;
-}
-
-export async function addPostToCourseApi (postId: string, courseId: string) {
-    const token = localStorage.getItem("token");
-
-    const response = await API.post(
-        `api/post-in-course/add`,
-        {
-            postId,
-            courseId,
-        },
         {
             headers: {
                 Authorization: `Bearer ${token}`

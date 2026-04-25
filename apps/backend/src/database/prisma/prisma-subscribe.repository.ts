@@ -18,7 +18,7 @@ export class PrismaSubscribeRepository implements SubscribeRepository {
             },
         });
 
-        const user = await this.prisma.users.findUnique.apply({
+        const user = await this.prisma.users.findUnique({
             where: {
                 id: userId,
             },
@@ -49,7 +49,7 @@ export class PrismaSubscribeRepository implements SubscribeRepository {
             throw new InternalServerErrorException("Couldn't create subscription");
         }
 
-        this.prisma.course.update({
+        await this.prisma.course.update({
             where: {
                 id: courseId,
             },
@@ -58,7 +58,7 @@ export class PrismaSubscribeRepository implements SubscribeRepository {
             },
         });
 
-        this.prisma.users.update({
+        await this.prisma.users.update({
             where: {
                 id: userId,
             },

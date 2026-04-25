@@ -19,7 +19,7 @@ import { XIcon } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { addFileToPostApi, addPostApi, addPostToCourseApi, removeFileToPostApi, updatePostApi } from "@/api";
+import { addFileToPostApi, addPostApi, removeFileToPostApi, updatePostApi } from "@/api";
 
 type UpsertPostProps = {
     className?: string;
@@ -94,13 +94,6 @@ function UpsertPost({ className, post, uploadedFiles, course, reloadPost }: Upse
                     toast.error(`Couldn't add file ${file.name} to post`);
                     throw Error(`Couldn't add file ${file.name} to post`);
                 }
-            }
-
-            const addToCourseResponse = await addPostToCourseApi(postId, course?.id);
-
-            if (!addToCourseResponse) {
-                toast.error(`Couldn't include the post in the course`);
-                throw Error(`Couldn't include the post in the course`);
             }
 
             toast.success("Post created successfully");

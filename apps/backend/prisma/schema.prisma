@@ -59,7 +59,6 @@ model Users {
     socialLinks             SocialLink[]
     FilesInCourses         FileInCourse[]
     FilesInPosts           FileInPost[]
-    PostsInCourse           PostInCourse[]
     
     @@map("users")
 }
@@ -144,7 +143,6 @@ model Course {
     folder              Folder      @relation(fields: [folderId], references: [id])
 
     subscribers         Subscribe[]
-    postsInCourse       PostInCourse[]
     // folders             FolderInCourse[]
     files               FileInCourse[]
     posts               Post[]
@@ -191,30 +189,12 @@ model Post {
     user            Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
     course          Course?     @relation(fields: [courseId], references: [id], onDelete: Cascade)
     
-    inCourses       PostInCourse[]
     discussions     Discussion[]
     ratePosts       RatePost[]
     files           FileInPost[]
 
     @@index([userId])
     @@map("post")
-}
-
-model PostInCourse {
-    courseId        String
-    postId          String
-    userId          String
-
-    createdAt       DateTime    @default(now())
-
-    course         Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
-    post           Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
-    user           Users        @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-
-    @@unique([courseId, postId])
-    @@index([courseId])
-    @@map("post_in_course")
 }
 
 model RatePost {

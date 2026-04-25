@@ -36,9 +36,11 @@ import {
 import StarRating from "@/components/StarRating";
 
 function Posts({
-    course
+    course,
+    reloadCourse,
 } : {
     course: any;
+    reloadCourse?: () => Promise<void>;
 }) {
     const [posts, setPosts] = useState<any[]>([]);
     const { logout } = useAuth();
@@ -62,6 +64,11 @@ function Posts({
         }
     }
 
+    const reloadCoursePosts = async () => {
+        await loadPosts();
+        await reloadCourse?.();
+    }
+
     useEffect(() => {
         if (!course?.id) return;
         loadPosts();
@@ -70,11 +77,11 @@ function Posts({
     return (
         <div className="flex flex-col justify-center items-center w-full gap-3">
             {isOwner &&
-                <UpsertPost className="w-full h-full text-3xl" course={course} reloadPost={loadPosts}/>
+                <UpsertPost className="w-full h-full text-3xl" course={course} reloadPost={reloadCoursePosts}/>
             }
 
             {posts.map((post) => (
-                <Post key={post.id} post={post} reloadPosts={loadPosts}/>
+                <Post key={post.id} post={post} reloadPosts={reloadCoursePosts}/>
             ))}
             
         </div>
@@ -147,9 +154,6 @@ function Post ({ post, reloadPosts }: PostProps) {
                 }
             }
 
-            if (reloadPosts) {
-                reloadPosts();
-            }
         } catch (error: any) {
             if (error.response?.status === 401) {
                 console.error("Token Expired");
@@ -172,7 +176,7 @@ function Post ({ post, reloadPosts }: PostProps) {
             }
 
             if (reloadPosts) {
-                reloadPosts();
+                await reloadPosts();
             }
             navigate(`/course/${course.id}`);
         } catch (error: any) {
@@ -194,37 +198,24 @@ function Post ({ post, reloadPosts }: PostProps) {
         toast.success("Link copied to clipboard!");
     };
 
-    const formatPostgresDate = ( dateString: string, timeZone: string = "UTC" ) => {
+    const formatPostgresDate = (dateString: string) => {
+        if (!dateString) return "";
+
         const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMinutes = Math.floor(diffMs / (1000 * 60));
 
-        // Convert to target timezone
-        const zonedDate = new Date(
-            date.toLocaleString("en-US", { timeZone })
-        );
+        if (diffMinutes < 1) return "Just now";
+        if (diffMinutes < 60) return `${diffMinutes}m ago`;
 
-        const now = new Date(
-            new Date().toLocaleString("en-US", { timeZone })
-        );
+        const diffHours = Math.floor(diffMinutes / 60);
+        if (diffHours < 24) return `${diffHours}h ago`;
 
-        const diffMs = now.getTime() - zonedDate.getTime();
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const diffDays = Math.floor(diffHours / 24);
+        if (diffDays < 30) return `${diffDays}d ago`;
 
-        if (diffDays < 30) {
-            return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`;
-        }
-
-        const diffMonths = Math.floor(diffDays / 30);
-
-        if (diffMonths < 12) {
-            return `${diffMonths} month${diffMonths !== 1 ? "s" : ""} ago`;
-        }
-
-        // Format dd-mm-yyyy
-        const day = String(zonedDate.getDate()).padStart(2, "0");
-        const month = String(zonedDate.getMonth() + 1).padStart(2, "0");
-        const year = zonedDate.getFullYear();
-
-        return `${day}-${month}-${year}`;
+        return date.toLocaleDateString();
     }
 
     const ratePost = async (value: number) => {
@@ -310,7 +301,7 @@ function Post ({ post, reloadPosts }: PostProps) {
                         <a className="text-gray-500 hover:underline" href={`/profile/${owner?.username}`}>
                             {owner?.firstname} {owner?.middlename} {owner?.lastname}
                         </a>
-                        {` - ${formatPostgresDate(loadedPost?.createdAt, "Australia/Sydney")}`}
+                        {` - ${formatPostgresDate(loadedPost?.createdAt)}`}
                     </span>
                 </div>
 

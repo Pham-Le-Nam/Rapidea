@@ -2,7 +2,6 @@ import { Injectable, Inject, InternalServerErrorException, NotFoundException } f
 import { CourseRepository } from './course.repository';
 import { FolderService } from '../folder/folder.service';
 import { UsersService } from '../users/users.service';
-import { PostInCourseService } from '../post-in-course/post-in-course.service';
 
 @Injectable()
 export class CourseService {
@@ -11,7 +10,6 @@ export class CourseService {
         private readonly courseRepo: CourseRepository,
         private readonly folderService: FolderService,
         private readonly usersService: UsersService,
-        private readonly postInCourseService: PostInCourseService,
     ) {}
 
     async createCourse(userId: string, title: string, description?: string, price?: number, currency?: string) {

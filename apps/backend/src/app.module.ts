@@ -12,7 +12,6 @@ import { FollowModule } from './modules/follow/follow.module';
 import { CourseModule } from './modules/course/course.module';
 import { SubscribeModule } from './modules/subscribe/subscribe.module';
 import { PostModule } from './modules/post/post.module';
-import { PostInCourseModule } from './modules/post-in-course/post-in-course.module';
 import { RatePostModule } from './modules/rate-post/rate-post.module';
 import { DiscussionModule } from './modules/discussion/discussion.module';
 // import { ReplyDiscussionModule } from './modules/reply-discussion/reply-discussion.module';
@@ -57,7 +56,6 @@ import { SocialLinkModule } from './modules/social-link/social-link.module';
         CourseModule,
         SubscribeModule,
         PostModule,
-        PostInCourseModule,
         RatePostModule,
         DiscussionModule,
         // ReplyDiscussionModule,
