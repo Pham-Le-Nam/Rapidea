@@ -58,6 +58,15 @@ export class DiscussionController {
         return this.discussionService.getReplyingDiscussionById(id, startIndex, amount);
     }
 
+    @Get('children/:id')
+    async getChildrenDiscussions (
+        @Param('id') id: string,
+        @Query('startIndex', ParseIntPipe) startIndex = 0,
+        @Query('amount', ParseIntPipe) amount = 5,
+    ) {
+        return this.discussionService.getChildrenDiscussionById(id, startIndex, amount);
+    }
+
     @UseGuards(JwtAuthGuard)
     @Post('add')
     async addDiscussion (

@@ -240,15 +240,18 @@ model Discussion {
     rating              Float               @default(5)
     postId              String
     userId              String
+    parentId            String?
     repliedId           String?
 
     createdAt           DateTime            @default(now())
 
     post                Post                @relation(fields: [postId], references: [id], onDelete: Cascade)
     user                Users               @relation(fields: [userId], references: [id])
+    parentDiscussion    Discussion?         @relation("parent", fields: [parentId], references: [id], onDelete: Cascade)
     repliedDiscussion   Discussion?         @relation("replying" ,fields: [repliedId], references: [id], onDelete: Cascade)
 
     rateDiscussion      RateDiscussion[]
+    childrenDiscussion  Discussion[]        @relation("parent")
     replyingDiscussions Discussion[]        @relation("replying")
 
     @@index([postId])

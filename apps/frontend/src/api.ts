@@ -72,15 +72,21 @@ export async function getProfileApi(username: string) {
 
 export async function getProfileByIdApi(id: string) {
     const token = localStorage.getItem("token");
-    
-    const response = await API.get(
-        `api/users/id/${id}`,
-        {
-            headers: {
-                Authorization: `Bearer ${token}`
+    let response: any | undefined = undefined;
+
+    if (token) {
+        response = await API.get(
+            `api/users/id/${id}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
             },
-        },
-    );
+        );
+    }
+    else {
+        response = await API.get(`api/users/id/${id}`);
+    }
 
     return response.data;
 }
@@ -836,4 +842,110 @@ export async function updateRatePostApi (postId: string, rating?: number) {
         console.error("getRatePostApi error:", error);
         throw error;
     }
+}
+
+export async function getDiscussionsByPostApi (postId: string, startIndex: number = 0, amount: number = 5) {
+    const response = await API.get(
+        `api/discussion/post/${postId}`,
+        {
+            params: {
+                startIndex,
+                amount,
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function getChildrenDiscussionsApi (discussionId: string, startIndex: number = 0, amount: number = 20) {
+    const response = await API.get(
+        `api/discussion/children/${discussionId}`,
+        {
+            params: {
+                startIndex,
+                amount,
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function getDiscussionByIdApi (discussionId: string) {
+    const token = localStorage.getItem("token");
+    let response: any | undefined = undefined;
+
+    if (token) {
+        response = await API.get(
+            `api/discussion/${discussionId}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
+            },
+        );
+    }
+    else {
+        response = await API.get(`api/discussion/${discussionId}`);
+    }
+
+    return response.data;
+}
+
+export async function addDiscussionApi (postId: string, discussion: any, repliedId?: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/discussion/add`,
+        {
+            postId,
+            discussion,
+            repliedId,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function updateDiscussionApi (id: string, discussion: any) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/discussion/update`,
+        {
+            id,
+            discussion,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function deleteDiscussionApi (id: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/discussion/delete`,
+        {
+            id,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
 }

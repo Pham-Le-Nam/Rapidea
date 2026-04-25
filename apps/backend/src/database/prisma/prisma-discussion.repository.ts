@@ -6,12 +6,13 @@ import { DiscussionRepository } from '../../modules/discussion/discussion.reposi
 export class PrismaDiscussionRepository implements DiscussionRepository {
     constructor(private prisma: PrismaService) {}
 
-    async create(discussion: any, postId: string, userId: string, repliedId?: string) {
+    async create(discussion: any, postId: string, userId: string, parentId?: string, repliedId?: string) {
         return this.prisma.discussion.create({
             data: {
                 discussion,
                 postId,
                 userId,
+                parentId,
                 repliedId,
             },
         });
@@ -86,6 +87,25 @@ export class PrismaDiscussionRepository implements DiscussionRepository {
         const discussion = await this.prisma.discussion.findMany({
             where: {
                 repliedId,
+            },
+            orderBy: {
+                createdAt: "asc",
+            },
+            skip: startIndex,
+            take: amount,
+        });
+
+        return {
+            discussion,
+            startIndex,
+            amount,
+        };
+    }
+
+    async findChildrenById(parentId: string, startIndex?: number, amount?: number): Promise<any> {
+        const discussion = await this.prisma.discussion.findMany({
+            where: {
+                parentId,
             },
             orderBy: {
                 createdAt: "asc",

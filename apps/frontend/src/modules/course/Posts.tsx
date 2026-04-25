@@ -4,12 +4,11 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
-import { addRatePostApi, deletePostApi, getCourseApi, getFilesOfPostApi, getPostApi, getPostsOfCourseApi, getProfileApi, getProfileByIdApi, getRatePostApi, updateRatePostApi } from "@/api";
+import { addRatePostApi, deletePostApi, getChildrenDiscussionsApi, getCourseApi, getDiscussionsByPostApi, getFilesOfPostApi, getPostApi, getPostsOfCourseApi, getProfileByIdApi, getRatePostApi, updateRatePostApi } from "@/api";
 import { TextRenderer } from "@/components/ui/texteditor";
 import { 
     FileIcon, 
     MoreVerticalIcon,
-    LinkIcon, 
 } from "lucide-react";
 import FileViewer from "./FileViewer";
 import {
@@ -101,6 +100,8 @@ function Post ({ post, reloadPosts }: PostProps) {
     const [loadedPost, setLoadedPost] = useState(post);
     const [rating, setRating] = useState(0);
     const [isRated, setIsRated] = useState(false);
+    const [isDiscussionShown, setIsDiscussionShown] = useState(false);
+    const [commentCount, setCommentCount] = useState(0);
     const containerWidth = post ? "w-full" : "w-full";
 
     const loadPostDetails = async () => {
@@ -256,9 +257,41 @@ function Post ({ post, reloadPosts }: PostProps) {
         }
     }
 
+    const loadCommentCount = async () => {
+        if (!loadedPost?.id) return;
+
+        try {
+            const response = await getDiscussionsByPostApi(loadedPost.id, 0, 1000);
+            const parentComments = response.discussion ?? [];
+            const childrenResponses = await Promise.all(
+                parentComments.map((comment: any) => getChildrenDiscussionsApi(comment.id, 0, 1000))
+            );
+            const childrenCount = childrenResponses.reduce((count: number, response: any) => {
+                return count + (response.discussion?.length ?? 0);
+            }, 0);
+
+            setCommentCount(parentComments.length + childrenCount);
+        } catch (error: any) {
+            if (error.response?.status === 401) {
+                console.error("Token Expired");
+                logout();
+                toast.error("Token Expired. You have been logged out. Please log in to continue");
+                navigate('/login')
+            }
+        }
+    }
+
+    const toggleDiscussion = () => {
+        setIsDiscussionShown((currentValue) => !currentValue);
+    }
+
     useEffect(() => {
         loadPostDetails();
     }, [loadedPost?.id, id]);
+
+    useEffect(() => {
+        loadCommentCount();
+    }, [loadedPost?.id]);
 
     return (
         <div className={`flex flex-col justify-center items-start ${containerWidth} rounded-md border shadow-md p-3`}>
@@ -352,7 +385,7 @@ function Post ({ post, reloadPosts }: PostProps) {
             
             <TextRenderer content={loadedPost?.content} className="px-3 py-2"/>
 
-            {files?.map((file, index) => (
+            {files?.map((file) => (
                 <Button 
                     className="w-full h-full min-w-0 flex items-center justify-start gap-2 rounded-xl border-2 bg-white hover:bg-gray-100 text-black text-lg font-normal [&>svg]:w-5 [&>svg]:h-5"
                     key={file.id}
@@ -373,9 +406,13 @@ function Post ({ post, reloadPosts }: PostProps) {
                 <a>
                     {loadedPost?.rating}⭐
                 </a>
-                <a>
-                    32 Comments
-                </a>
+                <button
+                    type="button"
+                    className="text-gray-700 hover:underline"
+                    onClick={toggleDiscussion}
+                >
+                    {commentCount} Discussion{commentCount === 1 ? "" : "s"}
+                </button>
             </div>
 
             <div className="flex flex-row items-center justify-start pt-2 w-full">
@@ -393,7 +430,7 @@ function Post ({ post, reloadPosts }: PostProps) {
                     </HoverCardContent>
                 </HoverCard>
 
-                <Button variant="outline" className="flex-1 font-normal">
+                <Button variant="outline" className="flex-1 font-normal" onClick={toggleDiscussion}>
                     <span className="wrap-anywhere whitespace-break-spaces">
                         Discussion
                     </span>
@@ -406,7 +443,9 @@ function Post ({ post, reloadPosts }: PostProps) {
                 </Button>
             </div>
 
-            <CommentSection post={loadedPost} />
+            {isDiscussionShown && (
+                <CommentSection post={loadedPost} onCommentCountChange={loadCommentCount} />
+            )}
         </div>
     )
 }

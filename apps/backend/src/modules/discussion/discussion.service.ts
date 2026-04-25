@@ -14,7 +14,21 @@ export class DiscussionService {
     ) {}
 
     async createDiscussion (discussion: any, postId: string, userId: string, repliedId?: string) {
-        const postDiscussion = await this.discussionRepo.create(discussion, postId, userId, repliedId);
+        let postDiscussion: any;
+
+        if (!repliedId) {
+            postDiscussion = await this.discussionRepo.create(discussion, postId, userId);
+        } else {
+            const repliedDiscussion = await this.discussionRepo.findById(repliedId);
+
+            if (!repliedDiscussion) {
+                throw new NotFoundException("Replied discussion not found");
+            }
+
+            const parentId = repliedDiscussion.parentId ?? repliedDiscussion.id;
+
+            postDiscussion = await this.discussionRepo.create(discussion, postId, userId, parentId, repliedId);
+        }        
 
         if (!postDiscussion) {
             throw new InternalServerErrorException("Couldn't create discussion", "Couldn't create discussion");
@@ -71,5 +85,15 @@ export class DiscussionService {
         }
 
         return replyingDiscussions;
+    }
+
+    async getChildrenDiscussionById (id: string, startIndex?: number, amount?: number) {
+        const childrenDiscussions = await this.discussionRepo.findChildrenById(id, startIndex, amount);
+
+        if (!childrenDiscussions) {
+            throw new NotFoundException("Discussions not found", "Discussions not found");
+        }
+
+        return childrenDiscussions;
     }
 }
