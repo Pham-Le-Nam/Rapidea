@@ -16,4 +16,8 @@ export class UpdateCourseDto {
     @IsOptional()
     @IsString()
     currency?: string
+
+    @IsOptional()
+    @IsNumber()
+    thumbnailId?: number;
 }

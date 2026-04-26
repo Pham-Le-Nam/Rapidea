@@ -14,6 +14,7 @@ type DiscussionItemProps = {
     isEditing: boolean;
     editText: string;
     isSubmitting: boolean;
+    canReply?: boolean;
     onReply: (discussion: Discussion) => void;
     onEdit: (discussion: Discussion) => void;
     onEditTextChange: (value: string) => void;
@@ -32,6 +33,7 @@ export function DiscussionItem ({
     isEditing,
     editText,
     isSubmitting,
+    canReply = true,
     onReply,
     onEdit,
     onEditTextChange,
@@ -121,16 +123,18 @@ export function DiscussionItem ({
                         />
 
                         <div className="mt-1 flex flex-wrap items-center gap-1">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="xs"
-                                className="px-2 text-gray-600"
-                                onClick={() => onReply(discussion)}
-                            >
-                                <Reply className="size-3" />
-                                Reply
-                            </Button>
+                            {canReply && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="xs"
+                                    className="px-2 text-gray-600"
+                                    onClick={() => onReply(discussion)}
+                                >
+                                    <Reply className="size-3" />
+                                    Reply
+                                </Button>
+                            )}
 
                             {isOwner && (
                                 <>

@@ -112,7 +112,8 @@ export class CourseController {
             updateCourseDto.title,
             updateCourseDto.description,
             updateCourseDto.price,
-            updateCourseDto.currency, 
+            updateCourseDto.currency,
+            updateCourseDto.thumbnailId,
         );
 
         return course;

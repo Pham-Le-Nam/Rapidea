@@ -100,24 +100,14 @@ export class PrismaFolderRepository implements FolderRepository {
     }
 
     async findByLocation(name: string, parentId?: string): Promise<any> {
-        if (parentId) {
-            return this.prisma.folder.findUnique({
-                where: {
-                    parentId_name: {
-                        parentId,
-                        name,
-                    },
-                },
-            });
-        }
-        else {
-            return this.prisma.folder.findFirst({
-                where: {
-                    parentId: null,
-                    name,
-                },
-            });
-        }
+        const normalizedParentId = parentId?.trim() || null;
+
+        return this.prisma.folder.findFirst({
+            where: {
+                name,
+                parentId: normalizedParentId,
+            },
+        });
     }
 
     async findChildrenFolders(id: string): Promise<any> {

@@ -3,10 +3,12 @@ import { PostService } from './post.service';
 import { PrismaPostRepository } from 'src/database/prisma/prisma-post.repository';
 import { PostController } from './post.controller';
 import { CourseModule } from '../course/course.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
     imports: [
         forwardRef(() => CourseModule),
+        UsersModule,
     ],
     controllers: [
         PostController,

@@ -4,4 +4,5 @@ export interface PostRepository {
     updateById(id: string, userId: string, title?: string, content?: any): Promise<any>;
     findById(id: string): Promise<any>;
     findByCourseId(courseId: string): Promise<any>;
+    findByUserId(userId: string): Promise<any>;
 }

@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FollowRepository } from '../../modules/follow/follow.repository';
 
@@ -7,93 +7,130 @@ export class PrismaFollowRepository implements FollowRepository {
     constructor(private prisma: PrismaService) {}
 
     async create(followerId: string, followingId: string) {
-        const follower = await this.prisma.users.findUnique({
-            where: { 
-                id: followerId,
-            },
-        });
-
-        const following = await this.prisma.users.findUnique({
-            where: { 
-                id: followingId,
-            },
-        });
-
-        // Check if the input ids are valid
-        if (!follower || !following) {
-            throw new InternalServerErrorException("User not found");
+        if (followerId === followingId) {
+            throw new BadRequestException("You cannot follow yourself");
         }
 
-        // Create follow entity
-        const follow = await this.prisma.follow.create({
-            data: {
-                followerId,
-                followingId,
-            },
-        });
+        try {
+            const [follower, following] = await Promise.all([
+                this.prisma.users.findUnique({
+                    where: {
+                        id: followerId,
+                    },
+                    select: {
+                        id: true,
+                    },
+                }),
+                this.prisma.users.findUnique({
+                    where: {
+                        id: followingId,
+                    },
+                    select: {
+                        id: true,
+                    },
+                }),
+            ]);
 
-        if (!follow) {
+            if (!follower || !following) {
+                throw new NotFoundException("User not found");
+            }
+
+            const [follow, followerCounts, followingCounts] = await this.prisma.$transaction([
+                this.prisma.follow.create({
+                    data: {
+                        followerId,
+                        followingId,
+                    },
+                }),
+                this.prisma.users.update({
+                    where: {
+                        id: followerId,
+                    },
+                    data: {
+                        followingCount: { increment: 1 },
+                    },
+                    select: {
+                        followingCount: true,
+                    },
+                }),
+                this.prisma.users.update({
+                    where: {
+                        id: followingId,
+                    },
+                    data: {
+                        followersCount: { increment: 1 },
+                    },
+                    select: {
+                        followersCount: true,
+                    },
+                }),
+            ]);
+
+            return {
+                ...follow,
+                followerFollowingCount: followerCounts.followingCount,
+                followingFollowersCount: followingCounts.followersCount,
+            };
+        } catch (error: any) {
+            if (error instanceof BadRequestException || error instanceof NotFoundException) {
+                throw error;
+            }
+
+            if (error?.code === 'P2002') {
+                throw new ConflictException("You already follow this user");
+            }
+
             throw new InternalServerErrorException("Cannot follow this user");
         }
-
-        // Increase the No.followings of the follower by 1
-        this.prisma.users.update({
-            where: {
-                id: followerId,
-            },
-            data: {
-                followingCount: { increment: 1 },
-            },
-        });
-
-        //  Increase the No.followers of the following by 1
-        this.prisma.users.update({
-            where: {
-                id: followingId,
-            },
-            data: {
-                followersCount: { increment: 1 },
-            },
-        });
-
-        return follow;
     }
 
     async delete(followerId: string, followingId: string) {
-        const follow = await this.prisma.follow.delete({
-            where: {
-                followerId_followingId: {
-                    followerId,
-                    followingId,
-                },
-            },
-        });
+        try {
+            const [follow, followerCounts, followingCounts] = await this.prisma.$transaction([
+                this.prisma.follow.delete({
+                    where: {
+                        followerId_followingId: {
+                            followerId,
+                            followingId,
+                        },
+                    },
+                }),
+                this.prisma.users.update({
+                    where: {
+                        id: followerId,
+                    },
+                    data: {
+                        followingCount: { decrement: 1 },
+                    },
+                    select: {
+                        followingCount: true,
+                    },
+                }),
+                this.prisma.users.update({
+                    where: {
+                        id: followingId,
+                    },
+                    data: {
+                        followersCount: { decrement: 1 },
+                    },
+                    select: {
+                        followersCount: true,
+                    },
+                }),
+            ]);
 
-        if (!follow) {
+            return {
+                ...follow,
+                followerFollowingCount: followerCounts.followingCount,
+                followingFollowersCount: followingCounts.followersCount,
+            };
+        } catch (error: any) {
+            if (error?.code === 'P2025') {
+                throw new NotFoundException("Follow not found");
+            }
+
             throw new InternalServerErrorException("Cannot unfollow this user");
         }
-
-        // Decrease the No.followings of the follower by 1
-        this.prisma.users.update({
-            where: {
-                id: followerId,
-            },
-            data: {
-                followingCount: { increment: -1 },
-            },
-        });
-
-        //  Decrease the No.followers of the following by 1
-        this.prisma.users.update({
-            where: {
-                id: followingId,
-            },
-            data: {
-                followersCount: { increment: -1 },
-            },
-        });
-
-        return follow;
     }
 
     async findFollow(followerId: string, followingId: string) {
@@ -127,6 +164,9 @@ export class PrismaFollowRepository implements FollowRepository {
             where: {
                 id: { in: ids },
             },
+            omit: {
+                password: true,
+            },
         });
     }
 
@@ -149,6 +189,9 @@ export class PrismaFollowRepository implements FollowRepository {
         return this.prisma.users.findMany({
             where: {
                 id: { in: ids },
+            },
+            omit: {
+                password: true,
             },
         });
     }
@@ -178,6 +221,9 @@ export class PrismaFollowRepository implements FollowRepository {
         return this.prisma.users.findMany({
             where: {
                 id: { in: ids },
+            },
+            omit: {
+                password: true,
             },
         });
     }

@@ -12,7 +12,7 @@ import { Field, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { TextEditor } from "@/components/ui/texteditor";
 import Files from './Files';
 import { XIcon } from "lucide-react";
@@ -23,13 +23,14 @@ import { addFileToPostApi, addPostApi, removeFileToPostApi, updatePostApi } from
 
 type UpsertPostProps = {
     className?: string;
-    course: any;
+    course?: any;
+    fileFolder?: any;
     post?: any;
     uploadedFiles?: any[];
     reloadPost: () => Promise<void>;
 }
 
-function UpsertPost({ className, post, uploadedFiles, course, reloadPost }: UpsertPostProps) {
+function UpsertPost({ className, post, uploadedFiles, course, fileFolder, reloadPost }: UpsertPostProps) {
     const [title, setTitle] = useState(post?.title || "");
     const [content, setContent] = useState<Record<string, any>>(post?.content || {});
     const [deleteFiles, setDeleteFiles] = useState<any[]>([]);
@@ -37,6 +38,7 @@ function UpsertPost({ className, post, uploadedFiles, course, reloadPost }: Upse
 
     const { logout } = useAuth();
     const navigate = useNavigate();
+    const rootFolderId = course?.folderId ?? fileFolder?.id;
 
     const addFile = async (file: any) => {
         if (!file) {
@@ -194,39 +196,41 @@ function UpsertPost({ className, post, uploadedFiles, course, reloadPost }: Upse
                             </Label>
                             <TextEditor value={content} onChange={setContent} />
                         </Field>
-                        <Field>
-                            <Label htmlFor={`create-post`} className="mt-2">
-                                Files
-                            </Label>
-                            {uploadedFiles
-                                ?.filter(file => !deleteFiles.find(f => f === file))
-                                .map((file, index) => (
+                        {rootFolderId && (
+                            <Field>
+                                <Label htmlFor={`create-post`} className="mt-2">
+                                    Files
+                                </Label>
+                                {uploadedFiles
+                                    ?.filter(file => !deleteFiles.find(f => f === file))
+                                    .map((file, index) => (
+                                        <div className="w-full border flex flex-row items-center px-2 py-1 rounded-md" key={index}>
+                                            <span className="wrap-anywhere whitespace-break-spaces">
+                                                {file.name}
+                                            </span>
+                                            <Button asChild className="ml-auto bg-white hover:bg-gray-100 h-6 w-6" onClick={() => addDeleteFile(file)}>
+                                                <span>
+                                                    <XIcon className="text-black"/>
+                                                </span>
+                                            </Button>
+                                        </div>
+                                    ))
+                                }
+                                {files.map((file, index) => (
                                     <div className="w-full border flex flex-row items-center px-2 py-1 rounded-md" key={index}>
                                         <span className="wrap-anywhere whitespace-break-spaces">
                                             {file.name}
                                         </span>
-                                        <Button asChild className="ml-auto bg-white hover:bg-gray-100 h-6 w-6" onClick={() => addDeleteFile(file)}>
+                                        <Button asChild className="ml-auto bg-white hover:bg-gray-100 h-6 w-6" onClick={() => removeFile(index)}>
                                             <span>
                                                 <XIcon className="text-black"/>
                                             </span>
                                         </Button>
                                     </div>
-                                ))
-                            }
-                            {files.map((file, index) => (
-                                <div className="w-full border flex flex-row items-center px-2 py-1 rounded-md" key={index}>
-                                    <span className="wrap-anywhere whitespace-break-spaces">
-                                        {file.name}
-                                    </span>
-                                    <Button asChild className="ml-auto bg-white hover:bg-gray-100 h-6 w-6" onClick={() => removeFile(index)}>
-                                        <span>
-                                            <XIcon className="text-black"/>
-                                        </span>
-                                    </Button>
-                                </div>
-                            ))}
-                            <Files course={course} addFile={addFile}/>
-                        </Field>
+                                ))}
+                                <Files rootFolderId={rootFolderId} addFile={addFile}/>
+                            </Field>
+                        )}
                     </FieldGroup>
                     <DialogFooter className="pt-3">
                         <DialogClose asChild>

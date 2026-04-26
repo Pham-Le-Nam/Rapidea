@@ -94,16 +94,18 @@ export function DiscussionRating ({
                 </span>
             )}
 
-            <div className="flex items-center gap-1">
-                <span>Your rating</span>
-                <StarRating
-                    value={rating}
-                    size={18}
-                    disabled={isSaving}
-                    onChange={rateDiscussion}
-                    className="flex items-center"
-                />
-            </div>
+            {isLoggedIn && (
+                <div className="flex items-center gap-1">
+                    <span>Your rating</span>
+                    <StarRating
+                        value={rating}
+                        size={18}
+                        disabled={isSaving}
+                        onChange={rateDiscussion}
+                        className="flex items-center"
+                    />
+                </div>
+            )}
         </div>
     )
 }

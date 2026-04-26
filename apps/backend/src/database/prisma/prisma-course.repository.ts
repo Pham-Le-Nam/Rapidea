@@ -45,7 +45,7 @@ export class PrismaCourseRepository implements CourseRepository {
         return course;
     }
 
-    async updateById(id: string, userId: string, title?: string, description?: string, price?: number, currency?: string) {
+    async updateById(id: string, userId: string, title?: string, description?: string, price?: number, currency?: string, thumbnailId?: number) {
         return this.prisma.course.update({
             where: { 
                 id,
@@ -56,13 +56,24 @@ export class PrismaCourseRepository implements CourseRepository {
                 description,
                 price,
                 currency,
+                thumbnailId,
             }
+        });
+    }
+
+    async updateLastUpdatedById(id: string, lastUpdated: Date = new Date()) {
+        return this.prisma.course.update({
+            where: { id },
+            data: { lastUpdated },
         });
     }
 
     async findById(id: string) {
         return this.prisma.course.findUnique({
-            where: { id }
+            where: { id },
+            include: {
+                thumbnail: true,
+            },
         });
     }
 
@@ -72,7 +83,10 @@ export class PrismaCourseRepository implements CourseRepository {
             'price',
             'rating',
             'postCount',
+            'postsCount',
             'ratingCount',
+            'subscribersCount',
+            'lastUpdated',
         ];
 
         if (!allowedFields.includes(orderByField)) {
@@ -81,6 +95,9 @@ export class PrismaCourseRepository implements CourseRepository {
 
         return this.prisma.course.findMany({
             where: { userId },
+            include: {
+                thumbnail: true,
+            },
             orderBy: { 
                 [orderByField]: order,
             },
@@ -89,26 +106,35 @@ export class PrismaCourseRepository implements CourseRepository {
     }
 
     async deleteCourseById(id: string): Promise<any> {
-        const deletedCourse = await this.prisma.course.delete({
+        const course = await this.prisma.course.findUnique({
             where: { id },
+            include: {
+                _count: {
+                    select: {
+                        posts: true,
+                    },
+                },
+            },
         });
 
-        if (!deletedCourse) {
+        if (!course) {
             throw new InternalServerErrorException("Course not found")
         }
 
-        const user = await this.prisma.users.update({
-            where: {
-                id: deletedCourse.userId,
-            },
-            data: {
-                coursesCount: { increment: -1 },
-            },
-        });
-
-        if (!user) {
-            throw new InternalServerErrorException("User not found");
-        }
+        const [deletedCourse] = await this.prisma.$transaction([
+            this.prisma.course.delete({
+                where: { id },
+            }),
+            this.prisma.users.update({
+                where: {
+                    id: course.userId,
+                },
+                data: {
+                    coursesCount: { decrement: 1 },
+                    postsCount: { decrement: course._count.posts },
+                },
+            }),
+        ]);
 
         return deletedCourse;
     }

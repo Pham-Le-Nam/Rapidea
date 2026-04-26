@@ -23,6 +23,31 @@ export class FolderController {
     ) {}
 
     @UseGuards(OptionalJwtAuthGuard)
+    @Get('user/:username')
+    async getUserFolders (
+        @Param('username') username: string,
+        @Request() req: any,
+    ) {
+        const rootFolder = await this.folderService.findFolderByLocation(username);
+
+        if (!rootFolder) {
+            throw new NotFoundException('Root folder not found');
+        }
+
+        const freeFolder = await this.folderService.findFolderByLocation('free', rootFolder.id);
+
+        if (!freeFolder) {
+            throw new NotFoundException('Free folder not found');
+        }
+
+        return {
+            rootFolder,
+            freeFolder,
+            isOwner: req.user ? req.user.userId === rootFolder.userId : false,
+        };
+    }
+
+    @UseGuards(OptionalJwtAuthGuard)
     @Get(':id')
     async getFolderById (
         @Param('id') id: string,
@@ -35,7 +60,7 @@ export class FolderController {
             throw new NotFoundException('Folder not found');
         }
 
-        const isOwner = (viewer.userId === folder.userId);
+        const isOwner = viewer ? viewer.userId === folder.userId : false;
 
         const children = await this.folderService.findAllChildren(id);
 

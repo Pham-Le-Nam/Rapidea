@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
-import { addRatePostApi, deletePostApi, getChildrenDiscussionsApi, getCourseApi, getDiscussionsByPostApi, getFilesOfPostApi, getPostApi, getPostsOfCourseApi, getProfileByIdApi, getRatePostApi, updateRatePostApi } from "@/api";
+import { addRatePostApi, deletePostApi, getChildrenDiscussionsApi, getCourseApi, getDiscussionsByPostApi, getFilesOfPostApi, getPostApi, getPostsOfCourseApi, getProfileByIdApi, getRatePostApi, getUserFoldersApi, updateRatePostApi } from "@/api";
 import { TextRenderer } from "@/components/ui/texteditor";
 import { 
     FileIcon, 
@@ -102,6 +102,7 @@ function Post ({ post, reloadPosts }: PostProps) {
     const [course, setCourse] = useState<any>();
     const [isOwner, setIsOwner] = useState(false);
     const [owner, setOwner] = useState<any>();
+    const [fileFolder, setFileFolder] = useState<any>();
     const [files, setFiles] = useState<any[]>([]);
     const [viewFile, setViewFile] = useState<any>();
     const [loadedPost, setLoadedPost] = useState(post);
@@ -110,6 +111,16 @@ function Post ({ post, reloadPosts }: PostProps) {
     const [isDiscussionShown, setIsDiscussionShown] = useState(false);
     const [commentCount, setCommentCount] = useState(0);
     const containerWidth = post ? "w-full" : "w-full";
+
+    const getPhotoUrl = (value?: string) => {
+        if (!value) return "";
+
+        if (value.startsWith("http")) {
+            return value;
+        }
+
+        return `${import.meta.env.VITE_PHOTO_STORAGE}${value}`;
+    }
 
     const loadPostDetails = async () => {
         try {
@@ -125,27 +136,41 @@ function Post ({ post, reloadPosts }: PostProps) {
                 postResponse = await getPostApi(id);
             }
 
-            setLoadedPost(postResponse.post);
+            const currentPost = postResponse.post;
+
+            setLoadedPost(currentPost);
             setIsOwner(postResponse.isOwner);
 
             const [courseResponse, ownerResponse, fileResponse] = await Promise.all([
-                getCourseApi(loadedPost.courseId),
-                getProfileByIdApi(loadedPost.userId),
-                getFilesOfPostApi(loadedPost.id),
+                currentPost.courseId ? getCourseApi(currentPost.courseId) : Promise.resolve(undefined),
+                getProfileByIdApi(currentPost.userId),
+                getFilesOfPostApi(currentPost.id),
             ]);
 
-            setCourse(courseResponse.course);
+            setCourse(courseResponse?.course);
             setOwner(ownerResponse.profile);
-            setCourseImg(courseResponse.course.imageUrl || `${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`);
-            setOwnerAvatar(ownerResponse.profile.avatarUrl || `${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`);
+            setFileFolder(undefined);
+            if (!currentPost.courseId && ownerResponse.profile?.username) {
+                const folderResponse = await getUserFoldersApi(ownerResponse.profile.username);
+                setFileFolder(folderResponse.freeFolder);
+            }
+            setCourseImg(
+                courseResponse?.course?.thumbnail?.name
+                    ? `${import.meta.env.VITE_PHOTO_STORAGE}${courseResponse.course.thumbnail.name}`
+                    : `${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`
+            );
+            setOwnerAvatar(
+                getPhotoUrl(ownerResponse.profile.avatarUrl || ownerResponse.profile.avatar?.name)
+                    || `${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`
+            );
 
             if (fileResponse) {
                 setFiles(fileResponse);
                 setViewFile(fileResponse[0]);
             }
 
-            if (isLoggedIn  && loadedPost) {
-                const ratePostResponse = await getRatePostApi(loadedPost.id);
+            if (isLoggedIn && currentPost) {
+                const ratePostResponse = await getRatePostApi(currentPost.id);
 
                 if (ratePostResponse?.isRated) {
                     const ratePost = ratePostResponse.ratePost;
@@ -178,7 +203,7 @@ function Post ({ post, reloadPosts }: PostProps) {
             if (reloadPosts) {
                 await reloadPosts();
             }
-            navigate(`/course/${course.id}`);
+            navigate(course?.id ? `/course/${course.id}` : owner?.username ? `/posts/${owner.username}` : "/");
         } catch (error: any) {
             if (error.response?.status === 401) {
                 console.error("Token Expired");
@@ -288,14 +313,18 @@ function Post ({ post, reloadPosts }: PostProps) {
         <div className={`flex flex-col justify-center items-start ${containerWidth} rounded-md border shadow-md p-3`}>
             <div className="relative flex flex-row w-full">
                 <div className="flex flex-col">
-                    <img src={courseImg} className=" border-2 w-20 aspect-2/1 object-cover rounded-md" onClick={() => navigate(`/course/${course?.id}`)}/>
-                    <img src={ownerAvatar} className="rounded-full border-2 w-13 aspect-square -translate-y-1/2 translate-x-3" onClick={() => navigate(`/profile/${owner?.username}`)}/>
+                    {course?.id && (
+                        <img src={courseImg} className=" border-2 w-20 aspect-2/1 object-cover rounded-md" onClick={() => navigate(`/course/${course.id}`)}/>
+                    )}
+                    <img src={ownerAvatar} className={`${course?.id ? "-translate-y-1/2 translate-x-3" : ""} rounded-full border-2 w-13 aspect-square object-cover`} onClick={() => navigate(`/profile/${owner?.username}`)}/>
                 </div>
 
                 <div className="flex flex-col px-2">
-                    <a className="font-bold text-lg hover:underline" href={`/course/${course?.id}`}>
-                        {course?.title}
-                    </a>
+                    {course?.id ? (
+                        <a className="font-bold text-lg hover:underline" href={`/course/${course.id}`}>
+                            {course.title}
+                        </a>
+                    ) : null}
                     
                     <span className="text-gray-500">
                         <a className="text-gray-500 hover:underline" href={`/profile/${owner?.username}`}>
@@ -328,6 +357,7 @@ function Post ({ post, reloadPosts }: PostProps) {
                                         post={loadedPost} 
                                         uploadedFiles={files} 
                                         course={course} 
+                                        fileFolder={fileFolder}
                                         reloadPost={loadPostDetails}
                                         className="w-full border-0 flex flex-row justify-start items-start font-normal shadow-none p-2"
                                     />
@@ -407,19 +437,21 @@ function Post ({ post, reloadPosts }: PostProps) {
             </div>
 
             <div className="flex flex-row items-center justify-start pt-2 w-full">
-                <HoverCard openDelay={100} closeDelay={100}>
-                    <HoverCardTrigger asChild>
-                        <Button variant="outline" className="flex-1 w-full font-normal">
-                            <span className="wrap-anywhere whitespace-break-spaces">
-                                {isRated ? `${rating}⭐` : "Rate"}
-                            </span>
-                        </Button>
-                    </HoverCardTrigger>
+                {isLoggedIn && (
+                    <HoverCard openDelay={100} closeDelay={100}>
+                        <HoverCardTrigger asChild>
+                            <Button variant="outline" className="flex-1 w-full font-normal">
+                                <span className="wrap-anywhere whitespace-break-spaces">
+                                    {isRated ? `${rating}⭐` : "Rate"}
+                                </span>
+                            </Button>
+                        </HoverCardTrigger>
 
-                    <HoverCardContent side="top" className="flex flex-col items-center w-50">
-                        <StarRating value={rating} onChange={ratePost} />
-                    </HoverCardContent>
-                </HoverCard>
+                        <HoverCardContent side="top" className="flex flex-col items-center w-50">
+                            <StarRating value={rating} onChange={ratePost} />
+                        </HoverCardContent>
+                    </HoverCard>
+                )}
 
                 <Button variant="outline" className="flex-1 font-normal" onClick={toggleDiscussion}>
                     <span className="wrap-anywhere whitespace-break-spaces">

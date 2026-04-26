@@ -137,6 +137,7 @@ model Course {
     rating              Float       @default(0)
 
     createdAt           DateTime    @default(now())
+    lastUpdated         DateTime    @default(now())
 
     user                Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
     thumbnail           Photo?      @relation(fields: [thumbnailId], references: [id])

@@ -27,4 +27,8 @@ export class PostService {
     async getPostsByCourseId(courseId: string) {
         return this.postRepo.findByCourseId(courseId);
     }
+
+    async getPostsByUserId(userId: string) {
+        return this.postRepo.findByUserId(userId);
+    }
 }

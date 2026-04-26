@@ -371,13 +371,15 @@ function CommentSection ({
 
     return (
         <section className={className}>
-            <DiscussionForm
-                value={commentText}
-                placeholder="Write a discussion"
-                isSubmitting={isSubmitting}
-                onChange={setCommentText}
-                onSubmit={() => submitComment()}
-            />
+            {isLoggedIn && (
+                <DiscussionForm
+                    value={commentText}
+                    placeholder="Write a discussion"
+                    isSubmitting={isSubmitting}
+                    onChange={setCommentText}
+                    onSubmit={() => submitComment()}
+                />
+            )}
 
             <div className="mt-4 flex w-full flex-col gap-4">
                 {isLoading && (
@@ -404,6 +406,7 @@ function CommentSection ({
                                 isEditing={editingDiscussionId === comment.id}
                                 editText={editText}
                                 isSubmitting={isSubmitting}
+                                canReply={isLoggedIn}
                                 onReply={beginReply}
                                 onEdit={beginEdit}
                                 onEditTextChange={setEditText}
@@ -464,6 +467,7 @@ function CommentSection ({
                                                 isEditing={editingDiscussionId === reply.id}
                                                 editText={editText}
                                                 isSubmitting={isSubmitting}
+                                                canReply={isLoggedIn}
                                                 onReply={beginReply}
                                                 onEdit={beginEdit}
                                                 onEditTextChange={setEditText}

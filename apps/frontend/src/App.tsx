@@ -13,6 +13,8 @@ import { Toaster } from "react-hot-toast";
 import Courses from './modules/courses/Courses.tsx';
 import Course from './modules/course/Course.tsx';
 import { Post } from './modules/course/Posts.tsx';
+import UserPosts from './modules/posts/UserPosts.tsx';
+import UserFiles from './modules/files/UserFiles.tsx';
 
 
 function App() {
@@ -33,6 +35,8 @@ function App() {
                     <Route path="/homepage" element={<Homepage />} />
                     <Route path="/profile/:username" element={<Profile />} />
                     <Route path="/courses/:username" element={<Courses />} />
+                    <Route path="/posts/:username" element={<UserPosts />} />
+                    <Route path="/files/:username" element={<UserFiles />} />
                     <Route path="/course/:id" element={<Course />} />
                     <Route path="/post/:id" element={<Post />} />
                 </Route>

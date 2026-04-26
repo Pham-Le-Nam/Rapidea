@@ -67,7 +67,7 @@ export class UsersController {
         }
 
         const updatedProfile = await this.usersService.updateProfileByUsername(
-            updateProfileDto.username,
+            username,
             updateProfileDto.firstname,
             updateProfileDto.lastname,
             updateProfileDto.middlename,

@@ -6,15 +6,22 @@ import { UsersRepository } from '../../modules/users/users.repository';
 export class PrismaUsersRepository implements UsersRepository {
     constructor(private prisma: PrismaService) {}
 
-    async create(email: string, password: string, firstname: string, lastname: string, middlename?: string) {
-        let username: string;
+    private serializeUser(user: any) {
+        if (!user) return user;
 
-        if (!middlename) {
-            username = await this.generateUsername(`${firstname}.${lastname}`);
-        }
-        else {
-            username = await this.generateUsername(`${firstname}.${middlename}.${lastname}`);
-        }
+        const { password, avatar, background, ...safeUser } = user;
+
+        return {
+            ...safeUser,
+            avatar,
+            background,
+            avatarUrl: avatar?.name ? `${process.env.PHOTO_STORAGE_PATH ?? ''}${avatar.name}` : undefined,
+            backgroundUrl: background?.name ? `${process.env.PHOTO_STORAGE_PATH ?? ''}${background.name}` : undefined,
+        };
+    }
+
+    async create(email: string, password: string, firstname: string, lastname: string, middlename?: string) {
+        const username = await this.generateUsername(firstname, middlename, lastname);
         
         return this.prisma.users.create({ 
             data: { 
@@ -29,7 +36,14 @@ export class PrismaUsersRepository implements UsersRepository {
     }
 
     async findAll() {
-        return this.prisma.users.findMany();
+        const users = await this.prisma.users.findMany({
+            include: {
+                avatar: true,
+                background: true,
+            },
+        });
+
+        return users.map((user) => this.serializeUser(user));
     }
 
     async findByEmail(email: string) {
@@ -39,21 +53,55 @@ export class PrismaUsersRepository implements UsersRepository {
     }
 
     async findByUsername(username: string) {
-        return this.prisma.users.findUnique({
+        const user = await this.prisma.users.findUnique({
             where: { username },
+            include: {
+                avatar: true,
+                background: true,
+            },
         });
+
+        return this.serializeUser(user);
     }
 
     async findById(id: string){
-        return this.prisma.users.findUnique({
-            where: { id }
-        })
+        const user = await this.prisma.users.findUnique({
+            where: { id },
+            include: {
+                avatar: true,
+                background: true,
+            },
+        });
+
+        return this.serializeUser(user);
     }
 
     async updateById(id: string, firstname?: string, lastname?: string, middlename?: string, avatarId?: number, backgroundId?: number, headline?: string, bio?: string): Promise<any | null> {
-        return this.prisma.users.update({
+        const currentUser = await this.prisma.users.findUnique({
+            where: { id },
+            select: {
+                firstname: true,
+                lastname: true,
+                middlename: true,
+            },
+        });
+
+        if (!currentUser) {
+            throw new InternalServerErrorException("User not found");
+        }
+
+        const nextFirstname = firstname ?? currentUser.firstname;
+        const nextLastname = lastname ?? currentUser.lastname;
+        const nextMiddlename = middlename ?? currentUser.middlename ?? undefined;
+        const shouldRegenerateUsername = firstname !== undefined || lastname !== undefined || middlename !== undefined;
+        const username = shouldRegenerateUsername
+            ? await this.generateUsername(nextFirstname, nextMiddlename, nextLastname, id)
+            : undefined;
+
+        const user = await this.prisma.users.update({
             where: { id },
             data: {
+                username,
                 firstname,
                 lastname,
                 middlename,
@@ -62,13 +110,42 @@ export class PrismaUsersRepository implements UsersRepository {
                 headline,
                 bio,
             },
+            include: {
+                avatar: true,
+                background: true,
+            },
         });
+
+        return this.serializeUser(user);
     }
 
-    async updateByUsername(username: string, firstname?: string, lastname?: string, middlename?: string, avatarId?: number, backgroundId?: number, headline?: string, bio?: string): Promise<any | null> {
-        return this.prisma.users.update({
-            where: { username },
+    async updateByUsername(currentUsername: string, firstname?: string, lastname?: string, middlename?: string, avatarId?: number, backgroundId?: number, headline?: string, bio?: string): Promise<any | null> {
+        const currentUser = await this.prisma.users.findUnique({
+            where: { username: currentUsername },
+            select: {
+                id: true,
+                firstname: true,
+                lastname: true,
+                middlename: true,
+            },
+        });
+
+        if (!currentUser) {
+            throw new InternalServerErrorException("User not found");
+        }
+
+        const nextFirstname = firstname ?? currentUser.firstname;
+        const nextLastname = lastname ?? currentUser.lastname;
+        const nextMiddlename = middlename ?? currentUser.middlename ?? undefined;
+        const shouldRegenerateUsername = firstname !== undefined || lastname !== undefined || middlename !== undefined;
+        const username = shouldRegenerateUsername
+            ? await this.generateUsername(nextFirstname, nextMiddlename, nextLastname, currentUser.id)
+            : undefined;
+
+        const user = await this.prisma.users.update({
+            where: { username: currentUsername },
             data: {
+                username,
                 firstname,
                 lastname,
                 middlename,
@@ -77,7 +154,13 @@ export class PrismaUsersRepository implements UsersRepository {
                 headline,
                 bio,
             },
+            include: {
+                avatar: true,
+                background: true,
+            },
         });
+
+        return this.serializeUser(user);
     }
 
     async updateSessionVersion(id: string) {
@@ -105,17 +188,28 @@ export class PrismaUsersRepository implements UsersRepository {
         return user;
     }
 
-    private async generateUsername(name: string): Promise<string> {
-        const base = name.toLowerCase().replace(/\s+/g, '');
+    private async generateUsername(firstname: string, middlename: string | undefined | null, lastname: string, excludedUserId?: string): Promise<string> {
+        const base = [firstname, middlename, lastname]
+            .filter((part) => !!part?.trim())
+            .join('.')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '.')
+            .replace(/^\.+|\.+$/g, '')
+            .replace(/\.+/g, '.') || 'user';
         let username = base;
-        let counter = 1;
+        let counter = 2;
 
         while (
-            await this.prisma.users.findUnique({
-                where: { username },
+            await this.prisma.users.findFirst({
+                where: {
+                    username,
+                    ...(excludedUserId ? { id: { not: excludedUserId } } : {}),
+                },
             })
         ) {
-            username = `${base}${counter}`;
+            username = `${base}.${counter}`;
             counter++;
         }
 

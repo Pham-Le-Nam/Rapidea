@@ -31,7 +31,7 @@ export class PrismaPostRepository implements PostRepository {
             }
         }
 
-        const [post] = await this.prisma.$transaction([
+        const [post, updatedUser, updatedCourse] = await this.prisma.$transaction([
             this.prisma.post.create({
                 data: {
                     title,
@@ -47,6 +47,9 @@ export class PrismaPostRepository implements PostRepository {
                 data: {
                     postsCount: { increment: 1 },
                 },
+                select: {
+                    postsCount: true,
+                },
             }),
             ...(courseId
                 ? [
@@ -56,6 +59,11 @@ export class PrismaPostRepository implements PostRepository {
                         },
                         data: {
                             postsCount: { increment: 1 },
+                            lastUpdated: new Date(),
+                        },
+                        select: {
+                            postsCount: true,
+                            lastUpdated: true,
                         },
                     }),
                 ]
@@ -67,7 +75,12 @@ export class PrismaPostRepository implements PostRepository {
             throw new InternalServerErrorException("Couldn't create the post");
         }
 
-        return post;
+        return {
+            ...post,
+            userPostsCount: updatedUser.postsCount,
+            coursePostsCount: updatedCourse?.postsCount,
+            courseLastUpdated: updatedCourse?.lastUpdated,
+        };
     }
 
     async deleteById (id: string, userId: string): Promise<any> {
@@ -123,16 +136,47 @@ export class PrismaPostRepository implements PostRepository {
     }
 
     async updateById (id: string, userId: string, title?: string, content?: any): Promise<any> {
-        return this.prisma.post.update({
+        const post = await this.prisma.post.findUnique({
             where: {
                 id,
                 userId,
             },
-            data: {
-                title,
-                content,
+            select: {
+                courseId: true,
             },
         });
+
+        if (!post) {
+            throw new InternalServerErrorException("Post not found");
+        }
+
+        const [updatedPost] = await this.prisma.$transaction([
+            this.prisma.post.update({
+                where: {
+                    id,
+                    userId,
+                },
+                data: {
+                    title,
+                    content,
+                },
+            }),
+            ...(post.courseId
+                ? [
+                    this.prisma.course.update({
+                        where: {
+                            id: post.courseId,
+                        },
+                        data: {
+                            lastUpdated: new Date(),
+                        },
+                    }),
+                ]
+                : []
+            ),
+        ]);
+
+        return updatedPost;
     }
 
     async findById (id: string): Promise<any> {
@@ -147,6 +191,17 @@ export class PrismaPostRepository implements PostRepository {
         return this.prisma.post.findMany({
             where: {
                 courseId,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+        });
+    }
+
+    async findByUserId (userId: string): Promise<any> {
+        return this.prisma.post.findMany({
+            where: {
+                userId,
             },
             orderBy: {
                 createdAt: 'desc',

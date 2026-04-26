@@ -13,12 +13,14 @@ import { AddPostDto } from './post-dto/add-post.dto';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt.guard';
 import { CourseService } from '../course/course.service';
+import { UsersService } from '../users/users.service';
 
 @Controller('api/post')
 export class PostController {
     constructor(
         private readonly postService: PostService,
         private readonly courseService: CourseService,
+        private readonly usersService: UsersService,
     ) {}
 
     @UseGuards(JwtAuthGuard)
@@ -46,17 +48,23 @@ export class PostController {
     }
 
     @UseGuards(OptionalJwtAuthGuard)
-    @Get(':id')
-    async getPost (
+    @Get('user/:username')
+    async getPostsByUsername (
         @Request() req: any,
-        @Param('id') id: string,
+        @Param('username') username: string,
     ) {
-        const user = req.user;
-        const post = await this.postService.getPostById(id);
+        const viewer = req.user;
+        const user = await this.usersService.getUserByUsername(username);
+
+        if (!user) {
+            throw new NotFoundException("User not found");
+        }
+
+        const posts = await this.postService.getPostsByUserId(user.id);
 
         return {
-            post,
-            isOwner: user ? (user.userId === post.userId) : false,
+            posts,
+            isOwner: viewer ? viewer.userId === user.id : false,
         };
     }
 
@@ -72,7 +80,7 @@ export class PostController {
         return post;
     }
 
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(OptionalJwtAuthGuard)
     @Get('course/:courseId')
     async getPostsByCourseId (
         @Request() req: any,
@@ -90,6 +98,21 @@ export class PostController {
         return {
             posts,
             isOwner: user ? course.userId === user.userId : false,
+        };
+    }
+
+    @UseGuards(OptionalJwtAuthGuard)
+    @Get(':id')
+    async getPost (
+        @Request() req: any,
+        @Param('id') id: string,
+    ) {
+        const user = req.user;
+        const post = await this.postService.getPostById(id);
+
+        return {
+            post,
+            isOwner: user ? (user.userId === post.userId) : false,
         };
     }
 }

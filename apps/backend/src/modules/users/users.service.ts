@@ -59,7 +59,18 @@ export class UsersService {
         return this.usersRepo.updateById(id, firstname, lastname, middlename, avatarId, backgroundId, headline, bio);
     }
 
-    async updateProfileByUsername(username: string, firstname?: string, lastname? : string, middlename? : string, avatarId?: number, backgroundId?: number, headline?: string, bio?: string) {
-        return this.usersRepo.updateByUsername(username, firstname, lastname, middlename, avatarId, backgroundId, headline, bio);
+    async updateProfileByUsername(currentUsername: string, firstname?: string, lastname? : string, middlename? : string, avatarId?: number, backgroundId?: number, headline?: string, bio?: string) {
+        const currentUser = await this.usersRepo.findByUsername(currentUsername);
+        const updatedUser = await this.usersRepo.updateByUsername(currentUsername, firstname, lastname, middlename, avatarId, backgroundId, headline, bio);
+
+        if (currentUser && updatedUser?.username && updatedUser.username !== currentUsername) {
+            const rootFolder = await this.folderService.findFolderByLocation(currentUsername);
+
+            if (rootFolder) {
+                await this.folderService.renameFolder(rootFolder.id, currentUser.id, updatedUser.username);
+            }
+        }
+
+        return updatedUser;
     }
 }

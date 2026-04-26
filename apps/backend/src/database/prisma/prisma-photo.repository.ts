@@ -22,7 +22,7 @@ export class PrismaPhotoRepository implements PhotoRepository {
         const photo = await this.prisma.photo.create({
             data: {
                 userId,
-                url,
+                url: url ?? '',
                 name: tempName,
             },
             select: {
@@ -39,6 +39,7 @@ export class PrismaPhotoRepository implements PhotoRepository {
             },
             data: {
                 name,
+                url: url ?? `media/${name}`,
             },
         });
     }

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button"
-import rapideiaLogo from '/rapideia.png'
+import rapideiLogo from '/rapidea.png'
 import { useAuth } from "@/context/AuthContext";
 
 function Navbar() {
@@ -9,7 +9,7 @@ function Navbar() {
     return (
         <nav className="sticky top-0 z-1 px-6 md:px-70 py-4 flex justify-between items-center shadow-md flex-wrap bg-white">
             <Link to="/">
-                <img src={rapideiaLogo} className="size-9 rounded-full" />
+                <img src={rapideiLogo} className="size-9 rounded-full" />
             </Link>
 
             <div className="space-x-6">

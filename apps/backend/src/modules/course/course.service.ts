@@ -34,7 +34,7 @@ export class CourseService {
         return this.courseRepo.create(userId, title, folder.id, description, price, currency);
     }
 
-    async updateCourse(id: string, userId: string, title?: string, description?: string, price?: number, currency?: string) {
+    async updateCourse(id: string, userId: string, title?: string, description?: string, price?: number, currency?: string, thumbnailId?: number) {
         if (title) {
             const course = await this.courseRepo.findById(id);
             const courseFolder = await this.folderService.renameFolder(course.folderId, userId, title);
@@ -44,7 +44,11 @@ export class CourseService {
             }
         }
 
-        return this.courseRepo.updateById(id, userId, title, description, price, currency);
+        return this.courseRepo.updateById(id, userId, title, description, price, currency, thumbnailId);
+    }
+
+    async updateCourseLastUpdated(courseId: string, lastUpdated: Date = new Date()) {
+        return this.courseRepo.updateLastUpdatedById(courseId, lastUpdated);
     }
 
     async deleteCourse(courseId: string, userId: string) {

@@ -97,6 +97,176 @@ export async function getSocialLinkApi(username: string) {
     return response.data;
 }
 
+export async function updateProfileApi(
+    currentUsername: string,
+    data: {
+        firstname?: string;
+        lastname?: string;
+        middlename?: string;
+        avatarId?: number;
+        backgroundId?: number;
+        headline?: string;
+        bio?: string;
+    },
+) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/users/${currentUsername}`,
+        data,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function uploadPhotoApi(photo: File) {
+    const token = localStorage.getItem("token");
+    const formData = new FormData();
+    formData.append("photo", photo);
+
+    const response = await API.post(
+        `api/photo/upload`,
+        formData,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function uploadCourseThumbnailApi(courseId: string, photo: File) {
+    const token = localStorage.getItem("token");
+    const formData = new FormData();
+    formData.append("photo", photo);
+
+    const response = await API.post(
+        `api/photo/course/${courseId}/thumbnail`,
+        formData,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function addSocialLinkApi(platform: string, url: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/social-link/add`,
+        {
+            platform,
+            url,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function updateSocialLinkApi(id: string, url: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/social-link/update`,
+        {
+            id,
+            url,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function deleteSocialLinkApi(id: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/social-link/delete`,
+        {
+            id,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function getFollowApi(followingId: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.get(
+        `api/follow/${followingId}`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function followUserApi(followingId: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/follow/add`,
+        {
+            followingId,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function unfollowUserApi(followingId: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/follow/delete`,
+        {
+            followingId,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
 export async function getExperienceApi(username: string) {
     const response = await API.get(`api/experience/${username}`);
 
@@ -385,14 +555,17 @@ export async function deleteProjectApi (id: string) {
 
 export async function getCoursesApi (username: string) {
     const token = localStorage.getItem("token");
-
-    const response = await API.get (
-        `api/course/${username}`,
-        {
+    const config = token
+        ? {
             headers: {
                 Authorization: `Bearer ${token}`
             },
-        },
+        }
+        : undefined;
+
+    const response = await API.get (
+        `api/course/${username}`,
+        config,
     );
 
     return response.data;
@@ -437,7 +610,7 @@ export async function deleteCourseApi(id: string) {
     return response.data;
 }
 
-export async function udpateCourseApi(id: string, title: string, description?: string, price?: number, currency?: string) {
+export async function udpateCourseApi(id: string, title: string, description?: string, price?: number, currency?: string, thumbnailId?: number) {
     const token = localStorage.getItem("token");
 
     const response = await API.post(
@@ -447,6 +620,7 @@ export async function udpateCourseApi(id: string, title: string, description?: s
             description,
             price,
             currency,
+            thumbnailId,
         },
         {
             headers: {
@@ -493,14 +667,17 @@ export async function subscribeCourseApi(courseId: string) {
 
 export async function getCourseApi (id: string) {
     const token = localStorage.getItem("token");
-
-    const response = await API.get(
-        `api/course/id/${id}`,
-        {
+    const config = token
+        ? {
             headers: {
                 Authorization: `Bearer ${token}`
             },
-        },
+        }
+        : undefined;
+
+    const response = await API.get(
+        `api/course/id/${id}`,
+        config,
     );
 
     return response.data;
@@ -508,16 +685,37 @@ export async function getCourseApi (id: string) {
 
 export async function getFolderApi (folderId: string) {
     const token = localStorage.getItem("token");
-
-    const response = await API.get(
-        `api/folder/${folderId}`,
-        {
+    const config = token
+        ? {
             headers: {
                 Authorization: `Bearer ${token}`
             },
-        },
+        }
+        : undefined;
+
+    const response = await API.get(
+        `api/folder/${folderId}`,
+        config,
     );
 
+    return response.data;
+}
+
+export async function getUserFoldersApi(username: string) {
+    const token = localStorage.getItem("token");
+    const config = token
+        ? {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        }
+        : undefined;
+
+    const response = await API.get(
+        `api/folder/user/${username}`,
+        config,
+    );
+    console.log(response.data);
     return response.data;
 }
 
@@ -599,14 +797,17 @@ export async function uploadFileApi(folderId: string, file: File) {
 
 export async function getFileApi(fileId: string) {
     const token = localStorage.getItem("token");
-
-    const response = await API.get(
-        `api/file/url/${fileId}`,
-        {
+    const config = token
+        ? {
             headers: {
                 Authorization: `Bearer ${token}`
             },
-        },
+        }
+        : undefined;
+
+    const response = await API.get(
+        `api/file/url/${fileId}`,
+        config,
     );
 
     return response.data;
@@ -709,14 +910,35 @@ export async function deletePostApi (postId: string) {
 
 export async function getPostApi (postId: string) {
     const token = localStorage.getItem("token");
-
-    const response = await API.get(
-        `api/post/${postId}`,
-        {
+    const config = token
+        ? {
             headers: {
                 Authorization: `Bearer ${token}`
             },
-        },
+        }
+        : undefined;
+
+    const response = await API.get(
+        `api/post/${postId}`,
+        config,
+    );
+
+    return response.data;
+}
+
+export async function getPostsByUsernameApi(username: string) {
+    const token = localStorage.getItem("token");
+    const config = token
+        ? {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        }
+        : undefined;
+
+    const response = await API.get(
+        `api/post/user/${username}`,
+        config,
     );
 
     return response.data;
@@ -762,14 +984,17 @@ export async function removeFileToPostApi (fileId: string, postId: string) {
 
 export async function getFilesOfPostApi (postId: string) {
     const token = localStorage.getItem("token");
-
-    const response = await API.get(
-        `api/file-in-post/post/${postId}`,
-        {
+    const config = token
+        ? {
             headers: {
                 Authorization: `Bearer ${token}`
             },
-        },
+        }
+        : undefined;
+
+    const response = await API.get(
+        `api/file-in-post/post/${postId}`,
+        config,
     );
 
     return response.data;
@@ -777,14 +1002,17 @@ export async function getFilesOfPostApi (postId: string) {
 
 export async function getPostsOfCourseApi (courseId: string) {
     const token = localStorage.getItem("token");
-
-    const response = await API.get(
-        `api/post/course/${courseId}`,
-        {
+    const config = token
+        ? {
             headers: {
                 Authorization: `Bearer ${token}`
             },
-        },
+        }
+        : undefined;
+
+    const response = await API.get(
+        `api/post/course/${courseId}`,
+        config,
     );
 
     return response.data;

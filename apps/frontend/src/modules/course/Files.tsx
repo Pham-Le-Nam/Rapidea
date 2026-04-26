@@ -32,11 +32,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type FilesProp = {
-    course: any,
+    rootFolderId: string,
     addFile?: (file: any) => Promise<void>,
+    lockRootActions?: boolean,
 }
 
-function Files ({ course, addFile }: FilesProp) {
+function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
     const { logout } = useAuth();
     const navigate = useNavigate();
     const [folder, setFolder] = useState<any>();
@@ -46,6 +47,7 @@ function Files ({ course, addFile }: FilesProp) {
     const [isRootFolder, setIsRootFolder] = useState(true);
     const [newFolderName, setNewFolderName] = useState("");
     const [newFileName, setNewFileName] = useState("");
+    const isRootActionLocked = lockRootActions && isRootFolder;
 
     const loadFolder = async (folderId: string) => {
         try {
@@ -64,7 +66,7 @@ function Files ({ course, addFile }: FilesProp) {
             setIsOwner(response.isOwner);
             setChildrenFolder(folders);
             setChildrenFiles(files);
-            setIsRootFolder(folderId === course.folderId);
+            setIsRootFolder(folderId === rootFolderId);
         } catch (error: any) {
             if (error.response?.status === 401) {
                 console.error("Token Expired");
@@ -226,8 +228,10 @@ function Files ({ course, addFile }: FilesProp) {
     }
     
     useEffect(() => {
-        loadFolder(course.folderId);
-    }, [course]);
+        if (rootFolderId) {
+            loadFolder(rootFolderId);
+        }
+    }, [rootFolderId]);
 
     return (
         <div className="flex flex-col items-center justify-start rounded-md border shadow-md w-full gap-3">
@@ -258,9 +262,11 @@ function Files ({ course, addFile }: FilesProp) {
                                 <DocumentName submit={createFolder} value={newFolderName} setValue={setNewFolderName} title="Create Folder" className="hover:bg-gray-100 w-full text-lg"/>
                             </DropdownMenuItem>
 
-                            <DropdownMenuItem asChild>
-                                <FileUpload className="hover:bg-gray-100 w-full text-lg" folderId={folder?.id} reloadFolder={loadFolder}/>
-                            </DropdownMenuItem>
+                            {!isRootActionLocked && (
+                                <DropdownMenuItem asChild>
+                                    <FileUpload className="hover:bg-gray-100 w-full text-lg" folderId={folder?.id} reloadFolder={loadFolder}/>
+                                </DropdownMenuItem>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 )}
@@ -277,7 +283,7 @@ function Files ({ course, addFile }: FilesProp) {
                             {childFolder.name}
                         </Button>
 
-                        {isOwner && (
+                        {isOwner && !isRootActionLocked && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild className="hover:bg-gray-100 h-full bg-white">
                                     <Button variant="outline" className="border-0 rounded-full">
@@ -323,9 +329,11 @@ function Files ({ course, addFile }: FilesProp) {
                                         <DocumentName submit={() => renameFile(childFile.id, newFileName)} value={newFileName} setValue={setNewFileName} title="Rename File" className="hover:bg-gray-100 w-full text-lg"/>
                                     </DropdownMenuItem>
 
-                                    <DropdownMenuItem asChild>
-                                        <DeleteDocument title="File" submit={deleteFile} document={childFile} className="hover:bg-gray-100 w-full text-lg"/>
-                                    </DropdownMenuItem>
+                                    {!isRootActionLocked && (
+                                        <DropdownMenuItem asChild>
+                                            <DeleteDocument title="File" submit={deleteFile} document={childFile} className="hover:bg-gray-100 w-full text-lg"/>
+                                        </DropdownMenuItem>
+                                    )}
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         )}                        

@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
 import { ComboboxBasic } from "@/components/ui/comboboxBasic";
 import { useAuth } from "@/context/AuthContext";
 import toast from "react-hot-toast";
-import { addCourseApi, deleteCourseApi, getCoursesApi, udpateCourseApi } from "@/api";
+import { addCourseApi, deleteCourseApi, getCoursesApi, udpateCourseApi, uploadPhotoApi } from "@/api";
 
 
 function Courses() {
@@ -52,11 +52,19 @@ function Courses() {
     }, [username]);
 
     return (
-        <div className="flex flex-col items-center max-w-350 w-full">
-            
-            {isOwner &&
-                <CreateCourse reloadCourses={loadCourses}/>
-            }
+        <div className="flex w-full max-w-350 flex-col items-center gap-3 px-2">
+            <div className="flex w-full items-center rounded-md border px-3 py-2 shadow-sm">
+                <h1 className="text-xl font-bold">
+                    Courses
+                </h1>
+            </div>
+
+            {isOwner && (
+                <CreateCourse
+                    reloadCourses={loadCourses}
+                    className="w-full h-full text-3xl"
+                />
+            )}
 
             <div className="flex flex-col items-center justify-around md:flex-row md:items-start md:flex-wrap w-full px-3">
 
@@ -79,35 +87,54 @@ type CourseComponentProp = {
 
 function CourseComponent ({ course, isOwner, loadCourses }: CourseComponentProp) {
     const [showAllDescription, setShowAllDescription] = useState(false);
-    const description = course.description;
+    const description = course.description ?? "";
     const shortenedSize = 50;
     // Don't show "Show More"/"Show Less" if description is not long enough
     const isLong = description.length >= 50;
     const visibleDescription = showAllDescription ? description : description.slice(0, shortenedSize);
     const courseLink = `/course/${course.id}`;
+    const thumbnailUrl = course.thumbnail?.name
+        ? `${import.meta.env.VITE_PHOTO_STORAGE}${course.thumbnail.name}`
+        : `${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`;
 
-    const shortenRatingCount = (ratingCount: number) => {
+    const shortenCount = (count: number) => {
         let shorten = "";
 
-        if (ratingCount >= 1000000) {
-            const millionRating = ratingCount/1000000;
-            shorten = millionRating.toFixed(1) + "M";
+        if (count >= 1000000) {
+            const millionCount = count/1000000;
+            shorten = millionCount.toFixed(1) + "M";
         }
-        else if (ratingCount >= 1000) {
-            const thousandRating = ratingCount/1000;
-            shorten = thousandRating.toFixed(1) + "K";
+        else if (count >= 1000) {
+            const thousandCount = count/1000;
+            shorten = thousandCount.toFixed(1) + "K";
         }
         else {
-            shorten = ratingCount.toString();
+            shorten = count.toString();
         }
 
         return shorten;
     }
 
+    const formatLastUpdated = (dateString?: string) => {
+        if (!dateString) return "Never";
+
+        const date = new Date(dateString);
+
+        if (Number.isNaN(date.getTime())) {
+            return "Never";
+        }
+
+        return date.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+        });
+    }
+
     return (
         <div className="flex flex-col rounded-md border shadow-md md:max-w-[49%] lg:max-w-[33%] my-2">
             <a href={courseLink} className="w-full aspect-3/1 object-cover rounded-md">
-                <img src={`${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`} className="w-full aspect-3/1 object-cover rounded-md" />
+                <img src={thumbnailUrl} className="w-full aspect-3/1 object-cover rounded-md" />
             </a>
 
             <div className="flex flex-col items-start justify-around w-full px-2 py-2">
@@ -127,13 +154,28 @@ function CourseComponent ({ course, isOwner, loadCourses }: CourseComponentProp)
                     )}
                 </p>
 
-                <div className="flex flex-row justify-between w-full pt-1">
-                    <p>
-                        {`${course.rating} ⭐ from ${shortenRatingCount(course.ratingCount)} Ratings`}
-                    </p>
-                    <p>
-                        {`Price: ${course.price} ${course.currency}`}
-                    </p>
+                <div className="grid w-full grid-cols-4 gap-2 border-t pt-2 text-center text-sm">
+                    <div className="flex flex-col">
+                        <span className="font-semibold">{course.rating} ⭐</span>
+                        <span className="text-xs uppercase text-gray-500">{shortenCount(course.ratingCount ?? 0)} Ratings</span>
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="font-semibold">{course.price ?? 0}</span>
+                        <span className="text-xs uppercase text-gray-500">{course.currency ?? "AUD"}</span>
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="font-semibold">{shortenCount(course.postsCount ?? 0)}</span>
+                        <span className="text-xs uppercase text-gray-500">Posts</span>
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="font-semibold">{shortenCount(course.subscribersCount ?? 0)}</span>
+                        <span className="text-xs uppercase text-gray-500">Subscribers</span>
+                    </div>
+                </div>
+
+                <div className="w-full pt-4 text-center text-sm">
+                    <span className="ml-2">Last Update: </span>
+                    <span className="font-semibold">{formatLastUpdated(course.lastUpdated ?? course.createdAt)}</span>
                 </div>
             </div>
 
@@ -213,9 +255,10 @@ function DeleteCourse ({ course, reloadCourses, className }: DeleteCourseProp) {
 
 type CreateCourseProp = {
     reloadCourses: () => Promise<void>;
+    className?: string;
 }
 
-function CreateCourse ({ reloadCourses }: CreateCourseProp) {
+function CreateCourse ({ reloadCourses, className }: CreateCourseProp) {
     const currencies = [
         'AUD',
         'VND',
@@ -261,8 +304,8 @@ function CreateCourse ({ reloadCourses }: CreateCourseProp) {
     return (
         <Dialog>
             <DialogTrigger asChild>
-                <Button variant="outline" className="bg-main hover:bg-main-hover text-white hover:text-white rounded-full">
-                    Create a course
+                <Button variant="outline" className={className}>
+                    +
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[90%] pointer-events-auto">
@@ -346,6 +389,7 @@ function UpdateCourse ({ course, reloadCourses, className }: UpdateCourseProp) {
     const [title, setTitle] = useState(course?.title);
     const [description, setDescription] = useState<string>(course?.description);
     const [price, setPrice] = useState(course?.price);
+    const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
 
     const updateCourse = async () => {
         try {
@@ -354,12 +398,19 @@ function UpdateCourse ({ course, reloadCourses, className }: UpdateCourseProp) {
                 throw new Error("Title not found");
             }
 
-            const response = await udpateCourseApi(course?.id, title, description, price, currency);
+            let thumbnailId = course?.thumbnailId;
+
+            if (thumbnailFile) {
+                const photo = await uploadPhotoApi(thumbnailFile);
+                thumbnailId = photo.id;
+            }
+
+            const response = await udpateCourseApi(course?.id, title, description, price, currency, thumbnailId);
 
             if (!response) {
                 throw new Error("Couldn't update the course course");
             }
-
+            setThumbnailFile(null);
             reloadCourses();
         } catch (error: any) {
             if (error.response?.status === 401) {
@@ -426,6 +477,10 @@ function UpdateCourse ({ course, reloadCourses, className }: UpdateCourseProp) {
                                 <ComboboxBasic values={currencies} value={currency} setValue={setCurrency} />
                             </Field>
                         </div>
+                        <Field>
+                            <Label htmlFor="course-thumbnail-list">Thumbnail</Label>
+                            <Input id="course-thumbnail-list" type="file" accept="image/*" onChange={(event) => setThumbnailFile(event.target.files?.[0] ?? null)} />
+                        </Field>
                     </FieldGroup>
                     <DialogFooter className="pt-3">
                         <DialogClose asChild>

@@ -1,4 +1,11 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+    BadRequestException,
+    ConflictException,
+    ForbiddenException,
+    Injectable,
+    InternalServerErrorException,
+    NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SubscribeRepository } from '../../modules/subscribe/subscribe.repository';
 
@@ -8,9 +15,7 @@ export class PrismaSubscribeRepository implements SubscribeRepository {
 
     async create(courseId: string, userId: string): Promise<any> {
         const course = await this.prisma.course.findUnique({
-            where: {
-                id: courseId,
-            },
+            where: { id: courseId },
             select: {
                 userId: true,
                 price: true,
@@ -18,271 +23,327 @@ export class PrismaSubscribeRepository implements SubscribeRepository {
             },
         });
 
-        const user = await this.prisma.users.findUnique({
+        if (!course) {
+            throw new NotFoundException("Course not found");
+        }
+
+        if (userId === course.userId) {
+            throw new BadRequestException("You cannot subscribe to your own course");
+        }
+
+        try {
+            return await this.prisma.$transaction(async (tx) => {
+                const user = await tx.users.findUnique({
+                    where: { id: userId },
+                    select: { id: true },
+                });
+
+                if (!user) {
+                    throw new NotFoundException("User not found");
+                }
+
+                const subscription = await tx.subscribe.create({
+                    data: {
+                        courseId,
+                        userId,
+                        price: course.price,
+                        currency: course.currency,
+                    },
+                });
+
+                const updatedCourse = await tx.course.update({
+                    where: { id: courseId },
+                    data: { subscribersCount: { increment: 1 } },
+                    select: {
+                        subscribersCount: true,
+                    },
+                });
+
+                const updatedCreator = await tx.users.update({
+                    where: { id: course.userId },
+                    data: { subscribersCount: { increment: 1 } },
+                    select: {
+                        subscribersCount: true,
+                    },
+                });
+
+                return {
+                    ...subscription,
+                    courseSubscribersCount: updatedCourse.subscribersCount,
+                    creatorSubscribersCount: updatedCreator.subscribersCount,
+                };
+            });
+        } catch (error: any) {
+            if (error?.code === 'P2002') {
+                throw new ConflictException("You already subscribed to this course");
+            }
+
+            throw error;
+        }
+    }
+
+    async delete(courseId: string, userId: string): Promise<any> {
+        return this.prisma.$transaction(async (tx) => {
+            const subscription = await tx.subscribe.findUnique({
+                where: {
+                    courseId_userId: {
+                        courseId,
+                        userId,
+                    },
+                },
+                select: {
+                    id: true,
+                    courseId: true,
+                    userId: true,
+                    review: true,
+                    rating: true,
+                    price: true,
+                    currency: true,
+                    createdAt: true,
+                    course: {
+                        select: {
+                            userId: true,
+                            ratingCount: true,
+                            ratingTotal: true,
+                        },
+                    },
+                },
+            });
+
+            if (!subscription) {
+                throw new NotFoundException("Subscription not found");
+            }
+
+            const deletedSubscription = await tx.subscribe.delete({
+                where: {
+                    courseId_userId: {
+                        courseId,
+                        userId,
+                    },
+                },
+            });
+
+            await tx.course.update({
+                where: { id: courseId },
+                data: { subscribersCount: { decrement: 1 } },
+            });
+
+            await tx.users.update({
+                where: { id: subscription.course.userId },
+                data: { subscribersCount: { decrement: 1 } },
+            });
+
+            if (subscription.review !== null) {
+                const ratingCount = Math.max(subscription.course.ratingCount - 1, 0);
+                const ratingTotal = Math.max(subscription.course.ratingTotal - subscription.rating, 0);
+                const rating = ratingCount === 0 ? 0 : ratingTotal / ratingCount;
+
+                await tx.course.update({
+                    where: { id: courseId },
+                    data: {
+                        ratingCount,
+                        ratingTotal,
+                        rating,
+                    },
+                });
+
+                const creator = await tx.users.findUnique({
+                    where: { id: subscription.course.userId },
+                    select: {
+                        ratingCount: true,
+                        ratingTotal: true,
+                    },
+                });
+
+                if (creator) {
+                    const creatorRatingCount = Math.max(creator.ratingCount - 1, 0);
+                    const creatorRatingTotal = Math.max(creator.ratingTotal - subscription.rating, 0);
+                    const creatorRating = creatorRatingCount === 0 ? 0 : creatorRatingTotal / creatorRatingCount;
+
+                    await tx.users.update({
+                        where: { id: subscription.course.userId },
+                        data: {
+                            ratingCount: creatorRatingCount,
+                            ratingTotal: creatorRatingTotal,
+                            rating: creatorRating,
+                        },
+                    });
+                }
+            }
+
+            return deletedSubscription;
+        });
+    }
+
+    async reviewByCourseId(courseId: string, userId: string, review: string, rating: number): Promise<any> {
+        return this.prisma.$transaction(async (tx) => {
+            const subscription = await tx.subscribe.findUnique({
+                where: {
+                    courseId_userId: {
+                        courseId,
+                        userId,
+                    },
+                },
+                select: {
+                    id: true,
+                    review: true,
+                    rating: true,
+                    course: {
+                        select: {
+                            userId: true,
+                            ratingCount: true,
+                            ratingTotal: true,
+                        },
+                    },
+                },
+            });
+
+            if (!subscription) {
+                throw new ForbiddenException("Subscribe to this course before reviewing it");
+            }
+
+            const isFirstReview = subscription.review === null;
+            const ratingCount = subscription.course.ratingCount + (isFirstReview ? 1 : 0);
+            const ratingTotal = subscription.course.ratingTotal + (isFirstReview ? rating : rating - subscription.rating);
+            const courseRating = ratingCount === 0 ? 0 : ratingTotal / ratingCount;
+
+            const updatedSubscription = await tx.subscribe.update({
+                where: {
+                    courseId_userId: {
+                        courseId,
+                        userId,
+                    },
+                },
+                data: {
+                    review,
+                    rating,
+                },
+            });
+
+            await tx.course.update({
+                where: { id: courseId },
+                data: {
+                    ratingCount,
+                    ratingTotal,
+                    rating: courseRating,
+                },
+            });
+
+            const creator = await tx.users.findUnique({
+                where: { id: subscription.course.userId },
+                select: {
+                    ratingCount: true,
+                    ratingTotal: true,
+                },
+            });
+
+            if (!creator) {
+                throw new InternalServerErrorException("Creator not found");
+            }
+
+            const creatorRatingCount = creator.ratingCount + (isFirstReview ? 1 : 0);
+            const creatorRatingTotal = creator.ratingTotal + (isFirstReview ? rating : rating - subscription.rating);
+            const creatorRating = creatorRatingCount === 0 ? 0 : creatorRatingTotal / creatorRatingCount;
+
+            await tx.users.update({
+                where: { id: subscription.course.userId },
+                data: {
+                    ratingCount: creatorRatingCount,
+                    ratingTotal: creatorRatingTotal,
+                    rating: creatorRating,
+                },
+            });
+
+            return updatedSubscription;
+        });
+    }
+
+    async getSubscribedCourses(userId: string): Promise<any> {
+        return this.prisma.subscribe.findMany({
             where: {
-                id: userId,
+                userId,
             },
             select: {
                 id: true,
-            },
-        });
-
-        if (!course) {
-            throw new InternalServerErrorException("Course not found");
-        }
-
-        if (!user) {
-            throw new InternalServerErrorException("User not found");
-        }
-
-
-        const subscription = await this.prisma.subscribe.create({
-            data: {
-                courseId,
-                userId,
-                price: course.price,
-                currency: course.currency,
-            },
-        });
-
-        if (!subscription) {
-            throw new InternalServerErrorException("Couldn't create subscription");
-        }
-
-        await this.prisma.course.update({
-            where: {
-                id: courseId,
-            },
-            data: {
-                subscribersCount: { increment: 1 },
-            },
-        });
-
-        await this.prisma.users.update({
-            where: {
-                id: userId,
-            },
-            data: {
-                subscribersCount: { increment: 1 },
-            },
-        });
-
-        return subscription;
-
-    }
-    async reviewById(id: string, review: string, rating: number): Promise<any> {
-        const subscription = await this.prisma.subscribe.update({
-            where: {
-                id,
-            },
-            data: {
-                review,
-                rating,
-            },
-            select: {
-                courseId: true,
-            },
-        });
-
-        if (!subscription) {
-            throw new InternalServerErrorException("Couldn't review the course");
-        }
-
-        const course = await this.prisma.course.findUnique({
-            where: {
-                id: subscription.courseId,
-            },
-            select: {
-                userId: true,
-                ratingCount: true,
-                ratingTotal: true,
-            },
-        });
-
-        if (!course) {
-            throw new InternalServerErrorException("Course not found");
-        }
-
-        const courseCreator = await this.prisma.users.findUnique({
-            where: {
-                id: course.userId,
-            },
-            select: {
-                ratingCount: true,
-                ratingTotal: true,
-            }
-        })
-        
-        if (!courseCreator) {
-            throw new InternalServerErrorException("Creator not found");
-        }
-
-        const newCourseRatingCount = course.ratingCount + 1;
-        const newCourseRatingTotal = course.ratingTotal + rating;
-        const newCourseRating = newCourseRatingTotal / newCourseRatingCount;
-
-        const newCreatorRatingCount = courseCreator.ratingCount + 1;
-        const newCreatorRatingTotal = courseCreator.ratingTotal + rating;
-        const newCreatorRating = newCreatorRatingTotal / newCreatorRatingCount;
-
-        this.prisma.course.update({
-            where: {
-                id: subscription.courseId,
-            },
-            data: {
-                ratingCount: newCourseRatingCount,
-                ratingTotal: newCourseRatingTotal,
-                rating: newCourseRating
-            },
-        });
-
-        this.prisma.users.update({
-            where: {
-                id: course.userId,
-            },
-            data: {
-                ratingCount: newCreatorRatingCount,
-                ratingTotal: newCreatorRatingTotal,
-                rating: newCreatorRating
-            },
-        })
-
-        return subscription;
-    }
-
-    async editReviewById(id: string, review: string, rating: number): Promise<any> {
-        const subscription = await this.prisma.subscribe.findUnique({
-            where: {
-                id,
-            },
-            select: {
+                review: true,
                 rating: true,
+                price: true,
+                currency: true,
+                createdAt: true,
+                course: {
+                    include: {
+                        thumbnail: true,
+                        user: {
+                            select: {
+                                id: true,
+                                firstname: true,
+                                lastname: true,
+                                middlename: true,
+                                username: true,
+                                avatarId: true,
+                                avatar: true,
+                            },
+                        },
+                    },
+                },
             },
-        });
-
-        if (!subscription) {
-            throw new InternalServerErrorException("Subscription not found");
-        }
-
-        const ratingDifference = rating - subscription.rating;
-
-        const newSubscription = await this.prisma.subscribe.update({
-            where: {
-                id,
-            },
-            data: {
-                review,
-                rating,
-            },
-            select: {
-                courseId: true,
-            },
-        });
-
-        if (!newSubscription) {
-            throw new InternalServerErrorException("Couldn't update the review");
-        }
-
-        const course = await this.prisma.course.findUnique({
-            where: {
-                id: newSubscription.courseId,
-            },
-            select: {
-                userId: true,
-                ratingCount: true,
-                ratingTotal: true,
-            },
-        });
-
-        if (!course) {
-            throw new InternalServerErrorException("Course not found");
-        }
-
-        const courseCreator = await this.prisma.users.findUnique({
-            where: {
-                id: course.userId,
-            },
-            select: {
-                ratingCount: true,
-                ratingTotal: true,
-            }
-        })
-        
-        if (!courseCreator) {
-            throw new InternalServerErrorException("Creator not found");
-        }
-
-        const newCourseRatingTotal = course.ratingTotal + ratingDifference;
-        const newCourseRating = newCourseRatingTotal / course.ratingCount;
-
-        const newCreatorRatingTotal = courseCreator.ratingTotal + ratingDifference;
-        const newCreatorRating = newCreatorRatingTotal / courseCreator.ratingCount;
-
-        this.prisma.course.update({
-            where: {
-                id: newSubscription.courseId,
-            },
-            data: {
-                ratingTotal: newCourseRatingTotal,
-                rating: newCourseRating
-            },
-        });
-
-        this.prisma.users.update({
-            where: {
-                id: course.userId,
-            },
-            data: {
-                ratingTotal: newCreatorRatingTotal,
-                rating: newCreatorRating
-            },
-        })
-
-        return newSubscription;
-    }
-
-    async getSubcribedCourses(userId: string): Promise<any> {
-        const subscriptions = await this.prisma.subscribe.findMany({
-            where: {
-                userId,
-            },
-            select: {
-                courseId: true,
-            },
-        });
-
-        if (!subscriptions) {
-            throw new InternalServerErrorException("Subscriptions not found");
-        }
-
-        const ids = subscriptions.map(subscription => subscription.courseId);
-
-        return this.prisma.course.findMany({
-            where: {
-                id: { in: ids },
+            orderBy: {
+                createdAt: 'desc',
             },
         });
     }
     
     async getSubscribers(courseId: string): Promise<any> {
-        const subscriptions = await this.prisma.subscribe.findMany({
+        return this.prisma.subscribe.findMany({
             where: {
                 courseId,
             },
             select: {
-                userId: true,
+                id: true,
+                review: true,
+                rating: true,
+                createdAt: true,
+                subscriber: {
+                    select: {
+                        id: true,
+                        firstname: true,
+                        lastname: true,
+                        middlename: true,
+                        username: true,
+                        avatarId: true,
+                        avatar: true,
+                        headline: true,
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: 'desc',
             },
         });
+    }
 
-        if (!subscriptions) {
-            throw new InternalServerErrorException("Subscriptions not found");
-        }
-
-        const ids = subscriptions.map(subscription => subscription.userId);
-
-        return this.prisma.users.findMany({
+    async getSubscriptionsByCourse(courseId: string): Promise<any> {
+        return this.prisma.subscribe.findMany({
             where: {
-                id: { in: ids },
+                courseId,
+                review: {
+                    not: null,
+                },
+            },
+            include: {
+                subscriber: {
+                    select: {
+                        id: true,
+                        firstname: true,
+                        lastname: true,
+                        middlename: true,
+                        username: true,
+                        avatar: true,
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: 'desc',
             },
         });
     }
@@ -293,6 +354,17 @@ export class PrismaSubscribeRepository implements SubscribeRepository {
                 courseId_userId: {
                     courseId,
                     userId,
+                },
+            },
+            include: {
+                course: {
+                    select: {
+                        id: true,
+                        title: true,
+                        userId: true,
+                        price: true,
+                        currency: true,
+                    },
                 },
             },
         });
