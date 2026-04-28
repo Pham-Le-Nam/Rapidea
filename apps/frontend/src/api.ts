@@ -665,6 +665,34 @@ export async function subscribeCourseApi(courseId: string) {
     return response.data;
 }
 
+export async function getCourseReviewsApi(courseId: string) {
+    const response = await API.get(
+        `api/subscribe/course/${courseId}/reviews`,
+    );
+
+    return response.data;
+}
+
+export async function reviewCourseApi(courseId: string, review: string, rating: number) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/subscribe/review`,
+        {
+            courseId,
+            review,
+            rating,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
 export async function getCourseApi (id: string) {
     const token = localStorage.getItem("token");
     const config = token

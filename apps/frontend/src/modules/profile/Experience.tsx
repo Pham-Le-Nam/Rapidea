@@ -220,7 +220,7 @@ function EditExperience({ experience, reloadExperience }: EditExperienceProps) {
                             <Button variant="outline">Cancel</Button>
                         </DialogClose>
                         <DialogClose asChild>
-                            <Button type="submit">
+                            <Button type="submit" className="bg-main hover:bg-main-hover">
                                 Save changes
                             </Button>
                         </DialogClose>
@@ -272,9 +272,9 @@ function AddExperience({ reloadExperience }: AddExperienceProps) {
                 }}
                 >
                     <DialogHeader>
-                        <DialogTitle>Add education</DialogTitle>
+                        <DialogTitle>Add experience</DialogTitle>
                         <DialogDescription>
-                            Add your education here. Click save when you&apos;re
+                            Add your experience here. Click save when you&apos;re
                             done.
                         </DialogDescription>
                     </DialogHeader>
@@ -319,7 +319,7 @@ function AddExperience({ reloadExperience }: AddExperienceProps) {
                             <Button variant="outline">Cancel</Button>
                         </DialogClose>
                         <DialogClose asChild>
-                            <Button type="submit">
+                            <Button type="submit" className="bg-main hover:bg-main-hover">
                                 Save changes
                             </Button>
                         </DialogClose>

@@ -1,4 +1,4 @@
-import { deleteCourseApi, getCourseApi, getProfileByIdApi, getSubscriptionApi, subscribeCourseApi, udpateCourseApi, uploadCourseThumbnailApi, uploadPhotoApi } from "@/api";
+import { deleteCourseApi, getCourseApi, getProfileByIdApi, getSubscriptionApi, subscribeCourseApi, udpateCourseApi, uploadCourseThumbnailApi } from "@/api";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,12 +20,13 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileIcon, BarChartHorizontalIcon, MoreVerticalIcon, CameraIcon } from "lucide-react";
+import { FileIcon, BarChartHorizontalIcon, MoreVerticalIcon, CameraIcon, StarIcon } from "lucide-react";
 import Files from './Files';
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
 import { Posts } from "./Posts";
+import { Reviews } from "./Reviews";
 
 function Course () {
     const { id } = useParams();
@@ -39,13 +40,14 @@ function Course () {
     const [price, setPrice] = useState(0);
     const [currency, setCurrency] = useState("AUD");
     const [description, setDescription] = useState("");
-    // There are 2 view modes for now post/file
+    // There are 3 view modes for now post/file/review
     const [viewMode, setViewMode] = useState("post");
     const [course, setCourse] = useState<any>();
     const [owner, setOwner] = useState<any>();
     const [ownerAvatar, setOwnerAvatar] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`);
     const [postsCount, setPostsCount] = useState(0);
     const [isSubscribed, setIsSubscribed] = useState(false);
+    const [subscription, setSubscription] = useState<any>(null);
     const [lastUpdated, setLastUpdated] = useState("");
     const [thumbnailUrl, setThumbnailUrl] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`);
 
@@ -93,8 +95,10 @@ function Course () {
             if (!response.isOwner && isLoggedIn) {
                 const subscriptionResponse = await getSubscriptionApi(course.id);
                 setIsSubscribed(subscriptionResponse.isSubscribed);
+                setSubscription(subscriptionResponse.subscription ?? null);
             } else {
                 setIsSubscribed(false);
+                setSubscription(null);
             }
 
         } catch (error: any) {
@@ -109,19 +113,19 @@ function Course () {
         }
     }
 
-    const shortenRatingCount = (ratingCount: number) => {
+    const shortenCount = (count: number) => {
         let shorten = "";
 
-        if (ratingCount >= 1000000) {
-            const millionRating = ratingCount/1000000;
-            shorten = millionRating.toFixed(1) + "M";
+        if (count >= 1000000) {
+            const millionCount = count/1000000;
+            shorten = millionCount.toFixed(1) + "M";
         }
-        else if (ratingCount >= 1000) {
-            const thousandRating = ratingCount/1000;
-            shorten = thousandRating.toFixed(1) + "K";
+        else if (count >= 1000) {
+            const thousandCount = count/1000;
+            shorten = thousandCount.toFixed(1) + "K";
         }
         else {
-            shorten = ratingCount.toString();
+            shorten = count.toString();
         }
 
         return shorten;
@@ -147,35 +151,54 @@ function Course () {
         loadCourse();
     }, [id, isLoggedIn])
 
+    const copyLink = async () => {
+        const link = `${window.location.origin}/course/${id}`;
+
+        await navigator.clipboard.writeText(link);
+        toast.success("Link copied to clipboard!");
+    }
+
     return (
         <div className="flex flex-col items-center justify-start px-2 gap-3 w-full max-w-350">
             <div className="relative flex flex-col items-center justify-start rounded-md border shadow-md w-full gap-3">
-                {isOwner && (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="absolute right-2 top-2 bg-white/80 hover:bg-white">
-                                <MoreVerticalIcon />
-                            </Button>
-                        </DropdownMenuTrigger>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="absolute z-1 right-2 top-2 bg-white/80 hover:bg-white">
+                            <MoreVerticalIcon />
+                        </Button>
+                    </DropdownMenuTrigger>
 
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                                <UpdateCourseAction
-                                    course={course}
-                                    reloadCourse={loadCourse}
-                                    className="w-full justify-start border-0 shadow-none"
-                                />
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                                <DeleteCourseAction
-                                    course={course}
-                                    owner={owner}
-                                    className="w-full justify-start border-0 text-red-600 shadow-none hover:text-red-700"
-                                />
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                )}
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                            <Button
+                                variant="outline"
+                                className="w-full justify-start border-0 font-normal shadow-none"
+                                onClick={copyLink}
+                            >
+                                Copy Link
+                            </Button>
+                        </DropdownMenuItem>
+
+                        {isOwner && (
+                            <div className="border-t">
+                                <DropdownMenuItem asChild>
+                                    <UpdateCourseAction
+                                        course={course}
+                                        reloadCourse={loadCourse}
+                                        className="w-full justify-start border-0 font-normal shadow-none"
+                                    />
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <DeleteCourseAction
+                                        course={course}
+                                        owner={owner}
+                                        className="w-full justify-start border-0 font-normal text-red-600 shadow-none hover:text-red-700"
+                                    />
+                                </DropdownMenuItem>
+                            </div>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
 
                 <div className="relative w-full">
                     <img src={thumbnailUrl} className="w-full aspect-3/1 object-cover rounded-md" />
@@ -191,17 +214,11 @@ function Course () {
                     <h1 className="font-bold text-xl whitespace-break-spaces">
                         {`${title} `}
                     </h1>
-
-                    <h2 className="text-lg">
-                        {`${rating}⭐ ${shortenRatingCount(ratingCount)} Ratings`}
-                    </h2>
-                    <span className="text-lg font-semibold">
-                        {price > 0 ? `Price: ${price} ${currency}` : "Free"}
-                    </span>
-                    <span className="text-sm font-medium text-gray-600">
-                        Last updated {formatLastUpdated(lastUpdated)}
-                    </span>
                 </div>
+
+                <p className="px-4 pb-2 max-w-[60%]">
+                    {description}
+                </p>
 
                 <div className="flex flex-col items-center justify-center gap-3 px-4">
                     <button
@@ -223,32 +240,30 @@ function Course () {
                         </span>
                     </button>
 
-                    <div className="flex items-center justify-center gap-6 border-t px-6 pt-3">
-                        <div className="flex flex-col items-center">
-                            <span className="text-lg font-semibold text-gray-900">
-                                {postsCount}
-                            </span>
-                            <span className="text-xs font-medium uppercase text-gray-500">
-                                Post{postsCount === 1 ? "" : "s"}
-                            </span>
+                    <div className="grid w-full grid-cols-4 gap-2 border-t pt-2 text-center text-sm">
+                        <div className="flex flex-col">
+                            <span className="font-semibold">{rating} ⭐</span>
+                            <span className="text-xs uppercase text-gray-500">{shortenCount(ratingCount ?? 0)} Ratings</span>
                         </div>
-
-                        <div className="h-8 border-l" />
-
-                        <div className="flex flex-col items-center">
-                            <span className="text-lg font-semibold text-gray-900">
-                                {subscribersCount}
-                            </span>
-                            <span className="text-xs font-medium uppercase text-gray-500">
-                                Subscriber{subscribersCount === 1 ? "" : "s"}
-                            </span>
+                        <div className="flex flex-col">
+                            <span className="font-semibold">{price ?? 0}</span>
+                            <span className="text-xs uppercase text-gray-500">{currency ?? "AUD"}</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="font-semibold">{shortenCount(postsCount ?? 0)}</span>
+                            <span className="text-xs uppercase text-gray-500">Posts</span>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="font-semibold">{shortenCount(subscribersCount ?? 0)}</span>
+                            <span className="text-xs uppercase text-gray-500">Subscribers</span>
                         </div>
                     </div>
-                </div>
 
-                <p className="px-4 pb-2">
-                    {description}
-                </p>
+                    <div className="w-full pt-4 text-center text-sm">
+                        <span className="ml-2">Last Update: </span>
+                        <span className="font-semibold">{formatLastUpdated(lastUpdated)}</span>
+                    </div>
+                </div>
 
                 <div className="flex flex-wrap justify-center gap-2 px-4 pb-2">
                     {!isOwner && isLoggedIn && (
@@ -264,7 +279,7 @@ function Course () {
                     <Button
                         onClick={() => setViewMode('post')}
                         disabled={viewMode === 'post'}
-                        className={`flex flex-col items-center px-4 py-2 rounded border-t flex-1
+                        className={`flex flex-col items-center px-4 py-2 rounded border flex-1
                             ${viewMode === "post"
                                 ? "bg-gray-400 text-white cursor-not-allowed"
                                 : "bg-white text-black hover:bg-gray-100"}
@@ -276,7 +291,7 @@ function Course () {
                     <Button
                         onClick={() => setViewMode('file')}
                         disabled={viewMode === 'file'}
-                        className={`flex flex-col items-center px-4 py-2 rounded border-t flex-1
+                        className={`flex flex-col items-center px-4 py-2 rounded border flex-1
                             ${viewMode === "file"
                                 ? "bg-gray-400 text-white cursor-not-allowed"
                                 : "bg-white text-black hover:bg-gray-100"}
@@ -284,11 +299,33 @@ function Course () {
                     >
                         <FileIcon/>
                     </Button>
+
+                    <Button
+                        onClick={() => setViewMode('review')}
+                        disabled={viewMode === 'review'}
+                        className={`flex flex-col items-center px-4 py-2 rounded border flex-1
+                            ${viewMode === "review"
+                                ? "bg-gray-400 text-white cursor-not-allowed"
+                                : "bg-white text-black hover:bg-gray-100"}
+                            `}
+                    >
+                        <StarIcon />
+                    </Button>
                 </div>
             </div>
 
             {viewMode === 'file' && course?.folderId && (<Files rootFolderId={course.folderId}/>)}
             {viewMode === 'post' && (<Posts course={course} reloadCourse={loadCourse}/>)}
+            {viewMode === 'review' && (
+                <Reviews
+                    course={course}
+                    isLoggedIn={isLoggedIn}
+                    isSubscribed={isSubscribed}
+                    isOwner={isOwner}
+                    subscription={subscription}
+                    reloadCourse={loadCourse}
+                />
+            )}
         </div>
     )
 }
@@ -632,7 +669,13 @@ function UpdateCourseAction({
     const [description, setDescription] = useState(course?.description ?? "");
     const [price, setPrice] = useState(course?.price ?? 0);
     const [currency, setCurrency] = useState(course?.currency ?? "AUD");
-    const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+
+    useEffect(() => {
+        setTitle(course?.title ?? "");
+        setDescription(course?.description ?? "");
+        setPrice(course?.price ?? 0);
+        setCurrency(course?.currency ?? "AUD");
+    }, [course]);
 
     const updateCourse = async () => {
         try {
@@ -641,21 +684,13 @@ function UpdateCourseAction({
                 return;
             }
 
-            let thumbnailId = course.thumbnailId;
-
-            if (thumbnailFile) {
-                const photo = await uploadPhotoApi(thumbnailFile);
-                thumbnailId = photo.id;
-            }
-
-            const response = await udpateCourseApi(course.id, title, description, price, currency, thumbnailId);
+            const response = await udpateCourseApi(course.id, title, description, price, currency, course.thumbnailId);
 
             if (!response) {
                 throw new Error("Couldn't update the course");
             }
 
             toast.success("Course updated");
-            setThumbnailFile(null);
             await reloadCourse();
         } catch (error: any) {
             if (error.response?.status === 401) {
@@ -725,11 +760,6 @@ function UpdateCourseAction({
                                 </select>
                             </Field>
                         </div>
-
-                        <Field>
-                            <Label htmlFor="course-thumbnail">Thumbnail</Label>
-                            <Input id="course-thumbnail" type="file" accept="image/*" onChange={(event) => setThumbnailFile(event.target.files?.[0] ?? null)} />
-                        </Field>
                     </FieldGroup>
 
                     <DialogFooter>

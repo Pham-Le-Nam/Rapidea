@@ -43,11 +43,23 @@ export function DiscussionItem ({
     onOpenProfile,
     onRated,
 }: DiscussionItemProps) {
+    const getAvatarUrl = (profile?: Profile) => {
+        const avatarUrl = profile?.avatarUrl || profile?.avatar?.name;
+
+        if (!avatarUrl) return DEFAULT_AVATAR;
+
+        if (avatarUrl.startsWith("http")) {
+            return avatarUrl;
+        }
+
+        return `${import.meta.env.VITE_PHOTO_STORAGE}${avatarUrl}`;
+    }
+
     return (
         <article className="flex w-full items-start gap-3">
             <button type="button" className="shrink-0" onClick={() => onOpenProfile(profile)}>
                 <img
-                    src={profile?.avatarUrl || DEFAULT_AVATAR}
+                    src={getAvatarUrl(profile)}
                     className="size-8 rounded-full border object-cover"
                 />
             </button>

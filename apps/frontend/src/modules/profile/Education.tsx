@@ -217,7 +217,7 @@ function EditEducation({ education, reloadEducation }: EditEducationProps) {
                             <Button variant="outline">Cancel</Button>
                         </DialogClose>
                         <DialogClose asChild>
-                            <Button type="submit">
+                            <Button type="submit" className="bg-main hover:bg-main-hover">
                                 Save changes
                             </Button>
                         </DialogClose>
@@ -316,7 +316,7 @@ function AddEducation({ reloadEducation }: AddEducationProps) {
                             <Button variant="outline">Cancel</Button>
                         </DialogClose>
                         <DialogClose asChild>
-                            <Button type="submit">
+                            <Button type="submit" className="bg-main hover:bg-main-hover">
                                 Save changes
                             </Button>
                         </DialogClose>

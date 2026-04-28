@@ -24,4 +24,7 @@ export type Profile = {
     lastname?: string;
     username?: string;
     avatarUrl?: string;
+    avatar?: {
+        name?: string;
+    };
 }
