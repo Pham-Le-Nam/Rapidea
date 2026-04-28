@@ -188,6 +188,23 @@ export class PrismaUsersRepository implements UsersRepository {
         return user;
     }
 
+    async findPayoutAccountByUserId(userId: string): Promise<any | null> {
+        return this.prisma.payoutAccount.findUnique({
+            where: { userId },
+        });
+    }
+
+    async upsertPayoutAccount(userId: string, data: any): Promise<any> {
+        return this.prisma.payoutAccount.upsert({
+            where: { userId },
+            update: data,
+            create: {
+                userId,
+                ...data,
+            },
+        });
+    }
+
     private async generateUsername(firstname: string, middlename: string | undefined | null, lastname: string, excludedUserId?: string): Promise<string> {
         const base = [firstname, middlename, lastname]
             .filter((part) => !!part?.trim())

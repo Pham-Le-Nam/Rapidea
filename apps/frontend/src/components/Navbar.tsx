@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { LogOutIcon, SearchIcon, UserIcon } from "lucide-react";
+import { CreditCardIcon, LogOutIcon, SearchIcon, UserIcon } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import rapideiLogo from "/rapidea.png";
@@ -254,6 +254,13 @@ function Navbar() {
                                     </Link>
                                 </DropdownMenuItem>
                             )}
+
+                            <DropdownMenuItem asChild>
+                                <Link to="/settings/payout" className="w-full">
+                                    <CreditCardIcon className="size-4" />
+                                    Payout Settings
+                                </Link>
+                            </DropdownMenuItem>
 
                             <DropdownMenuItem onClick={handleLogout}>
                                 <LogOutIcon className="size-4" />

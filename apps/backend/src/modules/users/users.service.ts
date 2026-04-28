@@ -55,6 +55,32 @@ export class UsersService {
         return this.usersRepo.resetPassword(id, password);
     }
 
+    async getPayoutAccount(userId: string) {
+        return this.usersRepo.findPayoutAccountByUserId(userId);
+    }
+
+    async updatePayoutAccount(userId: string, data: any) {
+        const cleanedData = Object.fromEntries(
+            Object.entries(data).map(([key, value]) => [
+                key,
+                typeof value === 'string' ? value.trim() : value,
+            ]),
+        );
+        const isReadyForReview = !!cleanedData.accountHolderName
+            && !!cleanedData.country
+            && !!cleanedData.currency
+            && (
+                cleanedData.payoutMethod === 'PAYPAL'
+                    ? !!cleanedData.paypalEmail
+                    : !!cleanedData.bankName && !!cleanedData.routingNumber && !!cleanedData.accountNumber
+            );
+
+        return this.usersRepo.upsertPayoutAccount(userId, {
+            ...cleanedData,
+            status: isReadyForReview ? 'READY_FOR_REVIEW' : 'DRAFT',
+        });
+    }
+
     async updateProfileById(id: string, firstname?: string, lastname? : string, middlename? : string, avatarId?: number, backgroundId?: number, headline?: string, bio?: string) {
         return this.usersRepo.updateById(id, firstname, lastname, middlename, avatarId, backgroundId, headline, bio);
     }

@@ -107,10 +107,6 @@ export class SearchService {
         const posts = await this.prisma.post.findMany({
             where: {
                 title: { contains: query, mode: 'insensitive' },
-                OR: [
-                    { courseId: null },
-                    { isPreview: true },
-                ],
             },
             take,
             orderBy: {

@@ -3,6 +3,7 @@ import { UsersService } from './users.service';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt.guard';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { UpdateProfileDto } from './users-dto/update-profile.dto';
+import { UpdatePayoutAccountDto } from './users-dto/update-payout-account.dto';
 
 @Controller('api/users')
 export class UsersController {
@@ -23,6 +24,31 @@ export class UsersController {
 
         return {
             profile,
+        };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('me/payout-account')
+    async getPayoutAccount(
+        @Request() req: any,
+    ) {
+        const payoutAccount = await this.usersService.getPayoutAccount(req.user.userId);
+
+        return {
+            payoutAccount,
+        };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('me/payout-account')
+    async updatePayoutAccount(
+        @Request() req: any,
+        @Body() updatePayoutAccountDto: UpdatePayoutAccountDto,
+    ) {
+        const payoutAccount = await this.usersService.updatePayoutAccount(req.user.userId, updatePayoutAccountDto);
+
+        return {
+            payoutAccount,
         };
     }
 

@@ -15,6 +15,7 @@ import Course from './modules/course/Course.tsx';
 import { Post } from './modules/course/Posts.tsx';
 import UserPosts from './modules/posts/UserPosts.tsx';
 import UserFiles from './modules/files/UserFiles.tsx';
+import PayoutSettings from './modules/settings/PayoutSettings.tsx';
 
 
 function App() {
@@ -37,6 +38,7 @@ function App() {
                     <Route path="/courses/:username" element={<Courses />} />
                     <Route path="/posts/:username" element={<UserPosts />} />
                     <Route path="/files/:username" element={<UserFiles />} />
+                    <Route path="/settings/payout" element={<PayoutSettings />} />
                     <Route path="/course/:id" element={<Course />} />
                     <Route path="/post/:id" element={<Post />} />
                 </Route>

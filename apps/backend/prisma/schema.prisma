@@ -59,6 +59,7 @@ model Users {
     uploadedFiles           File[]
     uploadedPhotos          Photo[]                 @relation("UploadedPhoto")
     socialLinks             SocialLink[]
+    payoutAccount           PayoutAccount?
     FilesInCourses         FileInCourse[]
     FilesInPosts           FileInPost[]
     
@@ -79,6 +80,28 @@ model SocialLink {
     @@unique([userId, platform]) // user can only have 1 link per platform
     @@index([userId])
     @@map("social_link")
+}
+
+model PayoutAccount {
+    id                  String      @id @default(uuid())
+    userId              String      @unique
+    accountHolderName   String?
+    country             String?
+    currency            String      @default("AUD")
+    payoutMethod        String      @default("BANK")
+    bankName            String?
+    routingNumber       String?
+    accountNumber       String?
+    paypalEmail         String?
+    taxResidency        String?
+    businessType        String      @default("INDIVIDUAL")
+    status              String      @default("DRAFT")
+    createdAt           DateTime    @default(now())
+    updatedAt           DateTime    @updatedAt
+
+    user                Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("payout_account")
 }
 
 enum SocialPlatform {

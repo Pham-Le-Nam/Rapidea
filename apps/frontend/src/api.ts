@@ -119,6 +119,48 @@ export async function searchApi(query: string) {
     return response.data;
 }
 
+export async function getPayoutAccountApi() {
+    const token = localStorage.getItem("token");
+
+    const response = await API.get(
+        `api/users/me/payout-account`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function updatePayoutAccountApi(data: {
+    accountHolderName?: string;
+    country?: string;
+    currency?: string;
+    payoutMethod?: string;
+    bankName?: string;
+    routingNumber?: string;
+    accountNumber?: string;
+    paypalEmail?: string;
+    taxResidency?: string;
+    businessType?: string;
+}) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/users/me/payout-account`,
+        data,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
 export async function getSocialLinkApi(username: string) {
     const response = await API.get(`api/social-link/${username}`);
 
