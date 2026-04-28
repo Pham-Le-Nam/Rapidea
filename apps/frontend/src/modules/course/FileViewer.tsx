@@ -6,10 +6,11 @@ import { useNavigate } from "react-router-dom";
 import { renderAsync } from "docx-preview";
 
 type FileViewerProps = {
-    file: any
+    file: any;
+    isLocked?: boolean;
 };
 
-export default function FileViewer({ file }: FileViewerProps) {
+export default function FileViewer({ file, isLocked = false }: FileViewerProps) {
     const [textContent, setTextContent] = useState<string | null>(null);
     const [url, setUrl] = useState("");
     const [type, setType] = useState("");
@@ -90,7 +91,7 @@ export default function FileViewer({ file }: FileViewerProps) {
     // Video
     if (type?.startsWith("video/")) {
         return (
-            <video controls className={`w-full rounded-lg mt-3 ${height}`}>
+            <video controls={!isLocked} className={`w-full rounded-lg mt-3 ${height}`}>
                 <source src={url} type={type} />
             </video>
         );

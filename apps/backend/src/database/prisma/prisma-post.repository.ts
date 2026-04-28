@@ -6,7 +6,7 @@ import { PostRepository } from '../../modules/post/post.repository';
 export class PrismaPostRepository implements PostRepository {
     constructor(private prisma: PrismaService) {}
 
-    async create (userId: string, title?: string, content?: any, courseId?: string): Promise<any> {
+    async create (userId: string, title?: string, content?: any, courseId?: string, isPreview: boolean = false): Promise<any> {
         const user = await this.prisma.users.findUnique({
             where: {
                 id: userId,
@@ -38,6 +38,7 @@ export class PrismaPostRepository implements PostRepository {
                     content,
                     userId,
                     courseId,
+                    isPreview,
                 },
             }),
             this.prisma.users.update({
@@ -135,7 +136,7 @@ export class PrismaPostRepository implements PostRepository {
         return  deletedPost;
     }
 
-    async updateById (id: string, userId: string, title?: string, content?: any): Promise<any> {
+    async updateById (id: string, userId: string, title?: string, content?: any, isPreview?: boolean): Promise<any> {
         const post = await this.prisma.post.findUnique({
             where: {
                 id,
@@ -159,6 +160,7 @@ export class PrismaPostRepository implements PostRepository {
                 data: {
                     title,
                     content,
+                    isPreview,
                     lastUpdated: new Date(),
                 },
             }),
@@ -198,21 +200,64 @@ export class PrismaPostRepository implements PostRepository {
         });
     }
 
+    async canViewAllCoursePosts(courseId: string, viewerId?: string): Promise<boolean> {
+        if (!viewerId) return false;
+
+        const course = await this.prisma.course.findUnique({
+            where: { id: courseId },
+            select: {
+                userId: true,
+                subscribers: {
+                    where: { userId: viewerId },
+                    select: { userId: true },
+                },
+            },
+        });
+
+        return !!course && (course.userId === viewerId || course.subscribers.length > 0);
+    }
+
     async findById (id: string): Promise<any> {
         return this.prisma.post.findUnique({
             where: {
                 id,
             },
+            include: {
+                course: {
+                    select: {
+                        id: true,
+                        userId: true,
+                        subscribers: {
+                            select: {
+                                userId: true,
+                            },
+                        },
+                    },
+                },
+            },
         });
     }
 
-    async findByCourseId (courseId: string): Promise<any> {
+    async findByCourseId (
+        courseId: string,
+        viewerId?: string,
+        options: {
+            previewOnly?: boolean;
+            orderBy?: 'rating' | 'createdAt';
+            order?: 'asc' | 'desc';
+        } = {},
+    ): Promise<any> {
+        const shouldShowPreviewOnly = !!options.previewOnly;
+        const orderByField = options.orderBy === 'rating' ? 'rating' : 'createdAt';
+        const order = options.order === 'asc' ? 'asc' : 'desc';
+
         return this.prisma.post.findMany({
             where: {
                 courseId,
+                ...(shouldShowPreviewOnly ? { isPreview: true } : {}),
             },
             orderBy: {
-                createdAt: 'desc',
+                [orderByField]: order,
             },
         });
     }

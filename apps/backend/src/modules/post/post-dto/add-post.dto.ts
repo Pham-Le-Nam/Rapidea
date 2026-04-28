@@ -1,4 +1,4 @@
-import { IsObject, IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsObject, IsOptional, IsString } from "class-validator";
 
 export class AddPostDto {
     @IsString()
@@ -10,4 +10,8 @@ export class AddPostDto {
     @IsOptional()
     @IsString()
     courseId?: string;
+
+    @IsOptional()
+    @IsBoolean()
+    isPreview?: boolean;
 }

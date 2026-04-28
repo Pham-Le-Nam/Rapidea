@@ -46,11 +46,34 @@ function Posts({
     const { logout } = useAuth();
     const navigate = useNavigate();
     const [isOwner, setIsOwner] = useState(false);
+    const [canViewAllPosts, setCanViewAllPosts] = useState(false);
+    const [previewOnly, setPreviewOnly] = useState(false);
+    const [orderMode, setOrderMode] = useState<"newest" | "oldest" | "highestRated" | "lowestRated">("newest");
+
+    const getOrderOptions = () => {
+        if (orderMode === "oldest") {
+            return { orderBy: "createdAt" as const, order: "asc" as const };
+        }
+
+        if (orderMode === "highestRated") {
+            return { orderBy: "rating" as const, order: "desc" as const };
+        }
+
+        if (orderMode === "lowestRated") {
+            return { orderBy: "rating" as const, order: "asc" as const };
+        }
+
+        return { orderBy: "createdAt" as const, order: "desc" as const };
+    }
 
     const loadPosts = async () => {
         try {
-            const postsResponse = await getPostsOfCourseApi(course.id);
+            const postsResponse = await getPostsOfCourseApi(course.id, {
+                previewOnly,
+                ...getOrderOptions(),
+            });
             setIsOwner(postsResponse.isOwner);
+            setCanViewAllPosts(postsResponse.canViewAllPosts);
             setPosts(postsResponse.posts);
         } catch (error: any) {
             if (error.response?.status === 401) {
@@ -72,16 +95,50 @@ function Posts({
     useEffect(() => {
         if (!course?.id) return;
         loadPosts();
-    }, [course?.id]);
+    }, [course?.id, previewOnly, orderMode]);
 
     return (
         <div className="flex flex-col justify-center items-center w-full gap-3">
+            <div className="flex w-full flex-wrap items-center justify-end gap-2 rounded-md border p-2">
+                <label className="flex items-center gap-2 text-sm">
+                    <span className="font-medium">Filter</span>
+                    <select
+                        value={previewOnly ? "preview" : "all"}
+                        onChange={(event) => setPreviewOnly(event.target.value === "preview")}
+                        className="h-9 rounded-md border bg-transparent px-3 text-sm"
+                    >
+                        <option value="all">All posts</option>
+                        <option value="preview">Preview posts</option>
+                    </select>
+                </label>
+
+                <label className="flex items-center gap-2 text-sm">
+                    <span className="font-medium">Order</span>
+                    <select
+                        value={orderMode}
+                        onChange={(event) => setOrderMode(event.target.value as typeof orderMode)}
+                        className="h-9 rounded-md border bg-transparent px-3 text-sm"
+                    >
+                        <option value="newest">Newest to oldest</option>
+                        <option value="oldest">Oldest to newest</option>
+                        <option value="highestRated">Highest rating</option>
+                        <option value="lowestRated">Lowest rating</option>
+                    </select>
+                </label>
+            </div>
+
+            {!isOwner && !canViewAllPosts && (
+                <div className="w-full rounded-md border p-3 text-sm text-gray-600">
+                    Subscribe to view full post content and files. Locked posts are blurred below.
+                </div>
+            )}
+
             {isOwner &&
                 <UpsertPost className="w-full h-full text-3xl" course={course} reloadPost={reloadCoursePosts}/>
             }
 
             {posts.map((post) => (
-                <Post key={post.id} post={post} reloadPosts={reloadCoursePosts}/>
+                <Post key={post.id} post={post} reloadPosts={reloadCoursePosts} canViewAllPosts={canViewAllPosts}/>
             ))}
             
         </div>
@@ -91,9 +148,10 @@ function Posts({
 type PostProps = {
     post?: any;
     reloadPosts?: () => Promise<void>;
+    canViewAllPosts?: boolean;
 }
 
-function Post ({ post, reloadPosts }: PostProps) {
+function Post ({ post, reloadPosts, canViewAllPosts }: PostProps) {
     const { id } = useParams();
     const targetPostId = post?.id ?? id;
     const [courseImg, setCourseImg] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`);
@@ -107,6 +165,7 @@ function Post ({ post, reloadPosts }: PostProps) {
     const [files, setFiles] = useState<any[]>([]);
     const [viewFile, setViewFile] = useState<any>();
     const [loadedPost, setLoadedPost] = useState(post);
+    const [canViewPost, setCanViewPost] = useState(!!post?.isPreview || !!canViewAllPosts);
     const [rating, setRating] = useState(0);
     const [isRated, setIsRated] = useState(false);
     const [isDiscussionShown, setIsDiscussionShown] = useState(false);
@@ -135,6 +194,7 @@ function Post ({ post, reloadPosts }: PostProps) {
 
             setLoadedPost(currentPost);
             setIsOwner(postResponse.isOwner);
+            setCanViewPost(!!(postResponse.canViewPost ?? postResponse.isOwner ?? currentPost.isPreview ?? canViewAllPosts));
 
             const [courseResponse, ownerResponse, fileResponse] = await Promise.all([
                 currentPost.courseId ? getCourseApi(currentPost.courseId) : Promise.resolve(undefined),
@@ -271,7 +331,10 @@ function Post ({ post, reloadPosts }: PostProps) {
     }
 
     const loadCommentCount = async () => {
-        if (!loadedPost?.id) return;
+        if (!loadedPost?.id || isPostLocked) {
+            setCommentCount(0);
+            return;
+        }
 
         try {
             const response = await getDiscussionsByPostApi(loadedPost.id, 0, 1000);
@@ -295,8 +358,12 @@ function Post ({ post, reloadPosts }: PostProps) {
     }
 
     const toggleDiscussion = () => {
+        if (isPostLocked) return;
+
         setIsDiscussionShown((currentValue) => !currentValue);
     }
+
+    const isPostLocked = !!loadedPost?.courseId && !canViewPost;
 
     useEffect(() => {
         loadPostDetails();
@@ -311,7 +378,13 @@ function Post ({ post, reloadPosts }: PostProps) {
 
     useEffect(() => {
         loadCommentCount();
-    }, [loadedPost?.id]);
+    }, [loadedPost?.id, isPostLocked]);
+
+    useEffect(() => {
+        if (isPostLocked) {
+            setIsDiscussionShown(false);
+        }
+    }, [isPostLocked]);
 
     return (
         <div className={`flex flex-col justify-center items-start ${containerWidth} rounded-md border shadow-md p-3`}>
@@ -408,11 +481,13 @@ function Post ({ post, reloadPosts }: PostProps) {
                 {loadedPost?.title}
             </h2>
             
-            <TextRenderer content={loadedPost?.content} className="px-3 py-2"/>
+            <div className={isPostLocked ? "w-full blur-sm select-none pointer-events-none" : "w-full"}>
+                <TextRenderer content={loadedPost?.content} className="px-3 py-2"/>
+            </div>
 
             {files?.map((file) => (
                 <Button 
-                    className="w-full h-full min-w-0 flex items-center justify-start gap-2 rounded-xl border-2 bg-white hover:bg-gray-100 text-black text-lg font-normal [&>svg]:w-5 [&>svg]:h-5"
+                    className={`w-full h-full min-w-0 flex items-center justify-start gap-2 rounded-xl border-2 bg-white hover:bg-gray-100 text-black text-lg font-normal [&>svg]:w-5 [&>svg]:h-5 ${isPostLocked ? "blur-sm pointer-events-none select-none" : ""}`}
                     key={file.id}
                     onClick={() => setViewFile(file)}
                 >
@@ -424,20 +499,24 @@ function Post ({ post, reloadPosts }: PostProps) {
             ))}
 
             {viewFile &&
-                <FileViewer file={viewFile} />
+                <div className={isPostLocked ? "w-full blur-sm pointer-events-none select-none" : "w-full"}>
+                    <FileViewer file={viewFile} isLocked={isPostLocked} />
+                </div>
             }
 
             <div className="flex flex-row items-center justify-between pt-2 pl-3 w-full">
                 <a>
                     {loadedPost?.rating}⭐
                 </a>
-                <button
-                    type="button"
-                    className="text-gray-700 hover:underline"
-                    onClick={toggleDiscussion}
-                >
-                    {commentCount} Discussion{commentCount === 1 ? "" : "s"}
-                </button>
+                {!isPostLocked && (
+                    <button
+                        type="button"
+                        className="text-gray-700 hover:underline"
+                        onClick={toggleDiscussion}
+                    >
+                        {commentCount} Discussion{commentCount === 1 ? "" : "s"}
+                    </button>
+                )}
             </div>
 
             <div className="flex flex-row items-center justify-start pt-2 w-full">
@@ -457,11 +536,13 @@ function Post ({ post, reloadPosts }: PostProps) {
                     </HoverCard>
                 )}
 
-                <Button variant="outline" className="flex-1 font-normal" onClick={toggleDiscussion}>
-                    <span className="wrap-anywhere whitespace-break-spaces">
-                        Discussion
-                    </span>
-                </Button>
+                {!isPostLocked && (
+                    <Button variant="outline" className="flex-1 font-normal" onClick={toggleDiscussion}>
+                        <span className="wrap-anywhere whitespace-break-spaces">
+                            Discussion
+                        </span>
+                    </Button>
+                )}
 
                 <Button variant="outline" className="flex-1 font-normal">
                     <span className="wrap-anywhere whitespace-break-spaces">

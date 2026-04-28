@@ -33,6 +33,7 @@ type UpsertPostProps = {
 function UpsertPost({ className, post, uploadedFiles, course, fileFolder, reloadPost }: UpsertPostProps) {
     const [title, setTitle] = useState(post?.title || "");
     const [content, setContent] = useState<Record<string, any>>(post?.content || {});
+    const [isPreview, setIsPreview] = useState(!!post?.isPreview);
     const [deleteFiles, setDeleteFiles] = useState<any[]>([]);
     const [files, setFiles] = useState<any[]>([]);
 
@@ -74,13 +75,14 @@ function UpsertPost({ className, post, uploadedFiles, course, fileFolder, reload
     const resetValues = async () => {
         setTitle(post?.title || "");
         setContent(post?.content || {});
+        setIsPreview(!!post?.isPreview);
         setDeleteFiles([]);
         setFiles([]);
     }
 
     const createPost = async () => {
         try {
-            const response = await addPostApi(title, content, course?.id);
+            const response = await addPostApi(title, content, course?.id, isPreview);
 
             if (!response) {
                 toast.error(`Couldn't create post`);
@@ -122,7 +124,7 @@ function UpsertPost({ className, post, uploadedFiles, course, fileFolder, reload
                 throw Error("Post not found");
             }
 
-            const response = await updatePostApi(title, content, postId);
+            const response = await updatePostApi(title, content, postId, isPreview);
 
             if (!response) {
                 toast.error(`Couldn't update post`);
@@ -196,6 +198,19 @@ function UpsertPost({ className, post, uploadedFiles, course, fileFolder, reload
                             </Label>
                             <TextEditor value={content} onChange={setContent} />
                         </Field>
+                        {course?.id && (
+                            <Field>
+                                <label className="flex items-center gap-2 text-sm font-medium">
+                                    <Input
+                                        type="checkbox"
+                                        className="size-4"
+                                        checked={isPreview}
+                                        onChange={(event) => setIsPreview(event.target.checked)}
+                                    />
+                                    Preview post
+                                </label>
+                            </Field>
+                        )}
                         {rootFolderId && (
                             <Field>
                                 <Label htmlFor={`create-post`} className="mt-2">

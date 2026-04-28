@@ -906,7 +906,7 @@ export async function deleteFileApi (fileId: string) {
     return response.data;
 }
 
-export async function addPostApi (title: string, content: any, courseId?: string) {
+export async function addPostApi (title: string, content: any, courseId?: string, isPreview?: boolean) {
     const token = localStorage.getItem("token");
 
     const response = await API.post(
@@ -915,6 +915,7 @@ export async function addPostApi (title: string, content: any, courseId?: string
             title,
             content,
             courseId,
+            isPreview,
         },
         {
             headers: {
@@ -926,7 +927,7 @@ export async function addPostApi (title: string, content: any, courseId?: string
     return response.data;
 }
 
-export async function updatePostApi (title: string, content: any, postId?: string) {
+export async function updatePostApi (title: string, content: any, postId?: string, isPreview?: boolean) {
     const token = localStorage.getItem("token");
 
     const response = await API.post(
@@ -935,6 +936,7 @@ export async function updatePostApi (title: string, content: any, postId?: strin
             postId,
             title,
             content,
+            isPreview,
         },
         {
             headers: {
@@ -1056,7 +1058,14 @@ export async function getFilesOfPostApi (postId: string) {
     return response.data;
 }
 
-export async function getPostsOfCourseApi (courseId: string) {
+export async function getPostsOfCourseApi (
+    courseId: string,
+    options: {
+        previewOnly?: boolean;
+        orderBy?: "rating" | "createdAt";
+        order?: "asc" | "desc";
+    } = {},
+) {
     const token = localStorage.getItem("token");
     const config = token
         ? {
@@ -1068,7 +1077,14 @@ export async function getPostsOfCourseApi (courseId: string) {
 
     const response = await API.get(
         `api/post/course/${courseId}`,
-        config,
+        {
+            ...config,
+            params: {
+                previewOnly: options.previewOnly,
+                orderBy: options.orderBy,
+                order: options.order,
+            },
+        },
     );
 
     return response.data;

@@ -6,7 +6,8 @@ import {
     Body, 
     Get,
     Param, 
-    NotFoundException
+    NotFoundException,
+    Query
 } from '@nestjs/common';
 import { PostService } from './post.service';
 import { AddPostDto } from './post-dto/add-post.dto';
@@ -30,7 +31,13 @@ export class PostController {
         @Body() addPostDto: AddPostDto,
     ) {
         const user = req.user;
-        const post = await this.postService.createPost(user.userId, addPostDto.title, addPostDto.content, addPostDto.courseId);
+        const post = await this.postService.createPost(
+            user.userId,
+            addPostDto.title,
+            addPostDto.content,
+            addPostDto.courseId,
+            addPostDto.isPreview,
+        );
 
         return post;
     }
@@ -72,10 +79,10 @@ export class PostController {
     @Post('update')
     async updatePost (
         @Request() req: any,
-        @Body() data: { postId: string, title?: string, content?: any },
+        @Body() data: { postId: string, title?: string, content?: any, isPreview?: boolean },
     ) {
         const user = req.user;
-        const post = await this.postService.updatePostById(data.postId, user.userId, data.title, data.content);
+        const post = await this.postService.updatePostById(data.postId, user.userId, data.title, data.content, data.isPreview);
 
         return post;
     }
@@ -85,6 +92,9 @@ export class PostController {
     async getPostsByCourseId (
         @Request() req: any,
         @Param('courseId') courseId: string,
+        @Query('previewOnly') previewOnly?: string,
+        @Query('orderBy') orderBy?: 'rating' | 'createdAt',
+        @Query('order') order?: 'asc' | 'desc',
     ) {
         const user = req.user;
         const course = await this.courseService.getCourseById(courseId);
@@ -93,11 +103,17 @@ export class PostController {
             throw new NotFoundException("Course not found");
         }
 
-        const posts = await this.postService.getPostsByCourseId(courseId);
+        const canViewAllPosts = await this.postService.canViewAllCoursePosts(courseId, user?.userId);
+        const posts = await this.postService.getPostsByCourseId(courseId, user?.userId, {
+            previewOnly: previewOnly === 'true',
+            orderBy,
+            order,
+        });
 
         return {
             posts,
             isOwner: user ? course.userId === user.userId : false,
+            canViewAllPosts,
         };
     }
 
@@ -114,13 +130,21 @@ export class PostController {
             throw new NotFoundException("Post not found");
         }
 
+        const canViewPost = !post.courseId
+            || post.isPreview
+            || (user?.userId && user.userId === post.userId)
+            || (user?.userId && post.course?.subscribers?.some((subscription: any) => subscription.userId === user.userId));
+
         if (user?.userId && user.userId !== post.userId) {
             await this.postService.recordPostView(id, user.userId);
         }
 
+        const { course: _course, ...safePost } = post;
+
         return {
-            post,
+            post: safePost,
             isOwner: user ? (user.userId === post.userId) : false,
+            canViewPost,
         };
     }
 }

@@ -183,6 +183,7 @@ model Post {
     content         Json?
     userId          String
     courseId        String?
+    isPreview       Boolean     @default(false)
 
     // rating = ratingTotal / ratingCount
     ratingCount     Int         @default(0)
