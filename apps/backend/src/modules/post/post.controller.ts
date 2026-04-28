@@ -110,6 +110,14 @@ export class PostController {
         const user = req.user;
         const post = await this.postService.getPostById(id);
 
+        if (!post) {
+            throw new NotFoundException("Post not found");
+        }
+
+        if (user?.userId && user.userId !== post.userId) {
+            await this.postService.recordPostView(id, user.userId);
+        }
+
         return {
             post,
             isOwner: user ? (user.userId === post.userId) : false,

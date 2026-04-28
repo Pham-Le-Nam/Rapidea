@@ -28,6 +28,8 @@ import { FileInCourseModule } from './modules/file-in-course/file-in-course.modu
 import { FileInPostModule } from './modules/file-in-post/file-in-post.module';
 import { PhotoModule } from './modules/photo/photo.module';
 import { SocialLinkModule } from './modules/social-link/social-link.module';
+import { RecentModule } from './modules/recent/recent.module';
+import { SearchModule } from './modules/search/search.module';
 
 @Module({
     imports: [
@@ -72,6 +74,8 @@ import { SocialLinkModule } from './modules/social-link/social-link.module';
         FileInPostModule,
         PhotoModule,
         SocialLinkModule,
+        RecentModule,
+        SearchModule,
     ],
     controllers: [AppController],
     providers: [AppService],

@@ -52,6 +52,10 @@ export class CourseController {
             throw new NotFoundException('Course not found');
         }
 
+        if (viewer?.userId && viewer.userId !== course.userId) {
+            await this.courseService.recordCourseView(id, viewer.userId);
+        }
+
         return {
             course,
             isOwner: viewer?.userId === course.userId,

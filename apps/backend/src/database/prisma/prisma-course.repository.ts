@@ -68,6 +68,24 @@ export class PrismaCourseRepository implements CourseRepository {
         });
     }
 
+    async recordView(id: string, userId: string) {
+        return this.prisma.recentCourseView.upsert({
+            where: {
+                courseId_userId: {
+                    courseId: id,
+                    userId,
+                },
+            },
+            update: {
+                viewedAt: new Date(),
+            },
+            create: {
+                courseId: id,
+                userId,
+            },
+        });
+    }
+
     async findById(id: string) {
         return this.prisma.course.findUnique({
             where: { id },

@@ -10,6 +10,22 @@ export class UsersController {
         private readonly usersService: UsersService,
     ) {}
 
+    @UseGuards(JwtAuthGuard)
+    @Get('me')
+    async getMe(
+        @Request() req: any,
+    ) {
+        const profile = await this.usersService.getUserById(req.user.userId);
+
+        if (!profile) {
+            throw new NotFoundException('User not found');
+        }
+
+        return {
+            profile,
+        };
+    }
+
     @UseGuards(OptionalJwtAuthGuard)
     @Get(':username')
     async getProfile(

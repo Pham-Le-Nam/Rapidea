@@ -91,6 +91,34 @@ export async function getProfileByIdApi(id: string) {
     return response.data;
 }
 
+export async function getMeApi() {
+    const token = localStorage.getItem("token");
+
+    const response = await API.get(
+        `api/users/me`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function searchApi(query: string) {
+    const response = await API.get(
+        `api/search`,
+        {
+            params: {
+                q: query,
+            },
+        },
+    );
+
+    return response.data;
+}
+
 export async function getSocialLinkApi(username: string) {
     const response = await API.get(`api/social-link/${username}`);
 
@@ -1263,6 +1291,21 @@ export async function updateRateDiscussionApi (discussionId: string, rating: num
             discussionId,
             rating,
         },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function getRecentSidebarApi() {
+    const token = localStorage.getItem("token");
+
+    const response = await API.get(
+        `api/recent/sidebar`,
         {
             headers: {
                 Authorization: `Bearer ${token}`

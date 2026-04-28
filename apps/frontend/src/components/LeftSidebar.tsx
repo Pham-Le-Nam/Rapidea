@@ -1,8 +1,10 @@
-import { PanelLeftCloseIcon, ArrowDownIcon, ArrowUpIcon } from "lucide-react";
+import { getRecentSidebarApi } from "@/api";
+import { useAuth } from "@/context/AuthContext";
+import { ArrowDownIcon, ArrowUpIcon, PanelLeftCloseIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useState } from "react"
 
-import { 
+import {
     Sidebar,
     SidebarHeader,
     SidebarMenu,
@@ -15,58 +17,135 @@ import {
     SidebarContent
 } from "@/components/ui/sidebar";
 
-export function LeftSidebar () {
+type SidebarActivityItem = {
+    id: string;
+    title: string;
+    link: string;
+    activityAt: string;
+}
+
+type SidebarActivity = {
+    ownedCourses: SidebarActivityItem[];
+    ownedPosts: SidebarActivityItem[];
+    viewedOrSubscribedCourses: SidebarActivityItem[];
+    viewedOrSubscribedPosts: SidebarActivityItem[];
+}
+
+type SidebarSectionProps = {
+    title: string;
+    items: SidebarActivityItem[];
+    showAll: boolean;
+    onToggleShowAll: () => void;
+}
+
+function SidebarSection({
+    title,
+    items,
+    showAll,
+    onToggleShowAll,
+}: SidebarSectionProps) {
     const collapseNumber = 5;
+    const visibleItems = showAll ? items : items.slice(0, collapseNumber);
+    const canToggle = items.length > collapseNumber;
 
-    const [showAllCourses, setShowAllCourses] = useState(false);
-    const courses = [
-        {title: "Course 0", link: "/homepage"},
-        {title: "Course 1", link: "/login"},
-        {title: "Course 2", link: "/register"},
-        {title: "Course 3", link: "/"},
-        {title: "Course 4", link: "/login"},
-        {title: "Course 5", link: "/register"},
-        {title: "Course 6", link: "/"},
-        {title: "Course 7", link: "/login"},
-        {title: "Course 8", link: "/homepage"},
-        {title: "Course 9", link: "/homepage"},
-        {title: "Course 10", link: "/"},
-        {title: "Course 11", link: "/"},
-        {title: "Course 12", link: "/homepage"},
-        {title: "Course 13", link: "/"},
-        {title: "Course 14", link: "/homepage"},
-        {title: "Course 15", link: "/"},
-        {title: "Course 16", link: "/homepage"},
-        {title: "Course 17", link: "/"},
-        {title: "Course 18", link: "/homepage"},
-        {title: "Course 19", link: "/"},
-    ];
-    const visibleCourses = showAllCourses ? courses : courses.slice(0, collapseNumber);
+    return (
+        <SidebarMenuItem>
+            <SidebarMenuButton>
+                <text className="font-bold">
+                    {title}
+                </text>
+            </SidebarMenuButton>
 
-    const [showAllPosts, setShowAllPosts] = useState(false);
-    const posts = [
-        {title: "Post 0", link: "/"},
-        {title: "Post 1", link: "/login"},
-        {title: "Post 2", link: "/register"},
-        {title: "Post 3", link: "/"},
-        {title: "Post 4", link: "/login"},
-        {title: "Post 5", link: "/register"},
-        {title: "Post 6", link: "/"},
-        {title: "Post 7", link: "/login"},
-        {title: "Post 8", link: "/homepage"},
-        {title: "Post 9", link: "/homepage"},
-        {title: "Post 10", link: "/"},
-        {title: "Post 11", link: "/"},
-        {title: "Post 12", link: "/homepage"},
-        {title: "Post 13", link: "/"},
-        {title: "Post 14", link: "/homepage"},
-        {title: "Post 15", link: "/"},
-        {title: "Post 16", link: "/homepage"},
-        {title: "Post 17", link: "/"},
-        {title: "Post 18", link: "/homepage"},
-        {title: "Post 19", link: "/"},
-    ];
-    const visiblePosts = showAllPosts ? posts : posts.slice(0, collapseNumber);
+            <SidebarMenuSub>
+                <SidebarMenuSubItem>
+                    {visibleItems.length === 0 ? (
+                        <span className="px-2 text-xs text-gray-500">No recent activity</span>
+                    ) : visibleItems.map((item) => (
+                        <SidebarMenuSubButton key={item.id} asChild>
+                            <Link to={item.link} title={item.title}>
+                                <span className="truncate font-normal">{item.title}</span>
+                            </Link>
+                        </SidebarMenuSubButton>
+                    ))}
+                </SidebarMenuSubItem>
+
+                {canToggle && (
+                    <SidebarMenuSubItem>
+                        <SidebarMenuSubButton>
+                            <button onClick={onToggleShowAll} className="w-full">
+                                <div className="flex items-center gap-1">
+                                    {showAll ? (
+                                        <>
+                                            Show Less
+                                            <ArrowUpIcon className="size-4" />
+                                        </>
+                                    ) : (
+                                        <>
+                                            Show More
+                                            <ArrowDownIcon className="size-4" />
+                                        </>
+                                    )}
+                                </div>
+                            </button>
+                        </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                )}
+            </SidebarMenuSub>
+        </SidebarMenuItem>
+    );
+}
+
+export function LeftSidebar () {
+    const { isLoggedIn } = useAuth();
+    const [activity, setActivity] = useState<SidebarActivity>({
+        ownedCourses: [],
+        ownedPosts: [],
+        viewedOrSubscribedCourses: [],
+        viewedOrSubscribedPosts: [],
+    });
+    const [showAllBySection, setShowAllBySection] = useState<Record<string, boolean>>({});
+
+    const loadActivity = async () => {
+        if (!isLoggedIn) {
+            setActivity({
+                ownedCourses: [],
+                ownedPosts: [],
+                viewedOrSubscribedCourses: [],
+                viewedOrSubscribedPosts: [],
+            });
+            return;
+        }
+
+        try {
+            const response = await getRecentSidebarApi();
+
+            setActivity({
+                ownedCourses: response.ownedCourses ?? [],
+                ownedPosts: response.ownedPosts ?? [],
+                viewedOrSubscribedCourses: response.viewedOrSubscribedCourses ?? [],
+                viewedOrSubscribedPosts: response.viewedOrSubscribedPosts ?? response.viewedPosts ?? [],
+            });
+        } catch (error) {
+            console.error("Couldn't load recent sidebar activity", error);
+            setActivity({
+                ownedCourses: [],
+                ownedPosts: [],
+                viewedOrSubscribedCourses: [],
+                viewedOrSubscribedPosts: [],
+            });
+        }
+    }
+
+    useEffect(() => {
+        loadActivity();
+    }, [isLoggedIn]);
+
+    const toggleSection = (section: string) => {
+        setShowAllBySection((current) => ({
+            ...current,
+            [section]: !current[section],
+        }));
+    }
 
     return (
         <Sidebar>
@@ -83,85 +162,33 @@ export function LeftSidebar () {
             
             <SidebarContent>
                 <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                            <Link to='/login'>
-                                Courses
-                            </Link>
-                        </SidebarMenuButton>
+                    <SidebarSection
+                        title="Your Courses"
+                        items={activity.ownedCourses}
+                        showAll={!!showAllBySection.ownedCourses}
+                        onToggleShowAll={() => toggleSection("ownedCourses")}
+                    />
 
-                        <SidebarMenuSub>
-                            <SidebarMenuSubItem>
-                                {visibleCourses.map((course) => (
-                                    <SidebarMenuSubButton key={course.title} asChild>
-                                        <Link to={course.link}>
-                                            {course.title}
-                                        </Link>
-                                    </SidebarMenuSubButton>
-                                ))}
-                            </SidebarMenuSubItem>
+                    <SidebarSection
+                        title="Your Posts"
+                        items={activity.ownedPosts}
+                        showAll={!!showAllBySection.ownedPosts}
+                        onToggleShowAll={() => toggleSection("ownedPosts")}
+                    />
 
-                            <SidebarMenuSubItem>
-                                <SidebarMenuSubButton>
-                                    <button onClick={() => setShowAllCourses((isShow) => !isShow)} className="w-full">
-                                        <div className="flex">
-                                            {showAllCourses ? (
-                                                <div className="flex">
-                                                    Show Less
-                                                    <ArrowUpIcon />
-                                                </div>
-                                            ) : (
-                                                <div className="flex">
-                                                    Show More
-                                                    <ArrowDownIcon />
-                                                </div>
-                                            )}
-                                        </div>
-                                    </button>
-                                </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                        </SidebarMenuSub>
-                    </SidebarMenuItem>
+                    <SidebarSection
+                        title="Interested Courses"
+                        items={activity.viewedOrSubscribedCourses}
+                        showAll={!!showAllBySection.viewedOrSubscribedCourses}
+                        onToggleShowAll={() => toggleSection("viewedOrSubscribedCourses")}
+                    />
 
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild>
-                            <Link to='/login'>
-                                Posts
-                            </Link>
-                        </SidebarMenuButton>
-
-                        <SidebarMenuSub>
-                            <SidebarMenuSubItem>
-                                {visiblePosts.map((post) => (
-                                    <SidebarMenuSubButton key={post.title} asChild>
-                                        <Link to={post.link}>
-                                            {post.title}
-                                        </Link>
-                                    </SidebarMenuSubButton>
-                                ))}
-                            </SidebarMenuSubItem>
-
-                            <SidebarMenuSubItem>
-                                <SidebarMenuSubButton>
-                                    <button onClick={() => setShowAllPosts((isShow) => !isShow)} className="w-full">
-                                        <div className="flex">
-                                            {showAllPosts ? (
-                                                <div className="flex">
-                                                    Show Less
-                                                    <ArrowUpIcon />
-                                                </div>
-                                            ) : (
-                                                <div className="flex">
-                                                    Show More
-                                                    <ArrowDownIcon />
-                                                </div>
-                                            )}
-                                        </div>
-                                    </button>
-                                </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                        </SidebarMenuSub>
-                    </SidebarMenuItem>
+                    <SidebarSection
+                        title="Interested  Posts"
+                        items={activity.viewedOrSubscribedPosts}
+                        showAll={!!showAllBySection.viewedOrSubscribedPosts}
+                        onToggleShowAll={() => toggleSection("viewedOrSubscribedPosts")}
+                    />
                 </SidebarMenu>
             </SidebarContent>
         </Sidebar>

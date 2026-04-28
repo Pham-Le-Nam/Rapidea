@@ -159,6 +159,7 @@ export class PrismaPostRepository implements PostRepository {
                 data: {
                     title,
                     content,
+                    lastUpdated: new Date(),
                 },
             }),
             ...(post.courseId
@@ -177,6 +178,24 @@ export class PrismaPostRepository implements PostRepository {
         ]);
 
         return updatedPost;
+    }
+
+    async recordView(id: string, userId: string): Promise<any> {
+        return this.prisma.recentPostView.upsert({
+            where: {
+                postId_userId: {
+                    postId: id,
+                    userId,
+                },
+            },
+            update: {
+                viewedAt: new Date(),
+            },
+            create: {
+                postId: id,
+                userId,
+            },
+        });
     }
 
     async findById (id: string): Promise<any> {

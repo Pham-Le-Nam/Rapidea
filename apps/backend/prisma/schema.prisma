@@ -45,6 +45,8 @@ model Users {
     posts                   Post[]
     course                  Course[]
     subscribe               Subscribe[]
+    recentCourseViews       RecentCourseView[]
+    recentPostViews         RecentPostView[]
     followers               Follow[]                @relation("userFollowers")
     following               Follow[]                @relation("userFollowing")
     discussions             Discussion[]
@@ -144,6 +146,7 @@ model Course {
     folder              Folder      @relation(fields: [folderId], references: [id])
 
     subscribers         Subscribe[]
+    recentViews         RecentCourseView[]
     // folders             FolderInCourse[]
     files               FileInCourse[]
     posts               Post[]
@@ -186,6 +189,7 @@ model Post {
     ratingTotal     Float       @default(0)
     rating          Float       @default(0)
     createdAt       DateTime    @default(now())
+    lastUpdated     DateTime    @default(now())
 
     user            Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
     course          Course?     @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -193,9 +197,38 @@ model Post {
     discussions     Discussion[]
     ratePosts       RatePost[]
     files           FileInPost[]
+    recentViews     RecentPostView[]
 
     @@index([userId])
     @@map("post")
+}
+
+model RecentCourseView {
+    id              String      @id @default(uuid())
+    courseId        String
+    userId          String
+    viewedAt        DateTime    @default(now())
+
+    course          Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+    user            Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([courseId, userId])
+    @@index([userId, viewedAt])
+    @@map("recent_course_view")
+}
+
+model RecentPostView {
+    id              String      @id @default(uuid())
+    postId          String
+    userId          String
+    viewedAt        DateTime    @default(now())
+
+    post            Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+    user            Users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([postId, userId])
+    @@index([userId, viewedAt])
+    @@map("recent_post_view")
 }
 
 model RatePost {

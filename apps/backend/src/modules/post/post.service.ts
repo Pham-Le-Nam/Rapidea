@@ -20,6 +20,10 @@ export class PostService {
         return this.postRepo.updateById(id, userId, title, content);
     }
 
+    async recordPostView(id: string, userId: string) {
+        return this.postRepo.recordView(id, userId);
+    }
+
     async getPostById(id: string) {
         return this.postRepo.findById(id);
     }

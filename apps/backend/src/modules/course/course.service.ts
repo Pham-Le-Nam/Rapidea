@@ -51,6 +51,10 @@ export class CourseService {
         return this.courseRepo.updateLastUpdatedById(courseId, lastUpdated);
     }
 
+    async recordCourseView(courseId: string, userId: string) {
+        return this.courseRepo.recordView(courseId, userId);
+    }
+
     async deleteCourse(courseId: string, userId: string) {
         const course = await this.courseRepo.deleteCourseById(courseId);
 

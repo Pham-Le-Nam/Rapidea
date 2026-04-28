@@ -95,6 +95,7 @@ type PostProps = {
 
 function Post ({ post, reloadPosts }: PostProps) {
     const { id } = useParams();
+    const targetPostId = post?.id ?? id;
     const [courseImg, setCourseImg] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`);
     const [ownerAvatar, setOwnerAvatar] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`);
     const { logout, isLoggedIn } = useAuth();
@@ -124,17 +125,11 @@ function Post ({ post, reloadPosts }: PostProps) {
 
     const loadPostDetails = async () => {
         try {
-            if (!loadedPost && !id) {
+            if (!targetPostId) {
                 throw new Error("Post Detail Not Found");
             }
 
-            let postResponse: any;
-
-            if (loadedPost) {
-                postResponse = await getPostApi(loadedPost.id);
-            } else if (id) {
-                postResponse = await getPostApi(id);
-            }
+            const postResponse = await getPostApi(targetPostId);
 
             const currentPost = postResponse.post;
 
@@ -166,9 +161,11 @@ function Post ({ post, reloadPosts }: PostProps) {
 
             if (fileResponse) {
                 setFiles(fileResponse);
-                setViewFile(fileResponse[0]);
+                setViewFile(fileResponse[0] ?? undefined);
             }
 
+            setRating(0);
+            setIsRated(false);
             if (isLoggedIn && currentPost) {
                 const ratePostResponse = await getRatePostApi(currentPost.id);
 
@@ -303,7 +300,14 @@ function Post ({ post, reloadPosts }: PostProps) {
 
     useEffect(() => {
         loadPostDetails();
-    }, [loadedPost?.id, id]);
+    }, [targetPostId, isLoggedIn]);
+
+    useEffect(() => {
+        setIsDiscussionShown(false);
+        setCommentCount(0);
+        setFiles([]);
+        setViewFile(undefined);
+    }, [targetPostId]);
 
     useEffect(() => {
         loadCommentCount();
