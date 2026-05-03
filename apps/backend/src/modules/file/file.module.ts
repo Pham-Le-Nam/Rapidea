@@ -3,10 +3,12 @@ import { FolderModule } from '../folder/folder.module';
 import { FileService } from './file.service';
 import { PrismaFileRepository } from 'src/database/prisma/prisma-file.repository';
 import { FileController } from './file.controller';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
     imports: [
         FolderModule,
+        StorageModule,
     ],
     controllers: [
         FileController,

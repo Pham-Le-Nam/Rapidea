@@ -1,10 +1,10 @@
 import requests
 from datetime import datetime
 
-# url = "http://localhost:1234/api/auth/login"
-url = "http://localhost:1234/api/discussion/delete"
+# url = "http://localhost:8000/api/auth/login"
+url = "http://localhost:8000/api/ai/study-space/efe6458f-a208-40b6-af34-40127948fb79/chat"
 
-jwt_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyZGUyNmI2ZS04ZmZlLTQ4ZjYtYWZiZi0zMzdjODhiYmZlNTUiLCJlbWFpbCI6ImxlbmFtLnBoYW1Ac3R1ZGVudC51dHMuZWR1LmF1Iiwic2Vzc2lvblZlcnNpb24iOjMxLCJpYXQiOjE3NzY1ODA2NjksImV4cCI6MTc3NjY2NzA2OX0.VftnGbfHNkscZIhicRMo7ovMVEJZwCSf8VqDYXR8ZvY"
+jwt_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlZWMwZWJkZS05NWI4LTRiMDgtYjdiMi00MjVlMTI3M2YxZjAiLCJlbWFpbCI6ImxlbmFtLnBoYW1Ac3R1ZGVudC51dHMuZWR1LmF1Iiwic2Vzc2lvblZlcnNpb24iOjMsImlhdCI6MTc3NzcwNzIwM30.Y5u5rlqwlmaL5dq1o8xdtoVIGLMDeq6h3Jp-N7yxH04"
 startedAt = datetime(2022,8,28)
 endedAt = datetime(2024,12,28)
 
@@ -14,7 +14,7 @@ data = {
     # "password":"Password",
     # "platform": "WEBSITE",
     # "url": "https://www.facebook.com/pham.lenam.5",
-    "id": "f8d07690-2392-4155-b89b-28660c4bf6dc",
+    # "id": "f8d07690-2392-4155-b89b-28660c4bf6dc",
     # "name": "Test Photo",
     # "role": "Software Engineer",
     # "startedAt": "2022-08-28",
@@ -37,6 +37,7 @@ data = {
     # "rating": 3.5,
     # "discussion": {"type": "doc", "content": [{"type": "paragraph", "content": [{"text": "This post have a lot of files. Yes! A lot of files", "type": "text"}]}]},
     # "repliedId": "a413b2b1-4089-4f61-8294-cb1e288d2571",
+    "prompt": "How should I improve the UI?"
 }
 
 params = {

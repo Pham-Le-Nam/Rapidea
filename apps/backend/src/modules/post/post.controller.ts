@@ -59,6 +59,13 @@ export class PostController {
     async getPostsByUsername (
         @Request() req: any,
         @Param('username') username: string,
+        @Query('offset') offset?: string,
+        @Query('limit') limit?: string,
+        @Query('courseId') courseId?: string,
+        @Query('nonCourseOnly') nonCourseOnly?: string,
+        @Query('previewMode') previewMode?: 'all' | 'preview' | 'nonPreview',
+        @Query('orderBy') orderBy?: 'rating' | 'createdAt',
+        @Query('order') order?: 'asc' | 'desc',
     ) {
         const viewer = req.user;
         const user = await this.usersService.getUserByUsername(username);
@@ -67,10 +74,20 @@ export class PostController {
             throw new NotFoundException("User not found");
         }
 
-        const posts = await this.postService.getPostsByUserId(user.id);
+        const pagination = this.getPagination(offset, limit);
+        const posts = await this.postService.getPostsByUserId(user.id, {
+            offset: pagination.offset,
+            limit: pagination.limit + 1,
+            courseId,
+            nonCourseOnly: nonCourseOnly === 'true',
+            previewMode,
+            orderBy,
+            order,
+        });
 
         return {
-            posts,
+            posts: posts.slice(0, pagination.limit),
+            hasMore: posts.length > pagination.limit,
             isOwner: viewer ? viewer.userId === user.id : false,
         };
     }
@@ -79,10 +96,10 @@ export class PostController {
     @Post('update')
     async updatePost (
         @Request() req: any,
-        @Body() data: { postId: string, title?: string, content?: any, isPreview?: boolean },
+        @Body() data: { postId: string, title?: string, content?: any, isPreview?: boolean, courseId?: string | null },
     ) {
         const user = req.user;
-        const post = await this.postService.updatePostById(data.postId, user.userId, data.title, data.content, data.isPreview);
+        const post = await this.postService.updatePostById(data.postId, user.userId, data.title, data.content, data.isPreview, data.courseId);
 
         return post;
     }
@@ -95,6 +112,8 @@ export class PostController {
         @Query('previewOnly') previewOnly?: string,
         @Query('orderBy') orderBy?: 'rating' | 'createdAt',
         @Query('order') order?: 'asc' | 'desc',
+        @Query('offset') offset?: string,
+        @Query('limit') limit?: string,
     ) {
         const user = req.user;
         const course = await this.courseService.getCourseById(courseId);
@@ -104,14 +123,18 @@ export class PostController {
         }
 
         const canViewAllPosts = await this.postService.canViewAllCoursePosts(courseId, user?.userId);
+        const pagination = this.getPagination(offset, limit);
         const posts = await this.postService.getPostsByCourseId(courseId, user?.userId, {
             previewOnly: previewOnly === 'true',
             orderBy,
             order,
+            offset: pagination.offset,
+            limit: pagination.limit + 1,
         });
 
         return {
-            posts,
+            posts: posts.slice(0, pagination.limit),
+            hasMore: posts.length > pagination.limit,
             isOwner: user ? course.userId === user.userId : false,
             canViewAllPosts,
         };
@@ -145,6 +168,16 @@ export class PostController {
             post: safePost,
             isOwner: user ? (user.userId === post.userId) : false,
             canViewPost,
+        };
+    }
+
+    private getPagination(offset?: string, limit?: string) {
+        const parsedOffset = Number(offset);
+        const parsedLimit = Number(limit);
+
+        return {
+            offset: Number.isInteger(parsedOffset) && parsedOffset > 0 ? parsedOffset : 0,
+            limit: Number.isInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50) : 5,
         };
     }
 }

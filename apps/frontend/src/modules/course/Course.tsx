@@ -27,6 +27,7 @@ import toast from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
 import { Posts } from "./Posts";
 import { Reviews } from "./Reviews";
+import LoadingScreen from "@/components/LoadingScreen";
 
 function Course () {
     const { id } = useParams();
@@ -50,6 +51,7 @@ function Course () {
     const [subscription, setSubscription] = useState<any>(null);
     const [lastUpdated, setLastUpdated] = useState("");
     const [thumbnailUrl, setThumbnailUrl] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`);
+    const [isLoading, setIsLoading] = useState(true);
 
     const getPhotoUrl = (value?: string) => {
         if (!value) return "";
@@ -63,6 +65,7 @@ function Course () {
     
     const loadCourse = async () => {
         try {
+            setIsLoading(true);
             if (!id) {
                 throw Error('id not found');
             }
@@ -110,6 +113,8 @@ function Course () {
             // handle logout or redirect
             }
             throw error;
+        } finally {
+            setIsLoading(false);
         }
     }
 
@@ -156,6 +161,14 @@ function Course () {
 
         await navigator.clipboard.writeText(link);
         toast.success("Link copied to clipboard!");
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex w-full max-w-350 flex-col items-center gap-3 px-2">
+                <LoadingScreen label="Loading course..." />
+            </div>
+        );
     }
 
     return (

@@ -42,6 +42,7 @@ import Project from "./Project";
 import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import { CameraIcon } from "lucide-react";
+import LoadingScreen from "@/components/LoadingScreen";
 
 function Profile() {
     type SocialLink = {
@@ -69,6 +70,7 @@ function Profile() {
     const [isOwner, setIsOwner] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
     const [isFollowLoading, setIsFollowLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     const navigate = useNavigate();
     const { logout } = useAuth();
@@ -104,6 +106,7 @@ function Profile() {
 
     const loadProfile = async () => {
         try {
+            setIsLoading(true);
             const response = await getProfileApi(username);
             const profileResponse = response.profile;
             setProfile(profileResponse);
@@ -168,6 +171,8 @@ function Profile() {
                 navigate('/login')
             }
             throw error;
+        } finally {
+            setIsLoading(false);
         }
     }
 
@@ -224,6 +229,14 @@ function Profile() {
     useEffect(() => {
         loadSocialLinks();
     }, [username]);
+
+    if (isLoading) {
+        return (
+            <div className="flex w-full max-w-350 flex-col items-center gap-3 px-2">
+                <LoadingScreen label="Loading profile..." />
+            </div>
+        );
+    }
 
     return(
         <div className="flex flex-col items-center justify-start px-2 gap-3 w-full max-w-350">

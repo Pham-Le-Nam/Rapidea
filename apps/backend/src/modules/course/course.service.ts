@@ -71,8 +71,11 @@ export class CourseService {
         return course;
     }   
 
-    async getCourseByUserId(userId: string) {
-        return this.courseRepo.findByUserId(userId, "id", "asc");
+    async getCourseByUserId(userId: string, options?: {
+        offset?: number;
+        limit?: number;
+    }) {
+        return this.courseRepo.findByUserId(userId, "id", "asc", options?.limit, options?.offset);
     }
 
     async getCourseById (id: string) {

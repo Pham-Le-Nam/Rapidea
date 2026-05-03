@@ -16,8 +16,8 @@ export class PostService {
         return this.postRepo.deleteById(id, userId);
     }
 
-    async updatePostById(id: string, userId: string, title?: string, content?: any, isPreview?: boolean) {
-        return this.postRepo.updateById(id, userId, title, content, isPreview);
+    async updatePostById(id: string, userId: string, title?: string, content?: any, isPreview?: boolean, courseId?: string | null) {
+        return this.postRepo.updateById(id, userId, title, content, isPreview, courseId);
     }
 
     async recordPostView(id: string, userId: string) {
@@ -36,11 +36,21 @@ export class PostService {
         previewOnly?: boolean;
         orderBy?: 'rating' | 'createdAt';
         order?: 'asc' | 'desc';
+        offset?: number;
+        limit?: number;
     }) {
         return this.postRepo.findByCourseId(courseId, viewerId, options);
     }
 
-    async getPostsByUserId(userId: string) {
-        return this.postRepo.findByUserId(userId);
+    async getPostsByUserId(userId: string, options?: {
+        offset?: number;
+        limit?: number;
+        courseId?: string;
+        nonCourseOnly?: boolean;
+        previewMode?: 'all' | 'preview' | 'nonPreview';
+        orderBy?: 'rating' | 'createdAt';
+        order?: 'asc' | 'desc';
+    }) {
+        return this.postRepo.findByUserId(userId, options);
     }
 }

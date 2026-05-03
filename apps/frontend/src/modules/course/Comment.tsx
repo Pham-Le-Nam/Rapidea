@@ -42,6 +42,11 @@ function CommentSection ({
         ];
     }, [comments, childrenByParentId]);
 
+    const isNoDiscussionsError = (error: any) => (
+        error.response?.status === 404
+            && String(error.response?.data?.message ?? "").toLowerCase().includes("discussion")
+    );
+
     const loadProfile = async (userId: string) => {
         if (!userId || profilesByUserId[userId]) return;
 
@@ -98,6 +103,13 @@ function CommentSection ({
                 logout();
                 toast.error("Token Expired. You have been logged out. Please log in to continue");
                 navigate("/login");
+            } else if (isNoDiscussionsError(error)) {
+                setComments([]);
+                setChildrenByParentId({});
+                setChildrenCountByParentId({});
+                setShownChildrenByParentId({});
+                setChildrenHasMoreByParentId({});
+                setHasMoreParents(false);
             } else {
                 toast.error("Couldn't load discussions");
             }
@@ -122,6 +134,8 @@ function CommentSection ({
                 logout();
                 toast.error("Token Expired. You have been logged out. Please log in to continue");
                 navigate("/login");
+            } else if (isNoDiscussionsError(error)) {
+                setHasMoreParents(false);
             } else {
                 toast.error("Couldn't load more discussions");
             }
@@ -165,6 +179,19 @@ function CommentSection ({
                 logout();
                 toast.error("Token Expired. You have been logged out. Please log in to continue");
                 navigate("/login");
+            } else if (isNoDiscussionsError(error)) {
+                setChildrenByParentId((currentChildrenByParentId) => ({
+                    ...currentChildrenByParentId,
+                    [parentId]: [],
+                }));
+                setChildrenHasMoreByParentId((currentHasMore) => ({
+                    ...currentHasMore,
+                    [parentId]: false,
+                }));
+                setShownChildrenByParentId((currentShown) => ({
+                    ...currentShown,
+                    [parentId]: true,
+                }));
             } else {
                 toast.error("Couldn't load follow up discussions");
             }
@@ -181,8 +208,16 @@ function CommentSection ({
 
         const countEntries = await Promise.all(
             parentComments.map(async (comment) => {
-                const response = await getChildrenDiscussionsApi(comment.id, 0, 1000);
-                return [comment.id, response.discussion?.length ?? 0] as const;
+                try {
+                    const response = await getChildrenDiscussionsApi(comment.id, 0, 1000);
+                    return [comment.id, response.discussion?.length ?? 0] as const;
+                } catch (error: any) {
+                    if (isNoDiscussionsError(error)) {
+                        return [comment.id, 0] as const;
+                    }
+
+                    throw error;
+                }
             })
         );
 
@@ -193,10 +228,20 @@ function CommentSection ({
     }
 
     const refreshChildrenCount = async (parentId: string) => {
-        const response = await getChildrenDiscussionsApi(parentId, 0, 1000);
+        let childrenCount = 0;
+
+        try {
+            const response = await getChildrenDiscussionsApi(parentId, 0, 1000);
+            childrenCount = response.discussion?.length ?? 0;
+        } catch (error: any) {
+            if (!isNoDiscussionsError(error)) {
+                throw error;
+            }
+        }
+
         setChildrenCountByParentId((currentCounts) => ({
             ...currentCounts,
-            [parentId]: response.discussion?.length ?? 0,
+            [parentId]: childrenCount,
         }));
     }
 

@@ -13,11 +13,14 @@ import { Field, FieldGroup } from "@/components/ui/field";
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { useNavigate, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ComboboxBasic } from "@/components/ui/comboboxBasic";
 import { useAuth } from "@/context/AuthContext";
 import toast from "react-hot-toast";
 import { addCourseApi, deleteCourseApi, getCoursesApi, udpateCourseApi, uploadPhotoApi } from "@/api";
+import LoadingScreen from "@/components/LoadingScreen";
+
+const COURSES_PAGE_SIZE = 5;
 
 
 function Courses() {
@@ -26,14 +29,29 @@ function Courses() {
     const navigate = useNavigate();
     const [courses, setCourses] = useState<any[]>([]);
     const [isOwner, setIsOwner] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-    const loadCourses = async () => {
+    const loadCourses = async (reset = true) => {
         try {
             if (!username) {
                 throw new Error("No username found");
             }
-            const response = await getCoursesApi(username);
-            setCourses(response.course);
+
+            if (reset) {
+                setIsLoading(true);
+            } else {
+                setIsLoadingMore(true);
+            }
+
+            const response = await getCoursesApi(username, {
+                offset: reset ? 0 : courses.length,
+                limit: COURSES_PAGE_SIZE,
+            });
+            setCourses((currentCourses) => reset ? response.course : [...currentCourses, ...response.course]);
+            setHasMore(!!response.hasMore);
             setIsOwner(response.isOwner);
         } catch (error: any) {
             if (error.response?.status === 401) {
@@ -44,12 +62,33 @@ function Courses() {
             // handle logout or redirect
             }
             throw error;
+        } finally {
+            setIsLoading(false);
+            setIsLoadingMore(false);
         }
     }
 
     useEffect(() => {
-        loadCourses();
+        setCourses([]);
+        setHasMore(true);
+        loadCourses(true);
     }, [username]);
+
+    useEffect(() => {
+        const target = loadMoreRef.current;
+
+        if (!target || !hasMore || isLoading || isLoadingMore) return;
+
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0]?.isIntersecting) {
+                loadCourses(false);
+            }
+        }, { rootMargin: "200px" });
+
+        observer.observe(target);
+
+        return () => observer.disconnect();
+    }, [hasMore, isLoading, isLoadingMore, courses.length, username]);
 
     return (
         <div className="flex w-full max-w-350 flex-col items-center gap-3 px-2">
@@ -67,10 +106,26 @@ function Courses() {
             )}
 
             <div className="flex flex-col items-center justify-around md:flex-row md:items-start md:flex-wrap w-full px-3">
+                {isLoading ? (
+                    <LoadingScreen label="Loading courses..." />
+                ) : courses.length === 0 ? (
+                    <div className="w-full rounded-md border p-6 text-center text-gray-500">
+                        No courses yet.
+                    </div>
+                ) : null}
 
                 {courses?.map((course) => (
                     <CourseComponent course={course} isOwner={isOwner} loadCourses={loadCourses} key={course.title}/>
                 ))}
+
+                <div ref={loadMoreRef} className="w-full">
+                    {isLoadingMore && <LoadingScreen label="Loading more courses..." />}
+                    {!hasMore && courses.length > 0 && (
+                        <div className="rounded-md border p-3 text-center text-sm text-gray-500">
+                            No more courses.
+                        </div>
+                    )}
+                </div>
             
             </div>
         </div>

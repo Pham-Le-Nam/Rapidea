@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import UpsertPost from "./UpsertPost";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
@@ -34,6 +34,9 @@ import {
     HoverCardTrigger 
 } from "@/components/ui/hover-card";
 import StarRating from "@/components/StarRating";
+import LoadingScreen from "@/components/LoadingScreen";
+
+const POSTS_PAGE_SIZE = 5;
 
 function Posts({
     course,
@@ -49,6 +52,11 @@ function Posts({
     const [canViewAllPosts, setCanViewAllPosts] = useState(false);
     const [previewOnly, setPreviewOnly] = useState(false);
     const [orderMode, setOrderMode] = useState<"newest" | "oldest" | "highestRated" | "lowestRated">("newest");
+    const [hasMore, setHasMore] = useState(true);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const loadMoreRef = useRef<HTMLDivElement | null>(null);
+    const isLoadingPostsRef = useRef(false);
 
     const getOrderOptions = () => {
         if (orderMode === "oldest") {
@@ -66,15 +74,43 @@ function Posts({
         return { orderBy: "createdAt" as const, order: "desc" as const };
     }
 
-    const loadPosts = async () => {
+    const loadPosts = async (reset = true) => {
+        if (isLoadingPostsRef.current) return;
+
+        isLoadingPostsRef.current = true;
+
         try {
+            if (!course?.id) return;
+
+            if (reset) {
+                setIsLoading(true);
+            } else {
+                setIsLoadingMore(true);
+            }
+
+            const offset = reset ? 0 : posts.length;
             const postsResponse = await getPostsOfCourseApi(course.id, {
                 previewOnly,
                 ...getOrderOptions(),
+                offset,
+                limit: POSTS_PAGE_SIZE,
             });
             setIsOwner(postsResponse.isOwner);
             setCanViewAllPosts(postsResponse.canViewAllPosts);
-            setPosts(postsResponse.posts);
+            setHasMore(!!postsResponse.hasMore);
+            setPosts((currentPosts) => {
+                const nextPosts = postsResponse.posts ?? [];
+
+                if (reset) {
+                    return nextPosts;
+                }
+
+                const existingPostIds = new Set(currentPosts.map((post) => post.id));
+                return [
+                    ...currentPosts,
+                    ...nextPosts.filter((post: any) => !existingPostIds.has(post.id)),
+                ];
+            });
         } catch (error: any) {
             if (error.response?.status === 401) {
                 console.error("Token Expired");
@@ -84,18 +120,44 @@ function Posts({
             // handle logout or redirect
             }
             throw error;
+        } finally {
+            isLoadingPostsRef.current = false;
+            setIsLoading(false);
+            setIsLoadingMore(false);
         }
     }
 
     const reloadCoursePosts = async () => {
-        await loadPosts();
+        await loadPosts(true);
         await reloadCourse?.();
     }
 
     useEffect(() => {
         if (!course?.id) return;
-        loadPosts();
+        setPosts([]);
+        setHasMore(true);
+        loadPosts(true);
     }, [course?.id, previewOnly, orderMode]);
+
+    useEffect(() => {
+        const target = loadMoreRef.current;
+
+        if (!target || !hasMore || isLoading || isLoadingMore) return;
+
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0]?.isIntersecting) {
+                loadPosts(false);
+            }
+        }, { rootMargin: "200px" });
+
+        observer.observe(target);
+
+        return () => observer.disconnect();
+    }, [hasMore, isLoading, isLoadingMore, posts.length, course?.id, previewOnly, orderMode]);
+
+    if (!course?.id || isLoading) {
+        return <LoadingScreen label="Loading posts..." />;
+    }
 
     return (
         <div className="flex flex-col justify-center items-center w-full gap-3">
@@ -134,12 +196,21 @@ function Posts({
             )}
 
             {isOwner &&
-                <UpsertPost className="w-full h-full text-3xl" course={course} reloadPost={reloadCoursePosts}/>
+                <UpsertPost className="w-full h-full text-3xl" course={course} courseOptions={course ? [course] : []} reloadPost={reloadCoursePosts}/>
             }
 
             {posts.map((post) => (
-                <Post key={post.id} post={post} reloadPosts={reloadCoursePosts} canViewAllPosts={canViewAllPosts}/>
+                <Post key={post.id} post={post} reloadPosts={reloadCoursePosts} canViewAllPosts={canViewAllPosts} courseOptions={course ? [course] : []}/>
             ))}
+
+            <div ref={loadMoreRef} className="w-full">
+                {isLoadingMore && <LoadingScreen label="Loading more posts..." />}
+                {!hasMore && posts.length > 0 && (
+                    <div className="rounded-md border p-3 text-center text-sm text-gray-500">
+                        No more posts.
+                    </div>
+                )}
+            </div>
             
         </div>
     );
@@ -149,9 +220,10 @@ type PostProps = {
     post?: any;
     reloadPosts?: () => Promise<void>;
     canViewAllPosts?: boolean;
+    courseOptions?: any[];
 }
 
-function Post ({ post, reloadPosts, canViewAllPosts }: PostProps) {
+function Post ({ post, reloadPosts, canViewAllPosts, courseOptions = [] }: PostProps) {
     const { id } = useParams();
     const targetPostId = post?.id ?? id;
     const [courseImg, setCourseImg] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`);
@@ -170,6 +242,7 @@ function Post ({ post, reloadPosts, canViewAllPosts }: PostProps) {
     const [isRated, setIsRated] = useState(false);
     const [isDiscussionShown, setIsDiscussionShown] = useState(false);
     const [commentCount, setCommentCount] = useState(0);
+    const [isPostLoading, setIsPostLoading] = useState(true);
     const containerWidth = post ? "w-full" : "w-full";
 
     const getPhotoUrl = (value?: string) => {
@@ -184,6 +257,7 @@ function Post ({ post, reloadPosts, canViewAllPosts }: PostProps) {
 
     const loadPostDetails = async () => {
         try {
+            setIsPostLoading(true);
             if (!targetPostId) {
                 throw new Error("Post Detail Not Found");
             }
@@ -245,6 +319,8 @@ function Post ({ post, reloadPosts, canViewAllPosts }: PostProps) {
             // handle logout or redirect
             }
             throw error;
+        } finally {
+            setIsPostLoading(false);
         }
     }
 
@@ -386,6 +462,10 @@ function Post ({ post, reloadPosts, canViewAllPosts }: PostProps) {
         }
     }, [isPostLocked]);
 
+    if (isPostLoading) {
+        return <LoadingScreen label="Loading post..." />;
+    }
+
     return (
         <div className={`flex flex-col justify-center items-start ${containerWidth} rounded-md border shadow-md p-3`}>
             <div className="relative flex flex-row w-full">
@@ -398,10 +478,21 @@ function Post ({ post, reloadPosts, canViewAllPosts }: PostProps) {
 
                 <div className="flex flex-col px-2">
                     {course?.id ? (
-                        <a className="font-bold text-lg hover:underline" href={`/course/${course.id}`}>
-                            {course.title}
-                        </a>
-                    ) : null}
+                        <div className="flex flex-wrap items-center gap-2">
+                            <a className="font-bold text-lg hover:underline" href={`/course/${course.id}`}>
+                                {course.title}
+                            </a>
+                            {loadedPost?.isPreview && (
+                                <span className="rounded-md border px-2 py-0.5 text-xs font-semibold uppercase text-gray-600">
+                                    Preview
+                                </span>
+                            )}
+                        </div>
+                    ) : (
+                        <span className="font-bold text-lg text-gray-700">
+                            General
+                        </span>
+                    )}
                     
                     <span className="text-gray-500">
                         <a className="text-gray-500 hover:underline" href={`/profile/${owner?.username}`}>
@@ -434,6 +525,7 @@ function Post ({ post, reloadPosts, canViewAllPosts }: PostProps) {
                                         post={loadedPost} 
                                         uploadedFiles={files} 
                                         course={course} 
+                                        courseOptions={courseOptions}
                                         fileFolder={fileFolder}
                                         reloadPost={loadPostDetails}
                                         className="w-full border-0 flex flex-row justify-start items-start font-normal shadow-none p-2"

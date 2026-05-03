@@ -4,7 +4,7 @@ import { UsersService } from "../users/users.service";
 import { AddCourseDto } from "./course-dto/add-course.dto";
 import { UpdateCourseDto } from "./course-dto/update-course.dto";
 import { CourseService } from "./course.service";
-import { Controller, Post, Get, Param, Request, NotFoundException, Body, InternalServerErrorException, UseGuards } from "@nestjs/common";
+import { Controller, Post, Get, Param, Request, NotFoundException, Body, InternalServerErrorException, UseGuards, Query } from "@nestjs/common";
 
 
 @Controller('api/course')
@@ -18,7 +18,9 @@ export class CourseController {
     @Get(':username')
     async getCourses (
         @Param('username') username: string,
-        @Request() req: any
+        @Request() req: any,
+        @Query('offset') offset?: string,
+        @Query('limit') limit?: string,
     ) {
         const viewer = req.user;
         const owner = await this.userService.getUserByUsername(username);
@@ -27,14 +29,19 @@ export class CourseController {
             throw new NotFoundException("User not found");
         }
 
-        const course = await this.courseService.getCourseByUserId(owner.id);
+        const pagination = this.getPagination(offset, limit);
+        const course = await this.courseService.getCourseByUserId(owner.id, {
+            offset: pagination.offset,
+            limit: pagination.limit + 1,
+        });
 
         if (!course) {
             throw new NotFoundException("Courses not found");
         }
 
         return {
-            course,
+            course: course.slice(0, pagination.limit),
+            hasMore: course.length > pagination.limit,
             isOwner: viewer?.userId === owner.id,
         };
     }
@@ -121,5 +128,15 @@ export class CourseController {
         );
 
         return course;
+    }
+
+    private getPagination(offset?: string, limit?: string) {
+        const parsedOffset = Number(offset);
+        const parsedLimit = Number(limit);
+
+        return {
+            offset: Number.isInteger(parsedOffset) && parsedOffset > 0 ? parsedOffset : 0,
+            limit: Number.isInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50) : 5,
+        };
     }
 }

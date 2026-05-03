@@ -95,7 +95,7 @@ export class PrismaCourseRepository implements CourseRepository {
         });
     }
 
-    async findByUserId(userId: string, orderByField: string = 'createdAt', order: 'asc' | 'desc' = 'desc', amount?: number) {
+    async findByUserId(userId: string, orderByField: string = 'createdAt', order: 'asc' | 'desc' = 'desc', amount?: number, offset?: number) {
         const allowedFields = [
             'createdAt',
             'price',
@@ -119,6 +119,7 @@ export class PrismaCourseRepository implements CourseRepository {
             orderBy: { 
                 [orderByField]: order,
             },
+            skip: offset,
             take: amount
         });
     }

@@ -1,15 +1,15 @@
 import { Injectable, Inject, InternalServerErrorException } from '@nestjs/common';
 import { FolderRepository } from './folder.repository';
-import { mkdir, rm, rename } from "fs/promises";
-import path from 'path';
+import { STORAGE_SERVICE } from '../storage/storage.constants';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class FolderService {
-    private rootFolder = process.env.STORAGE_URL as string;
-
     constructor(
         @Inject('FOLDER_REPOSITORY')
         private readonly folderRepo: FolderRepository,
+        @Inject(STORAGE_SERVICE)
+        private readonly storage: StorageService,
     ) {}
 
     async createFolder (userId: string, folderName: string, parentId?: string) {
@@ -21,7 +21,7 @@ export class FolderService {
 
         const url = await this.folderRepo.getUrl(folder.id);
 
-        await mkdir(`${this.rootFolder}/${url}`, { recursive: true });
+        await this.storage.ensureDirectory(url);
 
         return folder;
     }
@@ -35,10 +35,7 @@ export class FolderService {
             throw new InternalServerErrorException("Couldn't delete folder");
         }
 
-        await rm(`${this.rootFolder}/${url}`, {
-            recursive: true,
-            force: true,
-        });
+        await this.storage.deleteDirectory(url);
 
         return folder;
     }
@@ -52,10 +49,7 @@ export class FolderService {
             throw new InternalServerErrorException("Couldn't rename the folder");
         }
 
-        const oldPath = path.join(this.rootFolder, oldUrl);
-        const newPath = path.join(this.rootFolder, newUrl);
-
-        await rename(oldPath, newPath);        
+        await this.storage.moveDirectory(oldUrl, newUrl);
 
         return folder;
     }
@@ -69,10 +63,7 @@ export class FolderService {
             throw new InternalServerErrorException("Couldn't move the folder");
         }
 
-        const oldPath = path.join(this.rootFolder, oldUrl);
-        const newPath = path.join(this.rootFolder, newUrl);
-
-        await rename(oldPath, newPath); 
+        await this.storage.moveDirectory(oldUrl, newUrl);
 
         return folder;
     }

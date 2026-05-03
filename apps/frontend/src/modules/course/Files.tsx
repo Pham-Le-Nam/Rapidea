@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { 
     ChevronLeftIcon, 
+    ChevronRightIcon,
     PlusIcon,
     FolderIcon,
     FileIcon,
@@ -30,11 +31,17 @@ import {
 import { Field, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import LoadingScreen from "@/components/LoadingScreen";
 
 type FilesProp = {
     rootFolderId: string,
     addFile?: (file: any) => Promise<void>,
     lockRootActions?: boolean,
+}
+
+type FolderCrumb = {
+    id: string;
+    name: string;
 }
 
 function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
@@ -47,10 +54,13 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
     const [isRootFolder, setIsRootFolder] = useState(true);
     const [newFolderName, setNewFolderName] = useState("");
     const [newFileName, setNewFileName] = useState("");
+    const [breadcrumbs, setBreadcrumbs] = useState<FolderCrumb[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const isRootActionLocked = lockRootActions && isRootFolder;
 
-    const loadFolder = async (folderId: string) => {
+    const loadFolder = async (folderId: string, nextBreadcrumbs?: FolderCrumb[]) => {
         try {
+            setIsLoading(true);
             const response = await getFolderApi(folderId);
 
             if (!response) {
@@ -67,6 +77,33 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
             setChildrenFolder(folders);
             setChildrenFiles(files);
             setIsRootFolder(folderId === rootFolderId);
+            setBreadcrumbs((currentBreadcrumbs) => {
+                const loadedCrumb = {
+                    id: response.folder.id,
+                    name: response.folder.name,
+                };
+
+                if (nextBreadcrumbs) {
+                    return nextBreadcrumbs.map((crumb) => (
+                        crumb.id === loadedCrumb.id ? loadedCrumb : crumb
+                    ));
+                }
+
+                if (folderId === rootFolderId) {
+                    return [loadedCrumb];
+                }
+
+                const existingIndex = currentBreadcrumbs.findIndex((crumb) => crumb.id === loadedCrumb.id);
+
+                if (existingIndex >= 0) {
+                    return [
+                        ...currentBreadcrumbs.slice(0, existingIndex),
+                        loadedCrumb,
+                    ];
+                }
+
+                return [...currentBreadcrumbs, loadedCrumb];
+            });
         } catch (error: any) {
             if (error.response?.status === 401) {
                 console.error("Token Expired");
@@ -76,6 +113,8 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
             // handle logout or redirect
             }
             throw error;
+        } finally {
+            setIsLoading(false);
         }
     }
 
@@ -229,6 +268,7 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
     
     useEffect(() => {
         if (rootFolderId) {
+            setBreadcrumbs([]);
             loadFolder(rootFolderId);
         }
     }, [rootFolderId]);
@@ -238,16 +278,44 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
             
             <div className="relative w-full flex items-center border-b-2 h-8">
                 {!isRootFolder && (
-                    <Button asChild className="absolute left-0 hover:bg-gray-100 border-r-2 h-full bg-white" onClick={() => loadFolder(folder.parentId)}>
+                    <Button
+                        asChild
+                        className="absolute left-0 hover:bg-gray-100 border-r-2 h-full bg-white"
+                        onClick={() => loadFolder(folder.parentId, breadcrumbs.slice(0, -1))}
+                    >
                         <span>
                             <ChevronLeftIcon className="text-black" />
                         </span>
                     </Button>
                 ) }
 
-                <p className="mx-auto text-lg font-medium">
-                    {folder ? folder.name : "Loading..."}
-                </p>
+                <nav
+                    aria-label="Folder breadcrumb"
+                    className="mx-auto flex max-w-[calc(100%-5rem)] items-center overflow-x-auto px-10 text-sm font-medium"
+                >
+                    {folder ? breadcrumbs.map((crumb, index) => {
+                        const isCurrentCrumb = index === breadcrumbs.length - 1;
+
+                        return (
+                            <div key={crumb.id} className="flex shrink-0 items-center">
+                                {index > 0 && <ChevronRightIcon className="mx-1 size-4 text-gray-400" />}
+                                <button
+                                    type="button"
+                                    className={`max-w-40 truncate rounded-sm px-1 py-0.5 ${
+                                        isCurrentCrumb
+                                            ? "cursor-default text-gray-900"
+                                            : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                                    }`}
+                                    disabled={isCurrentCrumb}
+                                    onClick={() => loadFolder(crumb.id, breadcrumbs.slice(0, index + 1))}
+                                    title={crumb.name}
+                                >
+                                    {crumb.name}
+                                </button>
+                            </div>
+                        );
+                    }) : "Loading..."}
+                </nav>
 
                 {isOwner && (
                     <DropdownMenu>
@@ -273,11 +341,15 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
             </div>
             
             <div className="flex flex-col justify-center items-center px-2 mb-2 w-full">
+                {isLoading ? (
+                    <LoadingScreen label="Loading files..." />
+                ) : (
+                    <>
                 {childrenFolders.map((childFolder: any) => (
                     <div className="flex flex-row justify-start items-center w-full" key={childFolder.name}>
                         <Button 
                             className="flex-1 min-w-0 flex items-center justify-start gap-2 rounded-full bg-white hover:bg-gray-100 text-black text-lg p-2 font-normal [&>svg]:w-5 [&>svg]:h-5"
-                            onClick={() => loadFolder(childFolder.id)}
+                            onClick={() => loadFolder(childFolder.id, [...breadcrumbs, { id: childFolder.id, name: childFolder.name }])}
                         >
                             <FolderIcon />
                             {childFolder.name}
@@ -339,6 +411,8 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                         )}                        
                     </div>
                 ))}
+                    </>
+                )}
             </div>
         </div>
     )

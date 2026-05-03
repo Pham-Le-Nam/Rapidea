@@ -623,7 +623,7 @@ export async function deleteProjectApi (id: string) {
     return response.data;
 }
 
-export async function getCoursesApi (username: string) {
+export async function getCoursesApi (username: string, options: { offset?: number; limit?: number } = {}) {
     const token = localStorage.getItem("token");
     const config = token
         ? {
@@ -635,7 +635,13 @@ export async function getCoursesApi (username: string) {
 
     const response = await API.get (
         `api/course/${username}`,
-        config,
+        {
+            ...config,
+            params: {
+                offset: options.offset,
+                limit: options.limit,
+            },
+        },
     );
 
     return response.data;
@@ -969,7 +975,7 @@ export async function addPostApi (title: string, content: any, courseId?: string
     return response.data;
 }
 
-export async function updatePostApi (title: string, content: any, postId?: string, isPreview?: boolean) {
+export async function updatePostApi (title: string, content: any, postId?: string, isPreview?: boolean, courseId?: string | null) {
     const token = localStorage.getItem("token");
 
     const response = await API.post(
@@ -979,6 +985,7 @@ export async function updatePostApi (title: string, content: any, postId?: strin
             title,
             content,
             isPreview,
+            courseId,
         },
         {
             headers: {
@@ -1026,7 +1033,15 @@ export async function getPostApi (postId: string) {
     return response.data;
 }
 
-export async function getPostsByUsernameApi(username: string) {
+export async function getPostsByUsernameApi(username: string, options: {
+    offset?: number;
+    limit?: number;
+    courseId?: string;
+    nonCourseOnly?: boolean;
+    previewMode?: "all" | "preview" | "nonPreview";
+    orderBy?: "rating" | "createdAt";
+    order?: "asc" | "desc";
+} = {}) {
     const token = localStorage.getItem("token");
     const config = token
         ? {
@@ -1038,7 +1053,18 @@ export async function getPostsByUsernameApi(username: string) {
 
     const response = await API.get(
         `api/post/user/${username}`,
-        config,
+        {
+            ...config,
+            params: {
+                offset: options.offset,
+                limit: options.limit,
+                courseId: options.courseId,
+                nonCourseOnly: options.nonCourseOnly,
+                previewMode: options.previewMode,
+                orderBy: options.orderBy,
+                order: options.order,
+            },
+        },
     );
 
     return response.data;
@@ -1106,6 +1132,8 @@ export async function getPostsOfCourseApi (
         previewOnly?: boolean;
         orderBy?: "rating" | "createdAt";
         order?: "asc" | "desc";
+        offset?: number;
+        limit?: number;
     } = {},
 ) {
     const token = localStorage.getItem("token");
@@ -1125,6 +1153,8 @@ export async function getPostsOfCourseApi (
                 previewOnly: options.previewOnly,
                 orderBy: options.orderBy,
                 order: options.order,
+                offset: options.offset,
+                limit: options.limit,
             },
         },
     );

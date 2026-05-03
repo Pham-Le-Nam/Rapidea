@@ -136,7 +136,7 @@ export class PrismaPostRepository implements PostRepository {
         return  deletedPost;
     }
 
-    async updateById (id: string, userId: string, title?: string, content?: any, isPreview?: boolean): Promise<any> {
+    async updateById (id: string, userId: string, title?: string, content?: any, isPreview?: boolean, courseId?: string | null): Promise<any> {
         const post = await this.prisma.post.findUnique({
             where: {
                 id,
@@ -151,6 +151,21 @@ export class PrismaPostRepository implements PostRepository {
             throw new InternalServerErrorException("Post not found");
         }
 
+        if (courseId) {
+            const course = await this.prisma.course.findUnique({
+                where: {
+                    id: courseId,
+                    userId,
+                },
+            });
+
+            if (!course) {
+                throw new InternalServerErrorException("Course not found");
+            }
+        }
+
+        const isMovingCourse = courseId !== undefined && courseId !== post.courseId;
+
         const [updatedPost] = await this.prisma.$transaction([
             this.prisma.post.update({
                 where: {
@@ -161,6 +176,7 @@ export class PrismaPostRepository implements PostRepository {
                     title,
                     content,
                     isPreview,
+                    courseId,
                     lastUpdated: new Date(),
                 },
             }),
@@ -171,6 +187,34 @@ export class PrismaPostRepository implements PostRepository {
                             id: post.courseId,
                         },
                         data: {
+                            lastUpdated: new Date(),
+                        },
+                    }),
+                ]
+                : []
+            ),
+            ...(isMovingCourse && post.courseId
+                ? [
+                    this.prisma.course.update({
+                        where: {
+                            id: post.courseId,
+                        },
+                        data: {
+                            postsCount: { decrement: 1 },
+                            lastUpdated: new Date(),
+                        },
+                    }),
+                ]
+                : []
+            ),
+            ...(isMovingCourse && courseId
+                ? [
+                    this.prisma.course.update({
+                        where: {
+                            id: courseId,
+                        },
+                        data: {
+                            postsCount: { increment: 1 },
                             lastUpdated: new Date(),
                         },
                     }),
@@ -245,6 +289,8 @@ export class PrismaPostRepository implements PostRepository {
             previewOnly?: boolean;
             orderBy?: 'rating' | 'createdAt';
             order?: 'asc' | 'desc';
+            offset?: number;
+            limit?: number;
         } = {},
     ): Promise<any> {
         const shouldShowPreviewOnly = !!options.previewOnly;
@@ -256,20 +302,49 @@ export class PrismaPostRepository implements PostRepository {
                 courseId,
                 ...(shouldShowPreviewOnly ? { isPreview: true } : {}),
             },
-            orderBy: {
-                [orderByField]: order,
-            },
+            orderBy: [
+                { [orderByField]: order },
+                { id: 'asc' },
+            ],
+            skip: options.offset,
+            take: options.limit,
         });
     }
 
-    async findByUserId (userId: string): Promise<any> {
+    async findByUserId (userId: string, options: {
+        offset?: number;
+        limit?: number;
+        courseId?: string;
+        nonCourseOnly?: boolean;
+        previewMode?: 'all' | 'preview' | 'nonPreview';
+        orderBy?: 'rating' | 'createdAt';
+        order?: 'asc' | 'desc';
+    } = {}): Promise<any> {
+        const orderByField = options.orderBy === 'rating' ? 'rating' : 'createdAt';
+        const order = options.order === 'asc' ? 'asc' : 'desc';
+
         return this.prisma.post.findMany({
             where: {
                 userId,
+                ...(options.nonCourseOnly
+                    ? { courseId: null }
+                    : options.courseId
+                        ? { courseId: options.courseId }
+                        : {}
+                ),
+                ...(options.previewMode === 'preview'
+                    ? { isPreview: true }
+                    : options.previewMode === 'nonPreview'
+                        ? { isPreview: false }
+                        : {}
+                ),
             },
-            orderBy: {
-                createdAt: 'desc',
-            },
+            orderBy: [
+                { [orderByField]: order },
+                { id: 'asc' },
+            ],
+            skip: options.offset,
+            take: options.limit,
         });
     }
 }

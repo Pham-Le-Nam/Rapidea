@@ -6,8 +6,9 @@ import {
 } from '@nestjs/common';
 import { FileRepository } from './file.repository';
 import { FolderService } from '../folder/folder.service';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import path from 'path';
+import { STORAGE_SERVICE } from '../storage/storage.constants';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class FileService {
@@ -15,9 +16,9 @@ export class FileService {
         @Inject('FILE_REPOSITORY')
         private readonly fileRepo: FileRepository,
         private readonly folderService: FolderService,
+        @Inject(STORAGE_SERVICE)
+        private readonly storage: StorageService,
     ) {}
-
-    private rootFolder = process.env.STORAGE_URL as string;
 
     async createFile (uploadedFile: Express.Multer.File, userId: string, folderId: string) {
         const { originalname, mimetype, size, buffer } = uploadedFile;
@@ -27,13 +28,7 @@ export class FileService {
         // Add a file value into the database
         const file = await this.fileRepo.create(folderId, originalname, mimetype, size, userId);
 
-        const url = `${this.rootFolder}/${folderUrl}`;
-        
-        await fs.mkdir(url, { recursive: true })
-
-        const filePath = path.join(url, originalname);
-
-        await fs.writeFile(filePath, buffer);
+        await this.storage.writeFile(this.joinStorageKey(folderUrl, originalname), buffer);
 
         return file;
     }
@@ -51,9 +46,7 @@ export class FileService {
             throw new InternalServerErrorException("", "Couldn't get folder URL");
         }
 
-        const filePath = path.join(this.rootFolder, folderUrl, file.name);
-        
-        await fs.rm(filePath, { force: true });
+        await this.storage.deleteFile(this.joinStorageKey(folderUrl, file.name));
 
         return file;
     }
@@ -78,10 +71,10 @@ export class FileService {
             throw new InternalServerErrorException("", "Couldn't update file");
         }
 
-        const oldPath = path.join(this.rootFolder, oldFolderUrl, oldFile.name);
-        const newPath = path.join(this.rootFolder, updatedFolderUrl, newFileName);
-
-        await fs.rename(oldPath, newPath);
+        await this.storage.moveFile(
+            this.joinStorageKey(oldFolderUrl, oldFile.name),
+            this.joinStorageKey(updatedFolderUrl, newFileName),
+        );
 
         return updatedFile;
     }
@@ -99,8 +92,12 @@ export class FileService {
     async getFileUrl (fileId: string) {
         const file = await this.fileRepo.findById(fileId);
         const folderUrl = await this.folderService.getFolderUrl(file.folderId);
-        const fileUrl = path.join(this.rootFolder, folderUrl, file.name);
+        const fileUrl = this.storage.getPublicUrl(this.joinStorageKey(folderUrl, file.name));
 
         return fileUrl;
+    }
+
+    private joinStorageKey(...parts: string[]) {
+        return path.posix.join(...parts.map((part) => part.replace(/\\/g, '/')));
     }
 }

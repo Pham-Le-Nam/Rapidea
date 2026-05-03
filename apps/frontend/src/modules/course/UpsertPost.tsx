@@ -24,22 +24,40 @@ import { addFileToPostApi, addPostApi, removeFileToPostApi, updatePostApi } from
 type UpsertPostProps = {
     className?: string;
     course?: any;
+    courseOptions?: any[];
     fileFolder?: any;
     post?: any;
     uploadedFiles?: any[];
     reloadPost: () => Promise<void>;
 }
 
-function UpsertPost({ className, post, uploadedFiles, course, fileFolder, reloadPost }: UpsertPostProps) {
+function UpsertPost({ className, post, uploadedFiles, course, courseOptions = [], fileFolder, reloadPost }: UpsertPostProps) {
     const [title, setTitle] = useState(post?.title || "");
     const [content, setContent] = useState<Record<string, any>>(post?.content || {});
     const [isPreview, setIsPreview] = useState(!!post?.isPreview);
+    const [selectedCourseId, setSelectedCourseId] = useState(post?.courseId ?? course?.id ?? "general");
     const [deleteFiles, setDeleteFiles] = useState<any[]>([]);
     const [files, setFiles] = useState<any[]>([]);
 
     const { logout } = useAuth();
     const navigate = useNavigate();
-    const rootFolderId = course?.folderId ?? fileFolder?.id;
+    const availableCourses = [
+        ...courseOptions,
+        ...(course?.id ? [course] : []),
+    ].filter((option, index, options) => (
+        option?.id && options.findIndex((courseOption) => courseOption?.id === option.id) === index
+    ));
+    const selectedCourse = availableCourses.find((courseOption) => courseOption.id === selectedCourseId);
+    const selectedPostCourseId = selectedCourseId === "general" ? undefined : selectedCourseId;
+    const rootFolderId = selectedCourse?.folderId ?? fileFolder?.id;
+
+    const changePostLocation = (value: string) => {
+        setSelectedCourseId(value);
+
+        if (value === "general") {
+            setIsPreview(false);
+        }
+    }
 
     const addFile = async (file: any) => {
         if (!file) {
@@ -76,13 +94,14 @@ function UpsertPost({ className, post, uploadedFiles, course, fileFolder, reload
         setTitle(post?.title || "");
         setContent(post?.content || {});
         setIsPreview(!!post?.isPreview);
+        setSelectedCourseId(post?.courseId ?? course?.id ?? "general");
         setDeleteFiles([]);
         setFiles([]);
     }
 
     const createPost = async () => {
         try {
-            const response = await addPostApi(title, content, course?.id, isPreview);
+            const response = await addPostApi(title, content, selectedPostCourseId, isPreview);
 
             if (!response) {
                 toast.error(`Couldn't create post`);
@@ -124,7 +143,7 @@ function UpsertPost({ className, post, uploadedFiles, course, fileFolder, reload
                 throw Error("Post not found");
             }
 
-            const response = await updatePostApi(title, content, postId, isPreview);
+            const response = await updatePostApi(title, content, postId, isPreview, selectedPostCourseId ?? null);
 
             if (!response) {
                 toast.error(`Couldn't update post`);
@@ -193,12 +212,30 @@ function UpsertPost({ className, post, uploadedFiles, course, fileFolder, reload
                             <Input id={`create-post`} name="create-post" type="text" value={title} onChange={(n) => setTitle(n.target.value)}/>
                         </Field>
                         <Field>
+                            <Label htmlFor="post-location" className="mt-2">
+                                Post location
+                            </Label>
+                            <select
+                                id="post-location"
+                                value={selectedCourseId}
+                                className="h-9 rounded-md border bg-transparent px-3 text-sm"
+                                onChange={(event) => changePostLocation(event.target.value)}
+                            >
+                                <option value="general">General (not in any course)</option>
+                                {availableCourses.map((courseOption) => (
+                                    <option key={courseOption.id} value={courseOption.id}>
+                                        {courseOption.title}
+                                    </option>
+                                ))}
+                            </select>
+                        </Field>
+                        <Field>
                             <Label htmlFor={`create-post`} className="mt-2">
                                 Content
                             </Label>
                             <TextEditor value={content} onChange={setContent} />
                         </Field>
-                        {course?.id && (
+                        {selectedPostCourseId && (
                             <Field>
                                 <label className="flex items-center gap-2 text-sm font-medium">
                                     <Input

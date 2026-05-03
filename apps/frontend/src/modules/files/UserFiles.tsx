@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { getUserFoldersApi } from "@/api";
 import { useAuth } from "@/context/AuthContext";
 import Files from "../course/Files";
+import LoadingScreen from "@/components/LoadingScreen";
 
 function UserFiles() {
     const { username } = useParams();
@@ -44,9 +45,7 @@ function UserFiles() {
             {rootFolder ? (
                 <Files rootFolderId={rootFolder.id} lockRootActions />
             ) : (
-                <div className="w-full rounded-md border p-6 text-center text-gray-500">
-                    Loading files...
-                </div>
+                <LoadingScreen label="Loading files..." />
             )}
         </div>
     )

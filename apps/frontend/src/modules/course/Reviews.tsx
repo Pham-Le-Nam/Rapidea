@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import LoadingScreen from "@/components/LoadingScreen";
 
 type ReviewsProps = {
     course: any;
@@ -32,12 +33,18 @@ export function Reviews({
     const [rating, setRating] = useState(5);
     const [review, setReview] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     const loadReviews = async () => {
-        if (!course?.id) return;
+        try {
+            if (!course?.id) return;
 
-        const response = await getCourseReviewsApi(course.id);
-        setReviews(response ?? []);
+            setIsLoading(true);
+            const response = await getCourseReviewsApi(course.id);
+            setReviews(response ?? []);
+        } finally {
+            setIsLoading(false);
+        }
     }
 
     useEffect(() => {
@@ -98,6 +105,10 @@ export function Reviews({
             ? `${import.meta.env.VITE_PHOTO_STORAGE}${avatarName}`
             : `${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`;
     }
+
+    const getProfilePath = (profile: any) => (
+        profile?.username ? `/profile/${profile.username}` : ""
+    );
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return "";
@@ -167,33 +178,61 @@ export function Reviews({
             )}
 
             <div className="flex flex-col gap-3">
-                {reviews.length === 0 ? (
+                {isLoading ? (
+                    <LoadingScreen label="Loading reviews..." />
+                ) : reviews.length === 0 ? (
                     <div className="text-center text-sm text-gray-500">
                         No reviews yet.
                     </div>
-                ) : reviews.map((courseReview) => (
-                    <div key={courseReview.id} className="flex gap-3 rounded-md border p-3">
-                        <img
-                            src={getAvatarUrl(courseReview.subscriber)}
-                            className="size-10 rounded-full border object-cover"
-                        />
-                        <div className="flex flex-1 flex-col gap-1">
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                <span className="font-semibold">
-                                    {getProfileName(courseReview.subscriber)}
-                                </span>
-                                <StarRating value={courseReview.rating} size={18} disabled />
-                                <span className="text-sm text-gray-500">{Number(courseReview.rating).toFixed(1)}</span>
-                                <span className="text-xs text-gray-500">
-                                    {formatDate(courseReview.createdAt)}
-                                </span>
+                ) : reviews.map((courseReview) => {
+                    const profilePath = getProfilePath(courseReview.subscriber);
+                    const profileName = getProfileName(courseReview.subscriber);
+
+                    return (
+                        <div key={courseReview.id} className="flex gap-3 rounded-md border p-3">
+                            {profilePath ? (
+                                <Link
+                                    to={profilePath}
+                                    aria-label={`View ${profileName}'s profile`}
+                                    className="h-10 flex-shrink-0 rounded-full"
+                                >
+                                    <img
+                                        src={getAvatarUrl(courseReview.subscriber)}
+                                        alt={profileName}
+                                        className="size-10 rounded-full border object-cover"
+                                    />
+                                </Link>
+                            ) : (
+                                <img
+                                    src={getAvatarUrl(courseReview.subscriber)}
+                                    alt={profileName}
+                                    className="size-10 rounded-full border object-cover"
+                                />
+                            )}
+                            <div className="flex flex-1 flex-col gap-1">
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    {profilePath ? (
+                                        <Link to={profilePath} className="font-semibold hover:underline">
+                                            {profileName}
+                                        </Link>
+                                    ) : (
+                                        <span className="font-semibold">
+                                            {profileName}
+                                        </span>
+                                    )}
+                                    <StarRating value={courseReview.rating} size={18} disabled />
+                                    <span className="text-sm text-gray-500">{Number(courseReview.rating).toFixed(1)}</span>
+                                    <span className="text-xs text-gray-500">
+                                        {formatDate(courseReview.createdAt)}
+                                    </span>
+                                </div>
+                                <p className="whitespace-pre-wrap text-sm">
+                                    {courseReview.review}
+                                </p>
                             </div>
-                            <p className="whitespace-pre-wrap text-sm">
-                                {courseReview.review}
-                            </p>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     )

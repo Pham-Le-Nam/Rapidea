@@ -4,6 +4,6 @@ export interface CourseRepository {
     updateLastUpdatedById(id: string, lastUpdated?: Date): Promise<any>;
     recordView(id: string, userId: string): Promise<any>;
     findById(id: string): Promise<any | null>;
-    findByUserId(userId: string, orderByField: string, order: 'asc' | 'desc', amount?: number): Promise<any | null>;
+    findByUserId(userId: string, orderByField: string, order: 'asc' | 'desc', amount?: number, offset?: number): Promise<any | null>;
     deleteCourseById(id: string): Promise<any | null>;
 }
