@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsNumber } from "class-validator";
+import { IsArray, IsNumber, IsOptional, IsString } from "class-validator";
 
 export class AddCourseDto {    
     @IsString()
@@ -15,4 +15,9 @@ export class AddCourseDto {
     @IsOptional()
     @IsString()
     currency?: string
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    tags?: string[];
 }

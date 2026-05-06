@@ -63,6 +63,14 @@ export class PrismaFileRepository implements FileRepository {
                     userId,
                     folderId,
                 },
+                include: {
+                    transcript: true,
+                    tags: {
+                        include: {
+                            tag: true,
+                        },
+                    },
+                },
             });
 
             if (courseId) {
@@ -130,6 +138,14 @@ export class PrismaFileRepository implements FileRepository {
             where: { 
                 id, 
             },
+            include: {
+                transcript: true,
+                tags: {
+                    include: {
+                        tag: true,
+                    },
+                },
+            },
         });
     }
 
@@ -137,6 +153,14 @@ export class PrismaFileRepository implements FileRepository {
         return this.prisma.file.findMany({
             where: {
                 folderId,
+            },
+            include: {
+                transcript: true,
+                tags: {
+                    include: {
+                        tag: true,
+                    },
+                },
             },
         });
     }

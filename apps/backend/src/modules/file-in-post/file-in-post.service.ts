@@ -2,6 +2,7 @@ import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common
 import { FileInPostRepository } from './file-in-post.repository';
 import { FileService } from '../file/file.service';
 import { PostService } from '../post/post.service';
+import { TagsService } from '../tags/tags.service';
 
 @Injectable()
 export class FileInPostService {
@@ -10,6 +11,7 @@ export class FileInPostService {
         private readonly fileInPostRepo: FileInPostRepository,
         private readonly fileService: FileService,
         private readonly postService: PostService,
+        private readonly tagsService: TagsService,
     ) {}
 
     async addFileToPost (fileId: string, postId: string, userId: string) {
@@ -33,7 +35,10 @@ export class FileInPostService {
             throw new Error("Unauthorized: You are not the owner of this file");
         }
 
-        return this.fileInPostRepo.create(fileId, postId, userId);
+        const fileInPost = await this.fileInPostRepo.create(fileId, postId, userId);
+        await this.tagsService.addFileTagsToPost(postId, fileId);
+
+        return fileInPost;
     }
 
     async removeFileFromPost (fileId: string, postId: string, userId: string) {

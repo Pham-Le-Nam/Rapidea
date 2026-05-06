@@ -4,11 +4,13 @@ import { FileInPostController } from './file-in-post.controller';
 import { PrismaFileInPostRepository } from 'src/database/prisma/prisma-file-in-post.repository';
 import { PostModule } from '../post/post.module';
 import { FileModule } from '../file/file.module';
+import { TagsModule } from '../tags/tags.module';
 
 @Module({
     imports: [
         PostModule,
         FileModule,
+        TagsModule,
     ],
     providers: [
         FileInPostService,

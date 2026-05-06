@@ -30,6 +30,7 @@ import { PhotoModule } from './modules/photo/photo.module';
 import { SocialLinkModule } from './modules/social-link/social-link.module';
 import { RecentModule } from './modules/recent/recent.module';
 import { SearchModule } from './modules/search/search.module';
+import { TagsModule } from './modules/tags/tags.module';
 
 @Module({
     imports: [
@@ -76,6 +77,7 @@ import { SearchModule } from './modules/search/search.module';
         SocialLinkModule,
         RecentModule,
         SearchModule,
+        TagsModule,
     ],
     controllers: [AppController],
     providers: [AppService],

@@ -1,23 +1,33 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { PostRepository } from "./post.repository";
+import { TagsService } from "../tags/tags.service";
 
 @Injectable()
 export class PostService {
     constructor(
         @Inject('POST_REPOSITORY')
         private readonly postRepo: PostRepository,
+        private readonly tagsService: TagsService,
     ) {}
 
-    async createPost(userId: string, title?: string, content?: any, courseId?: string, isPreview?: boolean) {
-        return this.postRepo.create(userId, title, content, courseId, isPreview);
+    async createPost(userId: string, title?: string, content?: any, courseId?: string, isPreview?: boolean, tags: string[] = []) {
+        const post = await this.postRepo.create(userId, title, content, courseId, isPreview);
+        await this.tagsService.setPostTags(post.id, tags);
+
+        return this.postRepo.findById(post.id);
     }
 
     async deletePostById(id: string, userId: string) {
         return this.postRepo.deleteById(id, userId);
     }
 
-    async updatePostById(id: string, userId: string, title?: string, content?: any, isPreview?: boolean, courseId?: string | null) {
-        return this.postRepo.updateById(id, userId, title, content, isPreview, courseId);
+    async updatePostById(id: string, userId: string, title?: string, content?: any, isPreview?: boolean, courseId?: string | null, tags?: string[]) {
+        const post = await this.postRepo.updateById(id, userId, title, content, isPreview, courseId);
+        if (tags) {
+            await this.tagsService.setPostTags(id, tags);
+        }
+
+        return this.postRepo.findById(post.id);
     }
 
     async recordPostView(id: string, userId: string) {

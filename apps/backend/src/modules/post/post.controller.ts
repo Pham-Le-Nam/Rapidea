@@ -37,6 +37,7 @@ export class PostController {
             addPostDto.content,
             addPostDto.courseId,
             addPostDto.isPreview,
+            addPostDto.tags,
         );
 
         return post;
@@ -96,10 +97,10 @@ export class PostController {
     @Post('update')
     async updatePost (
         @Request() req: any,
-        @Body() data: { postId: string, title?: string, content?: any, isPreview?: boolean, courseId?: string | null },
+        @Body() data: { postId: string, title?: string, content?: any, isPreview?: boolean, courseId?: string | null, tags?: string[] },
     ) {
         const user = req.user;
-        const post = await this.postService.updatePostById(data.postId, user.userId, data.title, data.content, data.isPreview, data.courseId);
+        const post = await this.postService.updatePostById(data.postId, user.userId, data.title, data.content, data.isPreview, data.courseId, data.tags);
 
         return post;
     }

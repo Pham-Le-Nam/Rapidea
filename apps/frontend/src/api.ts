@@ -647,7 +647,22 @@ export async function getCoursesApi (username: string, options: { offset?: numbe
     return response.data;
 }
 
-export async function addCourseApi(title: string, description?: string, price?: number, currency?: string) {
+export async function getTagsApi() {
+    const response = await API.get(`api/tags`);
+
+    return response.data;
+}
+
+export async function suggestTagsApi(text: string, limit: number = 5) {
+    const response = await API.post(`api/tags/suggest`, {
+        text,
+        limit,
+    });
+
+    return response.data;
+}
+
+export async function addCourseApi(title: string, description?: string, price?: number, currency?: string, tags: string[] = []) {
     const token = localStorage.getItem("token");
 
     const response = await API.post(
@@ -657,6 +672,7 @@ export async function addCourseApi(title: string, description?: string, price?: 
             description,
             price,
             currency,
+            tags,
         },
         {
             headers: {
@@ -686,7 +702,7 @@ export async function deleteCourseApi(id: string) {
     return response.data;
 }
 
-export async function udpateCourseApi(id: string, title: string, description?: string, price?: number, currency?: string, thumbnailId?: number) {
+export async function udpateCourseApi(id: string, title: string, description?: string, price?: number, currency?: string, thumbnailId?: number, tags: string[] = []) {
     const token = localStorage.getItem("token");
 
     const response = await API.post(
@@ -697,6 +713,7 @@ export async function udpateCourseApi(id: string, title: string, description?: s
             price,
             currency,
             thumbnailId,
+            tags,
         },
         {
             headers: {
@@ -954,7 +971,7 @@ export async function deleteFileApi (fileId: string) {
     return response.data;
 }
 
-export async function addPostApi (title: string, content: any, courseId?: string, isPreview?: boolean) {
+export async function addPostApi (title: string, content: any, courseId?: string, isPreview?: boolean, tags: string[] = []) {
     const token = localStorage.getItem("token");
 
     const response = await API.post(
@@ -964,6 +981,7 @@ export async function addPostApi (title: string, content: any, courseId?: string
             content,
             courseId,
             isPreview,
+            tags,
         },
         {
             headers: {
@@ -975,7 +993,7 @@ export async function addPostApi (title: string, content: any, courseId?: string
     return response.data;
 }
 
-export async function updatePostApi (title: string, content: any, postId?: string, isPreview?: boolean, courseId?: string | null) {
+export async function updatePostApi (title: string, content: any, postId?: string, isPreview?: boolean, courseId?: string | null, tags: string[] = []) {
     const token = localStorage.getItem("token");
 
     const response = await API.post(
@@ -986,6 +1004,7 @@ export async function updatePostApi (title: string, content: any, postId?: strin
             content,
             isPreview,
             courseId,
+            tags,
         },
         {
             headers: {

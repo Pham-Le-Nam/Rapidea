@@ -40,6 +40,13 @@ export class PrismaPostRepository implements PostRepository {
                     courseId,
                     isPreview,
                 },
+                include: {
+                    tags: {
+                        include: {
+                            tag: true,
+                        },
+                    },
+                },
             }),
             this.prisma.users.update({
                 where: {
@@ -179,6 +186,13 @@ export class PrismaPostRepository implements PostRepository {
                     courseId,
                     lastUpdated: new Date(),
                 },
+                include: {
+                    tags: {
+                        include: {
+                            tag: true,
+                        },
+                    },
+                },
             }),
             ...(post.courseId
                 ? [
@@ -267,6 +281,11 @@ export class PrismaPostRepository implements PostRepository {
                 id,
             },
             include: {
+                tags: {
+                    include: {
+                        tag: true,
+                    },
+                },
                 course: {
                     select: {
                         id: true,
@@ -301,6 +320,13 @@ export class PrismaPostRepository implements PostRepository {
             where: {
                 courseId,
                 ...(shouldShowPreviewOnly ? { isPreview: true } : {}),
+            },
+            include: {
+                tags: {
+                    include: {
+                        tag: true,
+                    },
+                },
             },
             orderBy: [
                 { [orderByField]: order },
@@ -338,6 +364,13 @@ export class PrismaPostRepository implements PostRepository {
                         ? { isPreview: false }
                         : {}
                 ),
+            },
+            include: {
+                tags: {
+                    include: {
+                        tag: true,
+                    },
+                },
             },
             orderBy: [
                 { [orderByField]: order },

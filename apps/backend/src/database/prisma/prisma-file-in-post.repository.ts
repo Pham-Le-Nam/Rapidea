@@ -97,6 +97,14 @@ export class PrismaFileInPostRepository implements FileInPostRepository {
             where: {
                 id: { in: ids },
             },
+            include: {
+                transcript: true,
+                tags: {
+                    include: {
+                        tag: true,
+                    },
+                },
+            },
         });
 
         return fileList;

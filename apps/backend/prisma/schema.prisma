@@ -117,6 +117,13 @@ enum SocialPlatform {
     WEBSITE
 }
 
+enum TranscriptStatus {
+    NOT_REQUESTED
+    PROCESSING
+    COMPLETED
+    FAILED
+}
+
 model PasswordResetToken {
     id              String      @id @default(uuid())
     userId          String
@@ -173,6 +180,7 @@ model Course {
     // folders             FolderInCourse[]
     files               FileInCourse[]
     posts               Post[]
+    tags                CourseTag[]
 
 
     @@unique([userId, title])   // Prevent 2 courses having the same name
@@ -222,6 +230,7 @@ model Post {
     ratePosts       RatePost[]
     files           FileInPost[]
     recentViews     RecentPostView[]
+    tags            PostTag[]
 
     @@index([userId])
     @@map("post")
@@ -445,7 +454,6 @@ model Folder {
 
 model File {
     id              String          @id @default(uuid())
-    // url             String
     name            String
     mimeType        String
     size            Int
@@ -457,12 +465,96 @@ model File {
     user            Users           @relation(fields: [userId], references: [id], onDelete: Cascade)
     folder          Folder          @relation(fields: [folderId], references: [id], onDelete: Cascade)
 
+    transcript      FileTranscript?
+
     inCourses       FileInCourse[]
     inPosts         FileInPost[]
+    tags            FileTag[]
 
     @@unique([folderId, name])
     @@index([folderId])
     @@map("file")
+}
+
+model FileTranscript {
+    id              String              @id @default(uuid())
+    fileId          String              @unique
+
+    status          TranscriptStatus    @default(NOT_REQUESTED)
+
+    text            String?
+    language        String?
+    durationSec     Int?
+
+    provider        String?
+    model           String?
+
+    errorMessage    String?
+
+    createdAt       DateTime            @default(now())
+    updatedAt       DateTime            @updatedAt
+
+    file            File                @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+    @@map("file_transcript")
+}
+
+model Tag {
+    id              String              @id @default(uuid())
+    name            String              @unique
+    embedding       Json?
+    createdAt       DateTime            @default(now())
+
+    courses         CourseTag[]
+    posts           PostTag[]
+    files           FileTag[]
+
+    @@map("tag")
+}
+
+model CourseTag {
+    courseId        String
+    tagId           String
+    isSuggested     Boolean             @default(false)
+    score           Float?
+    createdAt       DateTime            @default(now())
+
+    course          Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+    tag             Tag                 @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+    @@unique([courseId, tagId])
+    @@index([tagId])
+    @@map("course_tag")
+}
+
+model PostTag {
+    postId          String
+    tagId           String
+    isSuggested     Boolean             @default(false)
+    score           Float?
+    createdAt       DateTime            @default(now())
+
+    post            Post                @relation(fields: [postId], references: [id], onDelete: Cascade)
+    tag             Tag                 @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+    @@unique([postId, tagId])
+    @@index([tagId])
+    @@map("post_tag")
+}
+
+model FileTag {
+    fileId          String
+    tagId           String
+    isSuggested     Boolean             @default(true)
+    score           Float?
+    createdAt       DateTime            @default(now())
+
+    file            File                @relation(fields: [fileId], references: [id], onDelete: Cascade)
+    tag             Tag                 @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+    @@unique([fileId, tagId])
+    @@index([tagId])
+    @@map("file_tag")
 }
 
 model FileInCourse {

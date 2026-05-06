@@ -83,6 +83,7 @@ export class CourseController {
             addCourseDto.description,
             addCourseDto.price,
             addCourseDto.currency,
+            addCourseDto.tags,
         )
 
         if (!course) {
@@ -125,6 +126,7 @@ export class CourseController {
             updateCourseDto.price,
             updateCourseDto.currency,
             updateCourseDto.thumbnailId,
+            updateCourseDto.tags,
         );
 
         return course;

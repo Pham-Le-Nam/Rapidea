@@ -25,7 +25,15 @@ export class PrismaCourseRepository implements CourseRepository {
                 description,
                 price,
                 currency,
-            }
+            },
+            include: {
+                thumbnail: true,
+                tags: {
+                    include: {
+                        tag: true,
+                    },
+                },
+            },
         });
 
         if (!course) {
@@ -57,7 +65,15 @@ export class PrismaCourseRepository implements CourseRepository {
                 price,
                 currency,
                 thumbnailId,
-            }
+            },
+            include: {
+                thumbnail: true,
+                tags: {
+                    include: {
+                        tag: true,
+                    },
+                },
+            },
         });
     }
 
@@ -91,6 +107,11 @@ export class PrismaCourseRepository implements CourseRepository {
             where: { id },
             include: {
                 thumbnail: true,
+                tags: {
+                    include: {
+                        tag: true,
+                    },
+                },
             },
         });
     }
@@ -115,6 +136,11 @@ export class PrismaCourseRepository implements CourseRepository {
             where: { userId },
             include: {
                 thumbnail: true,
+                tags: {
+                    include: {
+                        tag: true,
+                    },
+                },
             },
             orderBy: { 
                 [orderByField]: order,

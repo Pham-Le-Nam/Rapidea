@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/hover-card";
 import StarRating from "@/components/StarRating";
 import LoadingScreen from "@/components/LoadingScreen";
+import { getTagNames } from "./TagSelector";
 
 const POSTS_PAGE_SIZE = 5;
 
@@ -572,6 +573,16 @@ function Post ({ post, reloadPosts, canViewAllPosts, courseOptions = [] }: PostP
             <h2 className="px-3 font-bold text-2xl whitespace-break-spaces">
                 {loadedPost?.title}
             </h2>
+
+            {getTagNames(loadedPost).length > 0 && (
+                <div className="flex flex-wrap gap-1 px-3 pb-2">
+                    {getTagNames(loadedPost).map((tag: string) => (
+                        <span key={tag} className="rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
+                            {tag}
+                        </span>
+                    ))}
+                </div>
+            )}
             
             <div className={isPostLocked ? "w-full blur-sm select-none pointer-events-none" : "w-full"}>
                 <TextRenderer content={loadedPost?.content} className="px-3 py-2"/>

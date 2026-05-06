@@ -2,6 +2,7 @@ import { Injectable, Inject, InternalServerErrorException, NotFoundException } f
 import { CourseRepository } from './course.repository';
 import { FolderService } from '../folder/folder.service';
 import { UsersService } from '../users/users.service';
+import { TagsService } from '../tags/tags.service';
 
 @Injectable()
 export class CourseService {
@@ -10,9 +11,10 @@ export class CourseService {
         private readonly courseRepo: CourseRepository,
         private readonly folderService: FolderService,
         private readonly usersService: UsersService,
+        private readonly tagsService: TagsService,
     ) {}
 
-    async createCourse(userId: string, title: string, description?: string, price?: number, currency?: string) {
+    async createCourse(userId: string, title: string, description?: string, price?: number, currency?: string, tags: string[] = []) {
         const user = await this.usersService.getUserById(userId);
 
         if (!user) {
@@ -31,10 +33,13 @@ export class CourseService {
             throw new InternalServerErrorException("Couldn't create the folder");
         }
 
-        return this.courseRepo.create(userId, title, folder.id, description, price, currency);
+        const course = await this.courseRepo.create(userId, title, folder.id, description, price, currency);
+        await this.tagsService.setCourseTags(course.id, tags);
+
+        return this.courseRepo.findById(course.id);
     }
 
-    async updateCourse(id: string, userId: string, title?: string, description?: string, price?: number, currency?: string, thumbnailId?: number) {
+    async updateCourse(id: string, userId: string, title?: string, description?: string, price?: number, currency?: string, thumbnailId?: number, tags?: string[]) {
         if (title) {
             const course = await this.courseRepo.findById(id);
             const courseFolder = await this.folderService.renameFolder(course.folderId, userId, title);
@@ -44,7 +49,12 @@ export class CourseService {
             }
         }
 
-        return this.courseRepo.updateById(id, userId, title, description, price, currency, thumbnailId);
+        const course = await this.courseRepo.updateById(id, userId, title, description, price, currency, thumbnailId);
+        if (tags) {
+            await this.tagsService.setCourseTags(id, tags);
+        }
+
+        return this.courseRepo.findById(course.id);
     }
 
     async updateCourseLastUpdated(courseId: string, lastUpdated: Date = new Date()) {

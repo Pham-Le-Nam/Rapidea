@@ -4,11 +4,13 @@ import { PrismaCourseRepository } from 'src/database/prisma/prisma-course.reposi
 import { CourseController } from './course.controller';
 import { UsersModule } from '../users/users.module';
 import { FolderModule } from '../folder/folder.module';
+import { TagsModule } from '../tags/tags.module';
 
 @Module({
     imports: [
         UsersModule,
         FolderModule,
+        TagsModule,
     ],
     controllers: [
         CourseController,

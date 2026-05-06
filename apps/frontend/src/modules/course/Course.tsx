@@ -28,6 +28,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Posts } from "./Posts";
 import { Reviews } from "./Reviews";
 import LoadingScreen from "@/components/LoadingScreen";
+import TagSelector, { getTagNames } from "./TagSelector";
 
 function Course () {
     const { id } = useParams();
@@ -232,6 +233,16 @@ function Course () {
                 <p className="px-4 pb-2 max-w-[60%]">
                     {description}
                 </p>
+
+                {getTagNames(course).length > 0 && (
+                    <div className="flex flex-wrap justify-center gap-2 px-4">
+                        {getTagNames(course).map((tag: string) => (
+                            <span key={tag} className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700">
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+                )}
 
                 <div className="flex flex-col items-center justify-center gap-3 px-4">
                     <button
@@ -682,12 +693,14 @@ function UpdateCourseAction({
     const [description, setDescription] = useState(course?.description ?? "");
     const [price, setPrice] = useState(course?.price ?? 0);
     const [currency, setCurrency] = useState(course?.currency ?? "AUD");
+    const [tags, setTags] = useState<string[]>(getTagNames(course));
 
     useEffect(() => {
         setTitle(course?.title ?? "");
         setDescription(course?.description ?? "");
         setPrice(course?.price ?? 0);
         setCurrency(course?.currency ?? "AUD");
+        setTags(getTagNames(course));
     }, [course]);
 
     const updateCourse = async () => {
@@ -697,7 +710,7 @@ function UpdateCourseAction({
                 return;
             }
 
-            const response = await udpateCourseApi(course.id, title, description, price, currency, course.thumbnailId);
+            const response = await udpateCourseApi(course.id, title, description, price, currency, course.thumbnailId, tags);
 
             if (!response) {
                 throw new Error("Couldn't update the course");
@@ -745,6 +758,10 @@ function UpdateCourseAction({
                         <Field>
                             <Label htmlFor="course-description">Description</Label>
                             <Input id="course-description" value={description} onChange={(event) => setDescription(event.target.value)} />
+                        </Field>
+
+                        <Field>
+                            <TagSelector value={tags} onChange={setTags} suggestionText={`${title}\n${description}`} />
                         </Field>
 
                         <div className="grid grid-cols-2 gap-3">

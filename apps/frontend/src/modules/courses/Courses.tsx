@@ -19,6 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import toast from "react-hot-toast";
 import { addCourseApi, deleteCourseApi, getCoursesApi, udpateCourseApi, uploadPhotoApi } from "@/api";
 import LoadingScreen from "@/components/LoadingScreen";
+import TagSelector, { getTagNames } from "@/modules/course/TagSelector";
 
 const COURSES_PAGE_SIZE = 5;
 
@@ -208,6 +209,15 @@ function CourseComponent ({ course, isOwner, loadCourses }: CourseComponentProp)
                         </span>
                     )}
                 </p>
+                {getTagNames(course).length > 0 && (
+                    <div className="flex flex-wrap gap-1 py-2">
+                        {getTagNames(course).slice(0, 6).map((tag: string) => (
+                            <span key={tag} className="rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+                )}
 
                 <div className="grid w-full grid-cols-4 gap-2 border-t pt-2 text-center text-sm">
                     <div className="flex flex-col">
@@ -325,6 +335,7 @@ function CreateCourse ({ reloadCourses, className }: CreateCourseProp) {
     const [title, setTitle] = useState<string>("");
     const [description, setDescription] = useState<string>("");
     const [price, setPrice] = useState(0);
+    const [tags, setTags] = useState<string[]>([]);
 
     const createCourse = async () => {
         try {
@@ -333,7 +344,7 @@ function CreateCourse ({ reloadCourses, className }: CreateCourseProp) {
                 throw new Error("Title not found");
             }
 
-            const response = await addCourseApi(title, description, price, currency);
+            const response = await addCourseApi(title, description, price, currency, tags);
 
             if (!response) {
                 throw new Error("Couldn't add new course");
@@ -342,6 +353,7 @@ function CreateCourse ({ reloadCourses, className }: CreateCourseProp) {
             setTitle("");
             setDescription("");
             setPrice(0);
+            setTags([]);
 
             reloadCourses();
         } catch (error: any) {
@@ -385,6 +397,9 @@ function CreateCourse ({ reloadCourses, className }: CreateCourseProp) {
                         <Field>
                             <Label htmlFor="description-1">Description</Label>
                             <Input id="description-1" name="description" value={description} onChange={(n) => setDescription(n.target.value)}/>
+                        </Field>
+                        <Field>
+                            <TagSelector value={tags} onChange={setTags} suggestionText={`${title}\n${description}`} />
                         </Field>
                         <div className="flex flex-row gap-3">
                             <Field>
@@ -445,6 +460,7 @@ function UpdateCourse ({ course, reloadCourses, className }: UpdateCourseProp) {
     const [description, setDescription] = useState<string>(course?.description);
     const [price, setPrice] = useState(course?.price);
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+    const [tags, setTags] = useState<string[]>(getTagNames(course));
 
     const updateCourse = async () => {
         try {
@@ -460,7 +476,7 @@ function UpdateCourse ({ course, reloadCourses, className }: UpdateCourseProp) {
                 thumbnailId = photo.id;
             }
 
-            const response = await udpateCourseApi(course?.id, title, description, price, currency, thumbnailId);
+            const response = await udpateCourseApi(course?.id, title, description, price, currency, thumbnailId, tags);
 
             if (!response) {
                 throw new Error("Couldn't update the course course");
@@ -510,6 +526,9 @@ function UpdateCourse ({ course, reloadCourses, className }: UpdateCourseProp) {
                         <Field>
                             <Label htmlFor="description-1">Description</Label>
                             <Input id="description-1" name="description" value={description} onChange={(n) => setDescription(n.target.value)}/>
+                        </Field>
+                        <Field>
+                            <TagSelector value={tags} onChange={setTags} suggestionText={`${title}\n${description}`} />
                         </Field>
                         <div className="flex flex-row gap-3">
                             <Field>

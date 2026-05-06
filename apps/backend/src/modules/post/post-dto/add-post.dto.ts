@@ -1,4 +1,4 @@
-import { IsBoolean, IsObject, IsOptional, IsString } from "class-validator";
+import { IsArray, IsBoolean, IsObject, IsOptional, IsString } from "class-validator";
 
 export class AddPostDto {
     @IsString()
@@ -14,4 +14,9 @@ export class AddPostDto {
     @IsOptional()
     @IsBoolean()
     isPreview?: boolean;
+
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    tags?: string[];
 }

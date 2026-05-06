@@ -9,6 +9,7 @@ import { FolderService } from '../folder/folder.service';
 import path from 'path';
 import { STORAGE_SERVICE } from '../storage/storage.constants';
 import { StorageService } from '../storage/storage.service';
+import { TagsService } from '../tags/tags.service';
 
 @Injectable()
 export class FileService {
@@ -18,6 +19,7 @@ export class FileService {
         private readonly folderService: FolderService,
         @Inject(STORAGE_SERVICE)
         private readonly storage: StorageService,
+        private readonly tagsService: TagsService,
     ) {}
 
     async createFile (uploadedFile: Express.Multer.File, userId: string, folderId: string) {
@@ -29,8 +31,9 @@ export class FileService {
         const file = await this.fileRepo.create(folderId, originalname, mimetype, size, userId);
 
         await this.storage.writeFile(this.joinStorageKey(folderUrl, originalname), buffer);
+        await this.generateFileTags(file.id, uploadedFile);
 
-        return file;
+        return this.fileRepo.findById(file.id);
     }
 
     async deleteFile (fileId: string, userId: string) {
@@ -99,5 +102,29 @@ export class FileService {
 
     private joinStorageKey(...parts: string[]) {
         return path.posix.join(...parts.map((part) => part.replace(/\\/g, '/')));
+    }
+
+    private async generateFileTags(fileId: string, uploadedFile: Express.Multer.File) {
+        const isTranscribable = uploadedFile.mimetype.startsWith('audio/') || uploadedFile.mimetype.startsWith('video/');
+        let transcriptText = '';
+
+        if (isTranscribable) {
+            await this.tagsService.createTranscript(fileId);
+
+            try {
+                transcriptText = await this.tagsService.transcribeMedia(uploadedFile);
+                await this.tagsService.completeTranscript(fileId, transcriptText);
+            } catch (error: any) {
+                await this.tagsService.failTranscript(fileId, error?.message ?? 'Transcription failed');
+            }
+        }
+
+        const suggestionText = [
+            uploadedFile.originalname,
+            uploadedFile.mimetype,
+            transcriptText,
+        ].filter(Boolean).join('\n');
+        const suggestions = await this.tagsService.suggestTags(suggestionText, 5);
+        await this.tagsService.setFileSuggestedTags(fileId, suggestions);
     }
 }
