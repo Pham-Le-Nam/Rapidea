@@ -346,18 +346,21 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                 ) : (
                     <>
                 {childrenFolders.map((childFolder: any) => (
-                    <div className="flex flex-row justify-start items-center w-full" key={childFolder.name}>
+                    <div className="flex min-w-0 flex-row justify-start items-center w-full" key={childFolder.name}>
                         <Button 
                             className="flex-1 min-w-0 flex items-center justify-start gap-2 rounded-full bg-white hover:bg-gray-100 text-black text-lg p-2 font-normal [&>svg]:w-5 [&>svg]:h-5"
                             onClick={() => loadFolder(childFolder.id, [...breadcrumbs, { id: childFolder.id, name: childFolder.name }])}
+                            title={childFolder.name}
                         >
-                            <FolderIcon />
-                            {childFolder.name}
+                            <FolderIcon className="shrink-0" />
+                            <span className="min-w-0 truncate">
+                                {childFolder.name}
+                            </span>
                         </Button>
 
                         {isOwner && !isRootActionLocked && (
                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild className="hover:bg-gray-100 h-full bg-white">
+                                <DropdownMenuTrigger asChild className="hover:bg-gray-100 h-full bg-white shrink-0">
                                     <Button variant="outline" className="border-0 rounded-full">
                                         <PlusIcon />
                                     </Button>
@@ -378,19 +381,22 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                 ))}
 
                 {childrenFiles.map((childFile: any) => (
-                    <div className="flex flex-row justify-start items-center w-full" key={childFile.name}>
+                    <div className="flex min-w-0 flex-row justify-start items-center w-full" key={childFile.name}>
                         <Button 
                             className="flex-1 min-w-0 flex items-center justify-start gap-2 rounded-full bg-white hover:bg-gray-100 text-black text-lg p-2 font-normal [&>svg]:w-5 [&>svg]:h-5"
                             onClick={() => addFile ? addFile(childFile) : openFile(childFile.id)}
                             onDoubleClick={() => openFile(childFile.id)}
+                            title={childFile.name}
                         >
-                            <FileIcon />
-                            {childFile.name}
+                            <FileIcon className="shrink-0" />
+                            <span className="min-w-0 truncate">
+                                {childFile.name}
+                            </span>
                         </Button>
 
                         {isOwner && (
                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild className="hover:bg-gray-100 h-full bg-white">
+                                <DropdownMenuTrigger asChild className="hover:bg-gray-100 h-full bg-white shrink-0">
                                     <Button variant="outline" className="border-0 rounded-full">
                                         <PlusIcon />
                                     </Button>
@@ -557,8 +563,10 @@ function FileUpload ({ className, folderId, reloadFolder }: FileUploadProps) {
                     </DialogDescription>
                     <FieldGroup>
                         {files.map((file, index) => (
-                            <div className="-mb-5 w-full border flex flex-row items-center px-2 py-1 rounded-md" key={index}>
-                                {file.name}
+                            <div className="-mb-5 w-full min-w-0 border flex flex-row items-center gap-2 px-2 py-1 rounded-md" key={index}>
+                                <span className="min-w-0 truncate" title={file.name}>
+                                    {file.name}
+                                </span>
                                 <Button asChild className="ml-auto bg-white hover:bg-gray-100 h-6 w-6" onClick={() => removeFile(index)}>
                                     <span>
                                         <XIcon className="text-black"/>
