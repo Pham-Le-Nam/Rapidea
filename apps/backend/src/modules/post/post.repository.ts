@@ -21,4 +21,8 @@ export interface PostRepository {
         orderBy?: 'rating' | 'createdAt';
         order?: 'asc' | 'desc';
     }): Promise<any>;
+    findRecommendedFeed(viewerId?: string, options?: {
+        offset?: number;
+        limit?: number;
+    }): Promise<any>;
 }

@@ -244,7 +244,7 @@ function EditProject({ project, reloadProject, linksList }: EditProjectProps) {
 
     const deleteLink = async (index: number) => {
         try {
-            const response = await deleteProjectLinkApi(links[index].id);
+            await deleteProjectLinkApi(links[index].id);
             setLinks(prev => {
                 const updated = prev.filter((_, i) => i !== index); // remove element at index
                 return updated;

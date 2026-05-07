@@ -51,7 +51,7 @@ export function Education({ username, isOwner = false }: educationProps) {
 
     const deleteEducation = async (educationId: string) => {
         try {
-            const response = await deleteEducationApi(educationId);
+            await deleteEducationApi(educationId);
             loadEducation();
         } catch (error: any) {
             if (error.response?.status === 401) {

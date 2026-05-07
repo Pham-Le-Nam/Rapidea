@@ -623,7 +623,7 @@ function Post ({ post, reloadPosts, canViewAllPosts, courseOptions = [] }: PostP
             </div>
 
             <div className="flex flex-row items-center justify-start pt-2 w-full">
-                {isLoggedIn && (
+                {isLoggedIn && !isPostLocked && (
                     <HoverCard openDelay={100} closeDelay={100}>
                         <HoverCardTrigger asChild>
                             <Button variant="outline" className="flex-1 w-full font-normal">

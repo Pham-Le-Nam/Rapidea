@@ -31,6 +31,8 @@ import { SocialLinkModule } from './modules/social-link/social-link.module';
 import { RecentModule } from './modules/recent/recent.module';
 import { SearchModule } from './modules/search/search.module';
 import { TagsModule } from './modules/tags/tags.module';
+import { ChatModule } from './modules/chat/chat.module';
+import { NotificationModule } from './modules/notification/notification.module';
 
 @Module({
     imports: [
@@ -78,6 +80,8 @@ import { TagsModule } from './modules/tags/tags.module';
         RecentModule,
         SearchModule,
         TagsModule,
+        ChatModule,
+        NotificationModule,
     ],
     controllers: [AppController],
     providers: [AppService],

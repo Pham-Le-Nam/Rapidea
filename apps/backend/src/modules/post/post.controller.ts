@@ -24,6 +24,25 @@ export class PostController {
         private readonly usersService: UsersService,
     ) {}
 
+    @UseGuards(OptionalJwtAuthGuard)
+    @Get('homepage-feed')
+    async getHomepageFeed (
+        @Request() req: any,
+        @Query('offset') offset?: string,
+        @Query('limit') limit?: string,
+    ) {
+        const pagination = this.getPagination(offset, limit);
+        const posts = await this.postService.getRecommendedFeed(req.user?.userId, {
+            offset: pagination.offset,
+            limit: pagination.limit + 1,
+        });
+
+        return {
+            posts: posts.slice(0, pagination.limit),
+            hasMore: posts.length > pagination.limit,
+        };
+    }
+
     @UseGuards(JwtAuthGuard)
     @Post('add')
     async createPost (

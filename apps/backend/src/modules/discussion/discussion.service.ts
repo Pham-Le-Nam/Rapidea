@@ -5,12 +5,17 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { DiscussionRepository } from './discussion.repository';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../../../generated/prisma/enums';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class DiscussionService {
     constructor (
         @Inject('DISCUSSION_REPOSITORY')
         private readonly discussionRepo: DiscussionRepository,
+        private readonly notificationService: NotificationService,
+        private readonly prisma: PrismaService,
     ) {}
 
     async createDiscussion (discussion: any, postId: string, userId: string, repliedId?: string) {
@@ -32,6 +37,25 @@ export class DiscussionService {
 
         if (!postDiscussion) {
             throw new InternalServerErrorException("Couldn't create discussion", "Couldn't create discussion");
+        }
+
+        const post = await this.prisma.post.findUnique({
+            where: { id: postId },
+            select: {
+                userId: true,
+                title: true,
+            },
+        });
+
+        if (post) {
+            await this.notificationService.createNotification({
+                userId: post.userId,
+                actorId: userId,
+                type: NotificationType.POST_DISCUSSION,
+                title: 'New post discussion',
+                message: post.title || 'Untitled post',
+                link: `/post/${postId}`,
+            });
         }
 
         return postDiscussion;

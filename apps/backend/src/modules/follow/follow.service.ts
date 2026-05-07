@@ -1,11 +1,13 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { FollowRepository } from './follow.repository';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class FollowService {
     constructor(
         @Inject('FOLLOW_REPOSITORY')
         private readonly followRepo: FollowRepository,
+        private readonly notificationService: NotificationService,
     ) {}
 
     async followUser(followerId: string, followingId: string) {
@@ -13,7 +15,11 @@ export class FollowService {
             throw new BadRequestException("Following user id is required");
         }
 
-        return this.followRepo.create(followerId, followingId);
+        const follow = await this.followRepo.create(followerId, followingId);
+
+        await this.notificationService.notifyFollow(followerId, followingId);
+
+        return follow;
     }
 
     async unfollowUser(followerId: string, followingId: string) {

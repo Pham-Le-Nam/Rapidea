@@ -1,4 +1,4 @@
-import { getMeApi, searchApi } from "@/api";
+import { getMeApi, getNotificationsApi, markAllNotificationsReadApi, markNotificationReadApi, searchApi } from "@/api";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { CreditCardIcon, LogOutIcon, SearchIcon, UserIcon } from "lucide-react";
+import { BellIcon, CreditCardIcon, LogOutIcon, SearchIcon, UserIcon } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import rapideiLogo from "/rapidea.png";
@@ -28,6 +28,15 @@ type SearchResults = {
     posts: SearchItem[];
 }
 
+type NotificationItem = {
+    id: string;
+    title: string;
+    message: string;
+    link?: string;
+    readAt?: string | null;
+    createdAt: string;
+}
+
 const emptyResults: SearchResults = {
     users: [],
     courses: [],
@@ -43,6 +52,8 @@ function Navbar() {
     const [results, setResults] = useState<SearchResults>(emptyResults);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
     const searchRef = useRef<HTMLDivElement | null>(null);
     const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -62,6 +73,8 @@ function Navbar() {
     useEffect(() => {
         if (!isLoggedIn) {
             setProfile(null);
+            setNotifications([]);
+            setUnreadCount(0);
             return;
         }
 
@@ -75,6 +88,28 @@ function Navbar() {
         }
 
         loadProfile();
+    }, [isLoggedIn]);
+
+    const loadNotifications = async () => {
+        if (!isLoggedIn) return;
+
+        try {
+            const response = await getNotificationsApi({ limit: 10 });
+            setNotifications(response.notifications ?? []);
+            setUnreadCount(response.unreadCount ?? 0);
+        } catch (error) {
+            console.error("Couldn't load notifications", error);
+        }
+    }
+
+    useEffect(() => {
+        loadNotifications();
+
+        if (!isLoggedIn) return;
+
+        const intervalId = window.setInterval(loadNotifications, 10000);
+
+        return () => window.clearInterval(intervalId);
     }, [isLoggedIn]);
 
     useEffect(() => {
@@ -238,6 +273,14 @@ function Navbar() {
                 )}
 
                 {isLoggedIn && (
+                    <NotificationsMenu
+                        notifications={notifications}
+                        unreadCount={unreadCount}
+                        reloadNotifications={loadNotifications}
+                    />
+                )}
+
+                {isLoggedIn && (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="rounded-full">
@@ -297,6 +340,88 @@ function SearchInput({
                 className="pl-9"
             />
         </div>
+    );
+}
+
+function NotificationsMenu({
+    notifications,
+    unreadCount,
+    reloadNotifications,
+}: {
+    notifications: NotificationItem[];
+    unreadCount: number;
+    reloadNotifications: () => Promise<void>;
+}) {
+    const navigate = useNavigate();
+
+    const openNotification = async (notification: NotificationItem) => {
+        if (!notification.readAt) {
+            await markNotificationReadApi(notification.id);
+        }
+
+        await reloadNotifications();
+
+        if (notification.link) {
+            navigate(notification.link);
+        }
+    };
+
+    const markAllRead = async () => {
+        await markAllNotificationsReadApi();
+        await reloadNotifications();
+    };
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative rounded-full">
+                    <BellIcon className="size-5" />
+                    {unreadCount > 0 && (
+                        <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-main px-1 text-xs font-semibold text-white">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                    )}
+                </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end" className="w-90 max-w-[calc(100vw-2rem)]">
+                <div className="flex items-center justify-between border-b px-2 py-2">
+                    <span className="font-semibold">Notifications</span>
+                    {unreadCount > 0 && (
+                        <Button type="button" variant="ghost" size="sm" onClick={markAllRead}>
+                            Mark all read
+                        </Button>
+                    )}
+                </div>
+
+                <div className="max-h-100 overflow-y-auto py-1">
+                    {notifications.length === 0 ? (
+                        <div className="px-3 py-6 text-center text-sm text-gray-500">
+                            No notifications yet.
+                        </div>
+                    ) : notifications.map((notification) => (
+                        <DropdownMenuItem
+                            key={notification.id}
+                            className="cursor-pointer items-start"
+                            onClick={() => openNotification(notification)}
+                        >
+                            <div className="flex min-w-0 gap-2">
+                                {!notification.readAt && (
+                                    <span className="mt-2 size-2 shrink-0 rounded-full bg-main" />
+                                )}
+                                <div className="min-w-0">
+                                    <div className="truncate text-sm font-semibold">{notification.title}</div>
+                                    <div className="line-clamp-2 text-xs text-gray-600">{notification.message}</div>
+                                    <div className="mt-1 text-[0.7rem] text-gray-500">
+                                        {new Date(notification.createdAt).toLocaleString()}
+                                    </div>
+                                </div>
+                            </div>
+                        </DropdownMenuItem>
+                    ))}
+                </div>
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }
 

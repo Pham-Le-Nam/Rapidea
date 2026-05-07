@@ -50,7 +50,7 @@ function Experience({ username, isOwner = false }: ExperienceProps) {
 
     const deleteExperience = async (educationId: string) => {
         try {
-            const response = await deleteExperienceApi(educationId);
+            await deleteExperienceApi(educationId);
             loadExperience();
         } catch (error: any) {
             if (error.response?.status === 401) {

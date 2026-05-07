@@ -1,11 +1,16 @@
 import { BadRequestException, Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { SubscribeRepository } from './subscribe.repository';
+import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../../../generated/prisma/enums';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class SubscribeService {
     constructor(
         @Inject('SUBSCRIBE_REPOSITORY')
         private readonly subscribeRepo: SubscribeRepository,
+        private readonly notificationService: NotificationService,
+        private readonly prisma: PrismaService,
     ) {}
 
     async subscribeCourse(courseId: string, userId: string) {
@@ -23,6 +28,25 @@ export class SubscribeService {
 
         if (!subscription) {
             throw new InternalServerErrorException("Couldn't subscribe to course");
+        }
+
+        const course = await this.prisma.course.findUnique({
+            where: { id: courseId },
+            select: {
+                title: true,
+                userId: true,
+            },
+        });
+
+        if (course) {
+            await this.notificationService.createNotification({
+                userId: course.userId,
+                actorId: userId,
+                type: NotificationType.COURSE_SUBSCRIBE,
+                title: 'New course subscriber',
+                message: course.title,
+                link: `/course/${courseId}`,
+            });
         }
 
         return subscription;
@@ -49,7 +73,27 @@ export class SubscribeService {
             throw new BadRequestException("Invalid rating it must be from 0 to 5");
         }
 
-        return this.subscribeRepo.reviewByCourseId(courseId, userId, review.trim(), rating);
+        const subscription = await this.subscribeRepo.reviewByCourseId(courseId, userId, review.trim(), rating);
+        const course = await this.prisma.course.findUnique({
+            where: { id: courseId },
+            select: {
+                title: true,
+                userId: true,
+            },
+        });
+
+        if (course) {
+            await this.notificationService.createNotification({
+                userId: course.userId,
+                actorId: userId,
+                type: NotificationType.COURSE_REVIEW,
+                title: 'New course review',
+                message: course.title,
+                link: `/course/${courseId}`,
+            });
+        }
+
+        return subscription;
     }
 
     async getSubscribedCourses(userId: string) {

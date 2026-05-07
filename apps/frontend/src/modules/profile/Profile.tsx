@@ -212,6 +212,14 @@ function Profile() {
         }
     }
 
+    const openChat = () => {
+        if (!profile?.id) return;
+
+        window.dispatchEvent(new CustomEvent("rapidea:open-chat", {
+            detail: profile,
+        }));
+    }
+
     const loadSocialLinks = async () => {
         try {
             const response = await getSocialLinkApi(username);
@@ -310,8 +318,8 @@ function Profile() {
                                 </Button>
                             )}
                             {isUser && !isOwner && (
-                                <Button asChild className="bg-main hover:bg-main-hover w-full md:w-25">
-                                    <p>Message</p>
+                                <Button type="button" className="bg-main hover:bg-main-hover w-full md:w-25" onClick={openChat}>
+                                    Message
                                 </Button>
                             )}
                         </div>
@@ -334,18 +342,23 @@ function Profile() {
                                 </a>
                             ))}
                         </div>
+                        {(headline || bio) && (
+                            <div className="flex max-w-90 flex-col items-center justify-start px-3 text-center">
+                                {headline && (
+                                    <h1 className="text-sm font-semibold text-gray-800">
+                                        {headline}
+                                    </h1>
+                                )}
+                                {bio && (
+                                    <p className="line-clamp-2 text-xs text-gray-600">
+                                        {bio}
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                <div className="flex flex-col items-center justify-start">
-                    <h1 className="font-bold text-lg">
-                        {headline}
-                    </h1>
-                    <p className="px-3 pb-2">
-                        {bio}
-                    </p>
-                </div>
-                
                 <div className="flex flex-row flex-wrap justify-center gap-2 pb-2 px-2">
                     <Button asChild className="bg-white hover:bg-gray-100 text-black border-2 w-28">
                         <a href={`/courses/${username}`}>

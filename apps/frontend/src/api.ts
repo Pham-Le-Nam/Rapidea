@@ -337,6 +337,115 @@ export async function unfollowUserApi(followingId: string) {
     return response.data;
 }
 
+export async function getChatConversationsApi(onlyRelated: boolean = true) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.get(
+        `api/chat/conversations`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+            params: {
+                onlyRelated,
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function getNotificationsApi(options: {
+    offset?: number;
+    limit?: number;
+} = {}) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.get(
+        `api/notifications`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+            params: {
+                offset: options.offset,
+                limit: options.limit,
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function markNotificationReadApi(notificationId: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/notifications/read`,
+        { notificationId },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function markAllNotificationsReadApi() {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/notifications/read-all`,
+        {},
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function getChatConversationApi(otherUserId: string, limit: number = 10, before?: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.get(
+        `api/chat/conversation/${otherUserId}`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+            params: {
+                limit,
+                before,
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function sendChatMessageApi(otherUserId: string, text: string) {
+    const token = localStorage.getItem("token");
+
+    const response = await API.post(
+        `api/chat/conversation/${otherUserId}/messages`,
+        {
+            text,
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
 export async function getExperienceApi(username: string) {
     const response = await API.get(`api/experience/${username}`);
 
@@ -1047,6 +1156,33 @@ export async function getPostApi (postId: string) {
     const response = await API.get(
         `api/post/${postId}`,
         config,
+    );
+
+    return response.data;
+}
+
+export async function getHomepageFeedApi(options: {
+    offset?: number;
+    limit?: number;
+} = {}) {
+    const token = localStorage.getItem("token");
+    const config = token
+        ? {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        }
+        : undefined;
+
+    const response = await API.get(
+        `api/post/homepage-feed`,
+        {
+            ...config,
+            params: {
+                offset: options.offset,
+                limit: options.limit,
+            },
+        },
     );
 
     return response.data;

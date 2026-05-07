@@ -3,6 +3,7 @@ import { CourseRepository } from './course.repository';
 import { FolderService } from '../folder/folder.service';
 import { UsersService } from '../users/users.service';
 import { TagsService } from '../tags/tags.service';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class CourseService {
@@ -12,6 +13,7 @@ export class CourseService {
         private readonly folderService: FolderService,
         private readonly usersService: UsersService,
         private readonly tagsService: TagsService,
+        private readonly notificationService: NotificationService,
     ) {}
 
     async createCourse(userId: string, title: string, description?: string, price?: number, currency?: string, tags: string[] = []) {
@@ -35,6 +37,7 @@ export class CourseService {
 
         const course = await this.courseRepo.create(userId, title, folder.id, description, price, currency);
         await this.tagsService.setCourseTags(course.id, tags);
+        await this.notificationService.notifyFollowersAndSubscribersOfNewCourse(userId, course.id, course.title);
 
         return this.courseRepo.findById(course.id);
     }

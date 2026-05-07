@@ -1,6 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { PostRepository } from "./post.repository";
 import { TagsService } from "../tags/tags.service";
+import { NotificationService } from "../notification/notification.service";
 
 @Injectable()
 export class PostService {
@@ -8,11 +9,13 @@ export class PostService {
         @Inject('POST_REPOSITORY')
         private readonly postRepo: PostRepository,
         private readonly tagsService: TagsService,
+        private readonly notificationService: NotificationService,
     ) {}
 
     async createPost(userId: string, title?: string, content?: any, courseId?: string, isPreview?: boolean, tags: string[] = []) {
         const post = await this.postRepo.create(userId, title, content, courseId, isPreview);
         await this.tagsService.setPostTags(post.id, tags);
+        await this.notificationService.notifyFollowersAndSubscribersOfNewPost(userId, post.id, post.title);
 
         return this.postRepo.findById(post.id);
     }
@@ -62,5 +65,12 @@ export class PostService {
         order?: 'asc' | 'desc';
     }) {
         return this.postRepo.findByUserId(userId, options);
+    }
+
+    async getRecommendedFeed(viewerId?: string, options?: {
+        offset?: number;
+        limit?: number;
+    }) {
+        return this.postRepo.findRecommendedFeed(viewerId, options);
     }
 }

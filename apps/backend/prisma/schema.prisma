@@ -49,6 +49,11 @@ model Users {
     recentPostViews         RecentPostView[]
     followers               Follow[]                @relation("userFollowers")
     following               Follow[]                @relation("userFollowing")
+    conversationsAsUserA    ChatConversation[]      @relation("ConversationUserA")
+    conversationsAsUserB    ChatConversation[]      @relation("ConversationUserB")
+    sentChatMessages        ChatMessage[]           @relation("SentChatMessages")
+    notifications           Notification[]          @relation("UserNotifications")
+    triggeredNotifications  Notification[]          @relation("ActorNotifications")
     discussions             Discussion[]
     ratePosts               RatePost[]
     rateDiscussion          RateDiscussion[]
@@ -124,6 +129,37 @@ enum TranscriptStatus {
     FAILED
 }
 
+enum NotificationType {
+    FOLLOW
+    COURSE_SUBSCRIBE
+    COURSE_REVIEW
+    POST_RATE
+    POST_DISCUSSION
+    FOLLOWING_NEW_COURSE
+    FOLLOWING_NEW_POST
+    SUBSCRIBED_CREATOR_NEW_COURSE
+    SUBSCRIBED_CREATOR_NEW_POST
+}
+
+model Notification {
+    id              String              @id @default(uuid())
+    userId          String
+    actorId         String?
+    type            NotificationType
+    title           String
+    message         String
+    link            String?
+    readAt          DateTime?
+    createdAt       DateTime            @default(now())
+
+    user            Users               @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+    actor           Users?              @relation("ActorNotifications", fields: [actorId], references: [id], onDelete: SetNull)
+
+    @@index([userId, readAt, createdAt])
+    @@index([actorId])
+    @@map("notification")
+}
+
 model PasswordResetToken {
     id              String      @id @default(uuid())
     userId          String
@@ -150,6 +186,40 @@ model Follow {
     @@unique([followerId, followingId]) // prevents duplicate follows
     @@index([followingId])
     @@map("follow")
+}
+
+model ChatConversation {
+    id              String        @id @default(uuid())
+    userAId         String
+    userBId         String
+    lastMessageAt   DateTime      @default(now())
+    createdAt       DateTime      @default(now())
+    updatedAt       DateTime      @updatedAt
+
+    userA           Users         @relation("ConversationUserA", fields: [userAId], references: [id], onDelete: Cascade)
+    userB           Users         @relation("ConversationUserB", fields: [userBId], references: [id], onDelete: Cascade)
+    messages        ChatMessage[]
+
+    @@unique([userAId, userBId])
+    @@index([userAId, lastMessageAt])
+    @@index([userBId, lastMessageAt])
+    @@map("chat_conversation")
+}
+
+model ChatMessage {
+    id              String              @id @default(uuid())
+    conversationId  String
+    senderId        String
+    text            String
+    readAt          DateTime?
+    createdAt       DateTime            @default(now())
+
+    conversation    ChatConversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+    sender          Users               @relation("SentChatMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+    @@index([conversationId, createdAt])
+    @@index([senderId, createdAt])
+    @@map("chat_message")
 }
 
 model Course {
