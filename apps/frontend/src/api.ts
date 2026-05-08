@@ -1386,6 +1386,8 @@ export async function updateRatePostApi (postId: string, rating?: number) {
 }
 
 export async function getDiscussionsByPostApi (postId: string, startIndex: number = 0, amount: number = 5) {
+    const token = localStorage.getItem("token");
+
     const response = await API.get(
         `api/discussion/post/${postId}`,
         {
@@ -1393,6 +1395,13 @@ export async function getDiscussionsByPostApi (postId: string, startIndex: numbe
                 startIndex,
                 amount,
             },
+            ...(token
+                ? {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+                : {}),
         },
     );
 
@@ -1400,6 +1409,8 @@ export async function getDiscussionsByPostApi (postId: string, startIndex: numbe
 }
 
 export async function getChildrenDiscussionsApi (discussionId: string, startIndex: number = 0, amount: number = 20) {
+    const token = localStorage.getItem("token");
+
     const response = await API.get(
         `api/discussion/children/${discussionId}`,
         {
@@ -1407,6 +1418,13 @@ export async function getChildrenDiscussionsApi (discussionId: string, startInde
                 startIndex,
                 amount,
             },
+            ...(token
+                ? {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+                : {}),
         },
     );
 
