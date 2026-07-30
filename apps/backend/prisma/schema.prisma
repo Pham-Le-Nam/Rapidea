@@ -16,7 +16,7 @@ datasource db {
 model Users {
     id                      String                  @id @default(uuid())
     email                   String                  @unique
-    password                String
+    password                String?
     firstname               String
     lastname                String
     middlename              String?
@@ -36,12 +36,18 @@ model Users {
     rating                  Float                   @default(0)
 
     sessionVersion          Int                     @default(0)
+    role                    AccountRole             @default(USER)
+    isBanned                Boolean                 @default(false)
+    bannedAt                DateTime?
+    banReason               String?
+    creatorPrompt           String?
     createdAt               DateTime                @default(now())
 
     avatar                  Photo?                  @relation("UserAvatar", fields: [avatarId], references: [id])
     background              Photo?                  @relation("UserBackground", fields: [backgroundId], references: [id])
 
     passwordResetTokens     PasswordResetToken[]
+    oauthAccounts           OAuthAccount[]
     posts                   Post[]
     course                  Course[]
     subscribe               Subscribe[]
@@ -85,6 +91,33 @@ model SocialLink {
     @@unique([userId, platform]) // user can only have 1 link per platform
     @@index([userId])
     @@map("social_link")
+}
+
+model OAuthAccount {
+    id             String   @id @default(uuid())
+    provider       String
+    providerUserId String
+    userId         String
+    user           Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    createdAt      DateTime @default(now())
+
+    @@unique([provider, providerUserId])
+    @@index([userId])
+    @@map("oauth_account")
+}
+
+model EmailAuthToken {
+    id           String    @id @default(uuid())
+    tokenHash    String    @unique
+    email        String
+    purpose      String
+    pendingUser  Json?
+    expiresAt    DateTime
+    usedAt       DateTime?
+    createdAt    DateTime  @default(now())
+
+    @@index([email, purpose])
+    @@map("email_auth_token")
 }
 
 model PayoutAccount {
@@ -139,6 +172,21 @@ enum NotificationType {
     FOLLOWING_NEW_POST
     SUBSCRIBED_CREATOR_NEW_COURSE
     SUBSCRIBED_CREATOR_NEW_POST
+    MODERATION_ALERT
+    ADMIN_WARNING
+}
+
+enum AccountRole {
+    USER
+    ADMIN
+}
+
+enum ModerationStatus {
+    PASSED
+    WARNING
+    SERIOUS_WARNING
+    BLOCKED
+    NOT_SCANNED
 }
 
 model Notification {
@@ -267,6 +315,7 @@ model Subscribe {
     rating          Float       @default(0)
     price           Float       @default(0)
     currency        String      @default("AUD")
+    paymentSessionId String?    @unique
 
     createdAt       DateTime    @default(now())
 
@@ -531,6 +580,10 @@ model File {
     folderId        String
 
     createdAt       DateTime        @default(now())
+    moderationStatus ModerationStatus @default(PASSED)
+    moderationScore Float?
+    moderationCategories Json?
+    moderationMessage String?
 
     user            Users           @relation(fields: [userId], references: [id], onDelete: Cascade)
     folder          Folder          @relation(fields: [folderId], references: [id], onDelete: Cascade)

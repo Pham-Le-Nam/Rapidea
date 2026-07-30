@@ -107,15 +107,15 @@ export function Education({ username, isOwner = false }: educationProps) {
                         </p>
                     </div>
 
-                    <div className="flex flex-col">
-                        <Button asChild className="bg-white hover:bg-gray-100 text-black border" onClick={() => deleteEducation(education.id)}>
-                            <p>
+                    {isOwner && (
+                        <div className="flex flex-col">
+                            <Button type="button" className="bg-white hover:bg-gray-100 text-black border" onClick={() => deleteEducation(education.id)}>
                                 Delete
-                            </p>
-                        </Button>
+                            </Button>
 
-                        <EditEducation education={education} reloadEducation={loadEducation}/>
-                    </div>
+                            <EditEducation education={education} reloadEducation={loadEducation}/>
+                        </div>
+                    )}
                 </div>
             ))}
 

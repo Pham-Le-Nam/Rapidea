@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { BellIcon, CreditCardIcon, LogOutIcon, SearchIcon, UserIcon } from "lucide-react";
+import { BellIcon, CreditCardIcon, LogOutIcon, SearchIcon, SettingsIcon, UserIcon } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import rapideiLogo from "/rapidea.png";
@@ -304,6 +304,20 @@ function Navbar() {
                                     Payout Settings
                                 </Link>
                             </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <Link to="/settings/creator-ai" className="w-full">
+                                    <SettingsIcon className="size-4" />
+                                    Creator AI Settings
+                                </Link>
+                            </DropdownMenuItem>
+                            {profile?.role === "ADMIN" && (
+                                <DropdownMenuItem asChild>
+                                    <Link to="/admin/moderation" className="w-full text-red-700">
+                                        <SettingsIcon className="size-4" />
+                                        Admin Moderation
+                                    </Link>
+                                </DropdownMenuItem>
+                            )}
 
                             <DropdownMenuItem onClick={handleLogout}>
                                 <LogOutIcon className="size-4" />
@@ -419,6 +433,13 @@ function NotificationsMenu({
                             </div>
                         </DropdownMenuItem>
                     ))}
+                </div>
+                <div className="border-t p-1">
+                    <DropdownMenuItem asChild>
+                        <Link to="/notifications" className="w-full justify-center font-medium">
+                            View all notifications
+                        </Link>
+                    </DropdownMenuItem>
                 </div>
             </DropdownMenuContent>
         </DropdownMenu>

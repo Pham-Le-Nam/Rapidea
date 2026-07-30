@@ -110,12 +110,12 @@ export class ExperienceController {
     ) {
         const user = req.user;
 
-        const deletedExperience = this.experienceService.deleteExperienceById(id, user.userId);
+        const deletedExperience = await this.experienceService.deleteExperienceById(id, user.userId);
 
         if (!deletedExperience) {
             throw new InternalServerErrorException("Couldn't delete experience");
         }
 
-        return this.experienceService.getExperienceByUserId(user.userId);
+        return deletedExperience;
     }
 }

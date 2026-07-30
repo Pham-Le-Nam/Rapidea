@@ -16,6 +16,11 @@ import { Post } from './modules/course/Posts.tsx';
 import UserPosts from './modules/posts/UserPosts.tsx';
 import UserFiles from './modules/files/UserFiles.tsx';
 import PayoutSettings from './modules/settings/PayoutSettings.tsx';
+import AuthCallback from './modules/login/AuthCallback.tsx';
+import EmailVerify from './modules/login/EmailVerify.tsx';
+import CreatorAiSettings from './modules/settings/CreatorAiSettings.tsx';
+import NotificationsPage from './modules/notifications/NotificationsPage.tsx';
+import AdminModeration from './modules/admin/AdminModeration.tsx';
 
 
 function App() {
@@ -27,6 +32,8 @@ function App() {
                 <Route element={<MainLayout />}>
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route path="/auth/email/verify" element={<EmailVerify />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/logout" element={<Logout />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
@@ -39,6 +46,9 @@ function App() {
                     <Route path="/posts/:username" element={<UserPosts />} />
                     <Route path="/files/:username" element={<UserFiles />} />
                     <Route path="/settings/payout" element={<PayoutSettings />} />
+                    <Route path="/settings/creator-ai" element={<CreatorAiSettings />} />
+                    <Route path="/notifications" element={<NotificationsPage />} />
+                    <Route path="/admin/moderation" element={<AdminModeration />} />
                     <Route path="/course/:id" element={<Course />} />
                     <Route path="/post/:id" element={<Post />} />
                 </Route>

@@ -336,6 +336,7 @@ function CreateCourse ({ reloadCourses, className }: CreateCourseProp) {
     const [description, setDescription] = useState<string>("");
     const [price, setPrice] = useState(0);
     const [tags, setTags] = useState<string[]>([]);
+    const [showPayoutRequired, setShowPayoutRequired] = useState(false);
 
     const createCourse = async () => {
         try {
@@ -357,6 +358,10 @@ function CreateCourse ({ reloadCourses, className }: CreateCourseProp) {
 
             reloadCourses();
         } catch (error: any) {
+            if (error.response?.data?.code === "PAYOUT_ACCOUNT_REQUIRED") {
+                setShowPayoutRequired(true);
+                return;
+            }
             if (error.response?.status === 401) {
                 console.error("Token Expired");
                 logout();
@@ -364,11 +369,12 @@ function CreateCourse ({ reloadCourses, className }: CreateCourseProp) {
                 navigate('/login')
             // handle logout or redirect
             }
-            throw error;
+            toast.error(error.response?.data?.message ?? "Couldn't create course");
         }
     }
 
     return (
+        <>
         <Dialog>
             <DialogTrigger asChild>
                 <Button variant="outline" className={className}>
@@ -429,15 +435,28 @@ function CreateCourse ({ reloadCourses, className }: CreateCourseProp) {
                                 Cancel
                             </Button>
                         </DialogClose>
-                        <DialogClose asChild>
-                            <Button type="submit">
-                                Create
-                            </Button>
-                        </DialogClose>
+                        <Button type="submit">Create</Button>
                     </DialogFooter>
                     </form>
             </DialogContent>
         </Dialog>
+        <Dialog open={showPayoutRequired} onOpenChange={setShowPayoutRequired}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Set up payouts first</DialogTitle>
+                    <DialogDescription>
+                        Paid courses require a completed payout account so subscription revenue has a verified destination.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowPayoutRequired(false)}>Keep this course free</Button>
+                    <Button className="bg-main hover:bg-main-hover" onClick={() => navigate("/settings/payout")}>
+                        Register payout account
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        </>
     )
 }
 

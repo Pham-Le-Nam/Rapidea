@@ -4,6 +4,7 @@ import { OptionalJwtAuthGuard } from '../auth/optional-jwt.guard';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { UpdateProfileDto } from './users-dto/update-profile.dto';
 import { UpdatePayoutAccountDto } from './users-dto/update-payout-account.dto';
+import { UpdateCreatorPromptDto } from './users-dto/update-creator-prompt.dto';
 
 @Controller('api/users')
 export class UsersController {
@@ -24,6 +25,17 @@ export class UsersController {
 
         return {
             profile,
+        };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('me/creator-prompt')
+    async updateCreatorPrompt(
+        @Request() req: any,
+        @Body() dto: UpdateCreatorPromptDto,
+    ) {
+        return {
+            creatorPrompt: await this.usersService.updateCreatorPrompt(req.user.userId, dto.creatorPrompt),
         };
     }
 

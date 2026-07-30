@@ -1,4 +1,5 @@
-import { Controller, Post, Get, Put, Body, Query } from '@nestjs/common';
+import { Controller, Post, Get, Put, Body, Query, Redirect, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './auth-dto/register.dto';
 import { LoginDto } from './auth-dto/login.dto';
@@ -21,6 +22,23 @@ export class AuthController {
         @Body() loginDto: LoginDto
     ) {
         return this.authService.login(loginDto.email, loginDto.password);
+    }
+
+    @Get('email/verify')
+    async verifyEmail(@Query('token') token: string) {
+        return this.authService.verifyEmailToken(token);
+    }
+
+    @Get('oauth/google')
+    @Redirect()
+    google() {
+        return { url: this.authService.getGoogleAuthorizationUrl(), statusCode: 302 };
+    }
+
+    @Get('oauth/google/callback')
+    async googleCallback(@Query('code') code: string, @Query('state') state: string, @Res() response: Response) {
+        const session = await this.authService.finishGoogleOAuth(code, state);
+        return response.redirect(this.authService.getFrontendCallbackUrl(session.access_token));
     }
 
     @Post('reset-password')

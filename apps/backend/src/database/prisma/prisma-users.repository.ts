@@ -20,7 +20,7 @@ export class PrismaUsersRepository implements UsersRepository {
         };
     }
 
-    async create(email: string, password: string, firstname: string, lastname: string, middlename?: string) {
+    async create(email: string, password: string | null, firstname: string, lastname: string, middlename?: string) {
         const username = await this.generateUsername(firstname, middlename, lastname);
         
         return this.prisma.users.create({ 

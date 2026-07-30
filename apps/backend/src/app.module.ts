@@ -33,6 +33,7 @@ import { SearchModule } from './modules/search/search.module';
 import { TagsModule } from './modules/tags/tags.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
     imports: [
@@ -82,6 +83,7 @@ import { NotificationModule } from './modules/notification/notification.module';
         TagsModule,
         ChatModule,
         NotificationModule,
+        AdminModule,
     ],
     controllers: [AppController],
     providers: [AppService],

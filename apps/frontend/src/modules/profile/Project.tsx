@@ -141,15 +141,15 @@ function Project({ username, isOwner = false }: projectProps) {
                         
                     </div>
 
-                    <div className="flex flex-col">
-                        <Button asChild className="bg-white hover:bg-gray-100 text-black border" onClick={() => deleteProject(project.id)}>
-                            <p>
+                    {isOwner && (
+                        <div className="flex flex-col">
+                            <Button type="button" className="bg-white hover:bg-gray-100 text-black border" onClick={() => deleteProject(project.id)}>
                                 Delete
-                            </p>
-                        </Button>
+                            </Button>
 
-                        <EditProject project={project} reloadProject={loadProjects} linksList={projectsLinksLists[index]}/>
-                    </div>
+                            <EditProject project={project} reloadProject={loadProjects} linksList={projectsLinksLists[index]}/>
+                        </div>
+                    )}
                 </div>
             ))}
 

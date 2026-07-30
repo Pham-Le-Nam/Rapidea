@@ -97,6 +97,21 @@ export class NotificationService {
         })));
     }
 
+    async notifyAdminsOfModerationAlert(actorId: string, fileId: string, fileName: string, message: string) {
+        const admins = await this.prisma.users.findMany({
+            where: { role: 'ADMIN', isBanned: false },
+            select: { id: true },
+        });
+        return this.createManyNotifications(admins.map((admin) => ({
+            userId: admin.id,
+            actorId,
+            type: NotificationType.MODERATION_ALERT,
+            title: 'Serious upload warning',
+            message: `${fileName}: ${message}`,
+            link: `/admin/moderation?file=${encodeURIComponent(fileId)}`,
+        })));
+    }
+
     async getNotifications(userId: string, limit = 20, offset = 0) {
         const [notifications, unreadCount] = await Promise.all([
             this.prisma.notification.findMany({

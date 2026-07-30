@@ -524,6 +524,11 @@ function FileUpload ({ className, folderId, reloadFolder }: FileUploadProps) {
                     toast.error(`Something wrong happened! Couldn't upload file ${file.name}`);
                     throw Error("No response found");
                 }
+                if (response.moderationMessage) {
+                    response.moderationStatus === "SERIOUS_WARNING"
+                        ? toast.error(response.moderationMessage, { duration: 10000 })
+                        : toast(response.moderationMessage, { duration: 7000 });
+                }
             } catch (error: any) {
                 if (error.response?.status === 401) {
                     console.error("Token Expired");
@@ -532,7 +537,14 @@ function FileUpload ({ className, folderId, reloadFolder }: FileUploadProps) {
                     navigate('/login')
                 // handle logout or redirect
                 }
-                toast.error(`File name ${file.name} already exists! Please change the file name and try again.`);
+                const moderationMessage = error.response?.data?.message?.message
+                    || error.response?.data?.message;
+                toast.error(
+                    typeof moderationMessage === "string"
+                        ? moderationMessage
+                        : `Couldn't upload ${file.name}.`,
+                    { duration: 10000 },
+                );
             }
         }
         

@@ -74,6 +74,18 @@ export class SubscribeController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Post('checkout')
+    async createCheckout(@Request() req: any, @Body() dto: SubscribeCourseDto) {
+        return this.subscribeService.createCheckoutSession(dto.courseId, req.user.userId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('checkout/confirm')
+    async confirmCheckout(@Request() req: any, @Body() body: { sessionId: string }) {
+        return this.subscribeService.confirmCheckoutSession(body.sessionId, req.user.userId);
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Post('delete')
     async unsubscribeCourse(
         @Request() req: any,

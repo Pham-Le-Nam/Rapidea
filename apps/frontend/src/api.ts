@@ -26,6 +26,16 @@ export async function registerApi(email: string, password: string, confirmPasswo
     return response.data;
 };
 
+export async function verifyEmailAuthApi(token: string) {
+    const response = await API.get("api/auth/email/verify", { params: { token } });
+    return response.data;
+}
+
+export function getOAuthUrl(provider: "google") {
+    const base = String(import.meta.env.VITE_API_URL || "").replace(/\/?$/, "/");
+    return `${base}api/auth/oauth/${provider}`;
+}
+
 export async function getResetPasswordLinkApi(email: string) {
     const response = await API.post("api/auth/reset-password", {
         email,
@@ -407,6 +417,48 @@ export async function markAllNotificationsReadApi() {
     );
 
     return response.data;
+}
+
+export async function generatePostFieldApi(data: {
+    target: "title" | "details";
+    title?: string;
+    details?: string;
+    tags?: string[];
+    fileIds?: string[];
+}) {
+    const token = localStorage.getItem("token");
+    const response = await API.post("api/post/generate", data, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+}
+
+export async function updateCreatorPromptApi(creatorPrompt: string) {
+    const token = localStorage.getItem("token");
+    const response = await API.post("api/users/me/creator-prompt", { creatorPrompt }, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+}
+
+export async function getAdminModerationQueueApi() {
+    const token = localStorage.getItem("token");
+    return (await API.get("api/admin/moderation", { headers: { Authorization: `Bearer ${token}` } })).data;
+}
+
+export async function sendAdminWarningApi(userId: string, message: string, link?: string) {
+    const token = localStorage.getItem("token");
+    return (await API.post("api/admin/warning", { userId, message, link }, { headers: { Authorization: `Bearer ${token}` } })).data;
+}
+
+export async function banUserAdminApi(userId: string, reason: string) {
+    const token = localStorage.getItem("token");
+    return (await API.post(`api/admin/users/${userId}/ban`, { reason }, { headers: { Authorization: `Bearer ${token}` } })).data;
+}
+
+export async function deleteAdminEntityApi(type: "posts" | "courses" | "files", id: string) {
+    const token = localStorage.getItem("token");
+    return (await API.delete(`api/admin/${type}/${id}`, { headers: { Authorization: `Bearer ${token}` } })).data;
 }
 
 export async function getChatConversationApi(otherUserId: string, limit: number = 10, before?: string) {
@@ -864,6 +916,22 @@ export async function subscribeCourseApi(courseId: string) {
         },
     );
 
+    return response.data;
+}
+
+export async function createCourseCheckoutApi(courseId: string) {
+    const token = localStorage.getItem("token");
+    const response = await API.post(`api/subscribe/checkout`, { courseId }, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+}
+
+export async function confirmCourseCheckoutApi(sessionId: string) {
+    const token = localStorage.getItem("token");
+    const response = await API.post(`api/subscribe/checkout/confirm`, { sessionId }, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
     return response.data;
 }
 

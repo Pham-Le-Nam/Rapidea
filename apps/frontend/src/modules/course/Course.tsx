@@ -1,4 +1,4 @@
-import { deleteCourseApi, getCourseApi, getProfileByIdApi, getSubscriptionApi, subscribeCourseApi, udpateCourseApi, uploadCourseThumbnailApi } from "@/api";
+import { confirmCourseCheckoutApi, createCourseCheckoutApi, deleteCourseApi, getCourseApi, getProfileByIdApi, getSubscriptionApi, subscribeCourseApi, udpateCourseApi, uploadCourseThumbnailApi } from "@/api";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -922,10 +922,22 @@ function SubscribeCourseAction({
 }) {
     const { logout, isLoggedIn } = useAuth();
     const navigate = useNavigate();
-    const [cardNumber, setCardNumber] = useState("");
-    const [cardName, setCardName] = useState("");
-    const [expiry, setExpiry] = useState("");
-    const [cvc, setCvc] = useState("");
+    const confirmationStarted = useRef(false);
+    const [isRedirecting, setIsRedirecting] = useState(false);
+
+    useEffect(() => {
+        const query = new URLSearchParams(window.location.search);
+        const sessionId = query.get("session_id");
+        if (query.get("payment") !== "success" || !sessionId || confirmationStarted.current) return;
+        confirmationStarted.current = true;
+        confirmCourseCheckoutApi(sessionId)
+            .then(async () => {
+                toast.success("Payment successful. You are now subscribed.");
+                window.history.replaceState({}, "", window.location.pathname);
+                await reloadCourse();
+            })
+            .catch((error) => toast.error(error.response?.data?.message || "Payment verification failed."));
+    }, [reloadCourse]);
 
     const subscribeCourse = async () => {
         try {
@@ -935,8 +947,15 @@ function SubscribeCourseAction({
                 return;
             }
 
-            if (!cardNumber.trim() || !cardName.trim() || !expiry.trim() || !cvc.trim()) {
-                toast.error("Please enter dummy card details");
+            if (course.price > 0) {
+                setIsRedirecting(true);
+                const checkout = await createCourseCheckoutApi(course.id);
+                if (checkout.alreadySubscribed) {
+                    await reloadCourse();
+                    return;
+                }
+                if (!checkout.checkoutUrl) throw new Error("Checkout could not be started");
+                window.location.assign(checkout.checkoutUrl);
                 return;
             }
 
@@ -949,6 +968,7 @@ function SubscribeCourseAction({
             toast.success("Subscribed successfully");
             await reloadCourse();
         } catch (error: any) {
+            setIsRedirecting(false);
             if (error.response?.status === 401) {
                 logout();
                 toast.error("Token Expired. You have been logged out. Please log in to continue");
@@ -983,7 +1003,9 @@ function SubscribeCourseAction({
                     <DialogHeader>
                         <DialogTitle>Subscribe to {course?.title}</DialogTitle>
                         <DialogDescription>
-                            Dummy payment only. No real card will be charged.
+                            {course?.price > 0
+                                ? "You will continue to secure checkout to add a Visa or Mastercard debit/credit card and complete payment."
+                                : "This course is free. Confirm to subscribe."}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -991,26 +1013,11 @@ function SubscribeCourseAction({
                         Total: {course?.price > 0 ? `${course.price} ${course.currency}` : "Free"}
                     </div>
 
-                    <FieldGroup className="py-4">
-                        <Field>
-                            <Label htmlFor="card-name">Name on card</Label>
-                            <Input id="card-name" value={cardName} onChange={(event) => setCardName(event.target.value)} />
-                        </Field>
-                        <Field>
-                            <Label htmlFor="card-number">Card number</Label>
-                            <Input id="card-number" inputMode="numeric" value={cardNumber} onChange={(event) => setCardNumber(event.target.value)} />
-                        </Field>
-                        <div className="grid grid-cols-2 gap-3">
-                            <Field>
-                                <Label htmlFor="card-expiry">Expiry</Label>
-                                <Input id="card-expiry" placeholder="MM/YY" value={expiry} onChange={(event) => setExpiry(event.target.value)} />
-                            </Field>
-                            <Field>
-                                <Label htmlFor="card-cvc">CVC</Label>
-                                <Input id="card-cvc" inputMode="numeric" value={cvc} onChange={(event) => setCvc(event.target.value)} />
-                            </Field>
+                    {course?.price > 0 && (
+                        <div className="my-4 rounded-md border bg-gray-50 p-3 text-sm">
+                            Card details are collected by Stripe and never pass through Rapidea's server.
                         </div>
-                    </FieldGroup>
+                    )}
 
                     <DialogFooter>
                         <DialogClose asChild>
@@ -1018,11 +1025,9 @@ function SubscribeCourseAction({
                                 Cancel
                             </Button>
                         </DialogClose>
-                        <DialogClose asChild>
-                            <Button type="submit" className="bg-main hover:bg-main-hover">
-                                Pay and subscribe
-                            </Button>
-                        </DialogClose>
+                        <Button disabled={isRedirecting} type="submit" className="bg-main hover:bg-main-hover">
+                            {course?.price > 0 ? (isRedirecting ? "Opening secure checkout..." : "Continue to payment") : "Subscribe"}
+                        </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>

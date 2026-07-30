@@ -106,15 +106,15 @@ function Experience({ username, isOwner = false }: ExperienceProps) {
                         </p>
                     </div>
 
-                    <div className="flex flex-col">
-                        <Button asChild className="bg-white hover:bg-gray-100 text-black border" onClick={() => deleteExperience(experience.id)}>
-                            <p>
+                    {isOwner && (
+                        <div className="flex flex-col">
+                            <Button type="button" className="bg-white hover:bg-gray-100 text-black border" onClick={() => deleteExperience(experience.id)}>
                                 Delete
-                            </p>
-                        </Button>
+                            </Button>
 
-                        <EditExperience experience={experience} reloadExperience={loadExperience}/>
-                    </div>
+                            <EditExperience experience={experience} reloadExperience={loadExperience}/>
+                        </div>
+                    )}
 
                     
                 </div>

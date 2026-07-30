@@ -1,5 +1,5 @@
 export interface UsersRepository {
-    create(email: string, password: string, firstname: string, lastname: string, middlename?: string): Promise<any>;
+    create(email: string, password: string | null, firstname: string, lastname: string, middlename?: string): Promise<any>;
     findAll(): Promise<any[]>;
     findByEmail(email: string): Promise<any | null>;
     findByUsername(username: string): Promise<any | null>;

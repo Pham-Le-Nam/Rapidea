@@ -1,4 +1,6 @@
-import { BadRequestException, Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import Stripe from 'stripe';
 import { SubscribeRepository } from './subscribe.repository';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../../../generated/prisma/enums';
@@ -11,6 +13,7 @@ export class SubscribeService {
         private readonly subscribeRepo: SubscribeRepository,
         private readonly notificationService: NotificationService,
         private readonly prisma: PrismaService,
+        private readonly config: ConfigService,
     ) {}
 
     async subscribeCourse(courseId: string, userId: string) {
@@ -18,6 +21,77 @@ export class SubscribeService {
             throw new BadRequestException("Course id is required");
         }
 
+        const coursePrice = await this.prisma.course.findUnique({
+            where: { id: courseId },
+            select: { price: true },
+        });
+        if (!coursePrice) throw new BadRequestException('Course not found');
+        if (coursePrice.price > 0) {
+            throw new BadRequestException({
+                code: 'PAYMENT_REQUIRED',
+                message: 'Payment is required before subscribing to this course.',
+            });
+        }
+
+        return this.createSubscription(courseId, userId);
+    }
+
+    async createCheckoutSession(courseId: string, userId: string) {
+        const [course, user, existing] = await Promise.all([
+            this.prisma.course.findUnique({
+                where: { id: courseId },
+                include: { user: { include: { payoutAccount: true } } },
+            }),
+            this.prisma.users.findUnique({ where: { id: userId } }),
+            this.subscribeRepo.getSubscription(courseId, userId),
+        ]);
+        if (!course || !user) throw new BadRequestException('Course or user not found');
+        if (course.userId === userId) throw new BadRequestException('You cannot subscribe to your own course');
+        if (existing) return { alreadySubscribed: true };
+        if (course.price <= 0) throw new BadRequestException('This course is free and does not require checkout');
+        if (course.user.payoutAccount?.status !== 'READY_FOR_REVIEW') {
+            throw new BadRequestException('This creator is not ready to receive payments.');
+        }
+
+        const stripe = this.getStripe();
+        const frontend = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173';
+        const zeroDecimal = new Set(['bif','clp','djf','gnf','jpy','kmf','krw','mga','pyg','rwf','ugx','vnd','vuv','xaf','xof','xpf']);
+        const currency = course.currency.toLowerCase();
+        const unitAmount = Math.round(course.price * (zeroDecimal.has(currency) ? 1 : 100));
+        const session = await stripe.checkout.sessions.create({
+            mode: 'payment',
+            payment_method_types: ['card'],
+            customer_email: user.email,
+            line_items: [{
+                quantity: 1,
+                price_data: {
+                    currency,
+                    unit_amount: unitAmount,
+                    product_data: { name: course.title, description: `Course subscription: ${course.title}` },
+                },
+            }],
+            metadata: { courseId, userId },
+            success_url: `${frontend}/course/${courseId}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${frontend}/course/${courseId}?payment=cancelled`,
+        });
+        return { checkoutUrl: session.url };
+    }
+
+    async confirmCheckoutSession(sessionId: string, userId: string) {
+        const existingPayment = await this.prisma.subscribe.findUnique({ where: { paymentSessionId: sessionId } });
+        if (existingPayment) return existingPayment;
+        const session = await this.getStripe().checkout.sessions.retrieve(sessionId);
+        if (session.payment_status !== 'paid' || session.metadata?.userId !== userId || !session.metadata?.courseId) {
+            throw new UnauthorizedException('This payment cannot be used for this subscription.');
+        }
+        const subscription = await this.createSubscription(session.metadata.courseId, userId);
+        return this.prisma.subscribe.update({
+            where: { id: subscription.id },
+            data: { paymentSessionId: session.id },
+        });
+    }
+
+    private async createSubscription(courseId: string, userId: string) {
         const existingSubscription = await this.subscribeRepo.getSubscription(courseId, userId);
 
         if (existingSubscription) {
@@ -50,6 +124,12 @@ export class SubscribeService {
         }
 
         return subscription;
+    }
+
+    private getStripe() {
+        const secretKey = this.config.get<string>('STRIPE_SECRET_KEY');
+        if (!secretKey) throw new InternalServerErrorException('Stripe payments are not configured');
+        return new Stripe(secretKey);
     }
 
     async unsubscribeCourse(courseId: string, userId: string) {

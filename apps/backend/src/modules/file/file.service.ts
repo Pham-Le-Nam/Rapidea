@@ -10,6 +10,10 @@ import path from 'path';
 import { STORAGE_SERVICE } from '../storage/storage.constants';
 import { StorageService } from '../storage/storage.service';
 import { TagsService } from '../tags/tags.service';
+import { ContentModerationService } from './content-moderation.service';
+import { UnprocessableEntityException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class FileService {
@@ -20,10 +24,29 @@ export class FileService {
         @Inject(STORAGE_SERVICE)
         private readonly storage: StorageService,
         private readonly tagsService: TagsService,
+        private readonly moderation: ContentModerationService,
+        private readonly prisma: PrismaService,
+        private readonly notifications: NotificationService,
     ) {}
 
     async createFile (uploadedFile: Express.Multer.File, userId: string, folderId: string) {
         const { originalname, mimetype, size, buffer } = uploadedFile;
+        const isTranscribable = mimetype.startsWith('audio/') || mimetype.startsWith('video/');
+        let transcriptText = '';
+        if (isTranscribable && process.env.OPENAI_API_KEY) {
+            try {
+                transcriptText = await this.tagsService.transcribeMedia(uploadedFile);
+            } catch {
+                // The moderation result records that only available metadata was scanned.
+            }
+        }
+        const moderation = await this.moderation.moderate(uploadedFile, transcriptText);
+        if (moderation.status === 'BLOCKED') {
+            throw new UnprocessableEntityException({
+                message: moderation.message,
+                moderation,
+            });
+        }
 
         // Check if folder exist then get its url
         const folderUrl = await this.folderService.getFolderUrl(folderId);
@@ -31,7 +54,24 @@ export class FileService {
         const file = await this.fileRepo.create(folderId, originalname, mimetype, size, userId);
 
         await this.storage.writeFile(this.joinStorageKey(folderUrl, originalname), buffer);
-        await this.generateFileTags(file.id, uploadedFile);
+        await this.prisma.file.update({
+            where: { id: file.id },
+            data: {
+                moderationStatus: moderation.status,
+                moderationScore: moderation.score,
+                moderationCategories: moderation.categories,
+                moderationMessage: moderation.message,
+            },
+        });
+        await this.generateFileTags(file.id, uploadedFile, transcriptText);
+        if (moderation.status === 'SERIOUS_WARNING') {
+            await this.notifications.notifyAdminsOfModerationAlert(
+                userId,
+                file.id,
+                originalname,
+                moderation.message ?? 'Potentially prohibited content detected.',
+            );
+        }
 
         return this.fileRepo.findById(file.id);
     }
@@ -104,15 +144,15 @@ export class FileService {
         return path.posix.join(...parts.map((part) => part.replace(/\\/g, '/')));
     }
 
-    private async generateFileTags(fileId: string, uploadedFile: Express.Multer.File) {
+    private async generateFileTags(fileId: string, uploadedFile: Express.Multer.File, existingTranscript = '') {
         const isTranscribable = uploadedFile.mimetype.startsWith('audio/') || uploadedFile.mimetype.startsWith('video/');
-        let transcriptText = '';
+        let transcriptText = existingTranscript;
 
         if (isTranscribable) {
             await this.tagsService.createTranscript(fileId);
 
             try {
-                transcriptText = await this.tagsService.transcribeMedia(uploadedFile);
+                if (!transcriptText) transcriptText = await this.tagsService.transcribeMedia(uploadedFile);
                 await this.tagsService.completeTranscript(fileId, transcriptText);
             } catch (error: any) {
                 await this.tagsService.failTranscript(fileId, error?.message ?? 'Transcription failed');

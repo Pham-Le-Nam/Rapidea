@@ -1,13 +1,11 @@
 import { useState } from "react";
-import { useNavigate,Navigate } from "react-router-dom";
-import { registerApi } from "@/api";
+import { Navigate } from "react-router-dom";
+import { getOAuthUrl, registerApi } from "@/api";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Description } from "@/components/ui/description";
 
 function Register() {
-    const navigate = useNavigate();
-
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -15,8 +13,10 @@ function Register() {
     const [lastname, setLastname] = useState("");
     const [middlename, setMiddlename] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
+    const [successMessage, setSuccessMessage] = useState("");
+    const [submitting, setSubmitting] = useState(false);
 
-    const { isLoggedIn, login } = useAuth();
+    const { isLoggedIn } = useAuth();
 
     if (isLoggedIn) {
         return <Navigate to="/" />;
@@ -25,18 +25,16 @@ function Register() {
     async function handleSubmit(e: React.SyntheticEvent) {
         e.preventDefault(); // prevent page refresh
         setErrorMessage("");
+        setSuccessMessage("");
+        setSubmitting(true);
 
         try {
             const response = await registerApi(email, password, confirmPassword, firstname, lastname, middlename);
-
-            // assuming backend returns { access_token: string }
-            login(response.access_token);
-
-            // redirect after login
-            navigate("/");
-
+            setSuccessMessage(response.success_message);
         } catch (error: any) {
             setErrorMessage(error.response.data?.message || "Invalid registration details");
+        } finally {
+            setSubmitting(false);
         }
     }
 
@@ -48,6 +46,12 @@ function Register() {
                 <h3 className="auth-headline">
                     Register to start your lessons
                 </h3>
+                <div className="grid grid-cols-2 gap-3 mb-5">
+                    <Button type="button" variant="outline" onClick={() => window.location.assign(getOAuthUrl("google"))}>
+                        Continue with Google
+                    </Button>
+                </div>
+                <div className="text-center text-sm text-muted-foreground mb-4">or register with email and password</div>
                 <div className="auth-input-container">
                     <label className="auth-label">
                         Email
@@ -136,9 +140,12 @@ function Register() {
                     <span className="auth-error">{errorMessage}</span>
                 </div>
                 )}
+                {successMessage && (
+                    <div className="rounded-md bg-green-50 p-3 text-sm text-green-800">{successMessage}</div>
+                )}
 
-                <Button type="submit" className="mt-3 h-11 w-full bg-main hover:bg-main-hover">
-                    Register
+                <Button disabled={submitting || !!successMessage} type="submit" className="mt-3 h-11 w-full bg-main hover:bg-main-hover">
+                    {submitting ? "Sending verification email..." : "Register"}
                 </Button>
 
                 <h3 className="mt-4">

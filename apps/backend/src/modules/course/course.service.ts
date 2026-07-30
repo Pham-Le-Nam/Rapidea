@@ -1,4 +1,4 @@
-import { Injectable, Inject, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Inject, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { CourseRepository } from './course.repository';
 import { FolderService } from '../folder/folder.service';
 import { UsersService } from '../users/users.service';
@@ -22,6 +22,7 @@ export class CourseService {
         if (!user) {
             throw new NotFoundException('User not found');
         }
+        await this.requirePayoutAccountForPaidCourse(userId, price);
 
         const parentFolder = await this.folderService.findFolderByLocation(user.username);
 
@@ -43,6 +44,9 @@ export class CourseService {
     }
 
     async updateCourse(id: string, userId: string, title?: string, description?: string, price?: number, currency?: string, thumbnailId?: number, tags?: string[]) {
+        if (price !== undefined) {
+            await this.requirePayoutAccountForPaidCourse(userId, price);
+        }
         if (title) {
             const course = await this.courseRepo.findById(id);
             const courseFolder = await this.folderService.renameFolder(course.folderId, userId, title);
@@ -93,5 +97,16 @@ export class CourseService {
 
     async getCourseById (id: string) {
         return this.courseRepo.findById(id);
+    }
+
+    private async requirePayoutAccountForPaidCourse(userId: string, price?: number) {
+        if (!price || price <= 0) return;
+        const payout = await this.usersService.getPayoutAccount(userId);
+        if (!payout || payout.status !== 'READY_FOR_REVIEW') {
+            throw new BadRequestException({
+                code: 'PAYOUT_ACCOUNT_REQUIRED',
+                message: 'Complete your payout account before creating or pricing a paid course.',
+            });
+        }
     }
 }

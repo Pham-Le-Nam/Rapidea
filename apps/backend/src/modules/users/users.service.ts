@@ -1,6 +1,7 @@
 import { Injectable, Inject, InternalServerErrorException } from '@nestjs/common';
 import { UsersRepository } from './users.repository';
 import { FolderService } from '../folder/folder.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class UsersService {
@@ -8,9 +9,10 @@ export class UsersService {
         @Inject('USERS_REPOSITORY')
         private readonly usersRepo: UsersRepository,
         private folderService: FolderService,
+        private readonly prisma: PrismaService,
     ) {}
 
-    async createUser(email: string, password: string, firstname: string, lastname: string, middlename?: string) {
+    async createUser(email: string, password: string | null, firstname: string, lastname: string, middlename?: string) {
         const user = await this.usersRepo.create( email, password, firstname, lastname, middlename );
 
         if (!user) { 
@@ -53,6 +55,15 @@ export class UsersService {
 
     async resetPassword(id: string, password: string) {
         return this.usersRepo.resetPassword(id, password);
+    }
+
+    async updateCreatorPrompt(userId: string, creatorPrompt: string) {
+        const user = await this.prisma.users.update({
+            where: { id: userId },
+            data: { creatorPrompt: creatorPrompt.trim() || null },
+            select: { creatorPrompt: true },
+        });
+        return user.creatorPrompt;
     }
 
     async getPayoutAccount(userId: string) {

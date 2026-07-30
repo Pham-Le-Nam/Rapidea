@@ -5,6 +5,7 @@ import { PrismaFileRepository } from 'src/database/prisma/prisma-file.repository
 import { FileController } from './file.controller';
 import { StorageModule } from '../storage/storage.module';
 import { TagsModule } from '../tags/tags.module';
+import { ContentModerationService } from './content-moderation.service';
 
 @Module({
     imports: [
@@ -17,6 +18,7 @@ import { TagsModule } from '../tags/tags.module';
     ],
     providers: [
         FileService,
+        ContentModerationService,
         {
             provide: 'FILE_REPOSITORY',
             useClass: PrismaFileRepository,

@@ -19,6 +19,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         if (!isValid) {
             throw new UnauthorizedException('Session Expired');
         }
-        return { userId: payload.sub, email: payload.email };
+        const user = await this.usersService.getUserById(payload.sub);
+        if (!user || user.isBanned) {
+            throw new UnauthorizedException(user?.banReason ? `Account banned: ${user.banReason}` : 'Account unavailable');
+        }
+        return { userId: payload.sub, email: payload.email, role: user.role };
     }
 }

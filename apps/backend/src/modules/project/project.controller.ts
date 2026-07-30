@@ -106,7 +106,7 @@ export class ProjectController {
     ) {
         const user = req.user;
 
-        const deletedProject = this.projectService.deleteProjectById(id, user.userId);
+        const deletedProject = await this.projectService.deleteProjectById(id, user.userId);
 
         if (!deletedProject) {
             throw new InternalServerErrorException("Couldn't delete project");

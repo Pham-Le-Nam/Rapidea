@@ -15,11 +15,11 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { TextEditor } from "@/components/ui/texteditor";
 import Files from './Files';
-import { XIcon } from "lucide-react";
+import { SparklesIcon, XIcon } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { addFileToPostApi, addPostApi, removeFileToPostApi, updatePostApi } from "@/api";
+import { addFileToPostApi, addPostApi, generatePostFieldApi, removeFileToPostApi, updatePostApi } from "@/api";
 import TagSelector, { extractTextFromEditorContent, getTagNames } from "./TagSelector";
 
 type UpsertPostProps = {
@@ -40,6 +40,7 @@ function UpsertPost({ className, post, uploadedFiles, course, courseOptions = []
     const [deleteFiles, setDeleteFiles] = useState<any[]>([]);
     const [files, setFiles] = useState<any[]>([]);
     const [tags, setTags] = useState<string[]>(getTagNames(post));
+    const [generating, setGenerating] = useState<"title" | "details" | null>(null);
 
     const { logout } = useAuth();
     const navigate = useNavigate();
@@ -52,6 +53,30 @@ function UpsertPost({ className, post, uploadedFiles, course, courseOptions = []
     const selectedCourse = availableCourses.find((courseOption) => courseOption.id === selectedCourseId);
     const selectedPostCourseId = selectedCourseId === "general" ? undefined : selectedCourseId;
     const rootFolderId = selectedCourse?.folderId ?? fileFolder?.id;
+    const activeFiles = [
+        ...(uploadedFiles?.filter((file) => !deleteFiles.some((deleted) => deleted.id === file.id)) ?? []),
+        ...files,
+    ];
+
+    const generateField = async (target: "title" | "details") => {
+        try {
+            setGenerating(target);
+            const response = await generatePostFieldApi({
+                target,
+                title,
+                details: extractTextFromEditorContent(content),
+                tags,
+                fileIds: activeFiles.map((file) => file.id),
+            });
+            if (target === "title") setTitle(response.value);
+            else setContent(response.value);
+            toast.success(`${target === "title" ? "Title" : "Details"} generated`);
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || "Couldn't generate post content");
+        } finally {
+            setGenerating(null);
+        }
+    };
 
     const changePostLocation = (value: string) => {
         setSelectedCourseId(value);
@@ -225,9 +250,13 @@ function UpsertPost({ className, post, uploadedFiles, course, courseOptions = []
                     </DialogDescription>
                     <FieldGroup>
                         <Field>
-                            <Label htmlFor={`create-post`} className="mt-2">
-                                Title
-                            </Label>
+                            <div className="flex items-center justify-between gap-2">
+                                <Label htmlFor={`create-post`} className="mt-2">Title</Label>
+                                <Button type="button" variant="outline" size="sm" className="gap-2" disabled={!!generating} onClick={() => generateField("title")}>
+                                    <SparklesIcon className="size-4" />
+                                    {generating === "title" ? "Generating..." : "Generate title"}
+                                </Button>
+                            </div>
                             <Input id={`create-post`} name="create-post" type="text" value={title} onChange={(n) => setTitle(n.target.value)}/>
                         </Field>
                         <Field>
@@ -249,16 +278,24 @@ function UpsertPost({ className, post, uploadedFiles, course, courseOptions = []
                             </select>
                         </Field>
                         <Field>
-                            <Label htmlFor={`create-post`} className="mt-2">
-                                Content
-                            </Label>
+                            <div className="flex items-center justify-between gap-2">
+                                <Label htmlFor={`create-post`} className="mt-2">Details</Label>
+                                <Button type="button" variant="outline" size="sm" className="gap-2" disabled={!!generating} onClick={() => generateField("details")}>
+                                    <SparklesIcon className="size-4" />
+                                    {generating === "details" ? "Generating..." : "Generate details"}
+                                </Button>
+                            </div>
                             <TextEditor value={content} onChange={setContent} />
                         </Field>
                         <Field>
                             <TagSelector
                                 value={tags}
                                 onChange={setTags}
-                                suggestionText={`${title}\n${extractTextFromEditorContent(content)}`}
+                                suggestionText={[
+                                    title,
+                                    extractTextFromEditorContent(content),
+                                    ...activeFiles.map((file) => `${file.name} ${getTagNames(file).join(" ")}`),
+                                ].join("\n")}
                             />
                         </Field>
                         {selectedPostCourseId && (

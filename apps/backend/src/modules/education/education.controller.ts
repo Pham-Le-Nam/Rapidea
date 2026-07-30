@@ -110,12 +110,12 @@ export class EducationController {
     ) {
         const user = req.user;
         const userId = String(user.userId);
-        const deletedEducation = this.educationService.deleteEducationById(id, userId);
+        const deletedEducation = await this.educationService.deleteEducationById(id, userId);
 
         if (!deletedEducation) {
             throw new InternalServerErrorException("Couldn't delete education");
         }
 
-        return this.educationService.getEducationByUserId(user.userId);
+        return deletedEducation;
     }
 }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
-import { loginApi } from "@/api";
+import { getOAuthUrl, loginApi } from "@/api";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Description } from "@/components/ui/description";
@@ -46,6 +46,12 @@ function Login() {
                 <h3 className="auth-headline">
                     Login to start your lessons
                 </h3>
+                <div className="grid grid-cols-2 gap-3 mb-5">
+                    <Button type="button" variant="outline" onClick={() => window.location.assign(getOAuthUrl("google"))}>
+                        Continue with Google
+                    </Button>
+                </div>
+                <div className="text-center text-sm text-muted-foreground mb-4">or continue with email</div>
 
                 <div className="auth-input-container">
                     <label className="auth-label">
@@ -86,7 +92,6 @@ function Login() {
                     <span className="auth-error">{errorMessage}</span>
                 </div>
                 )}
-
                 <Button type="submit" className="mt-3 h-11 w-full bg-main hover:bg-main-hover text-md">
                     Login
                 </Button>

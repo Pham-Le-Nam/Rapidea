@@ -124,6 +124,24 @@ export class PostController {
         return post;
     }
 
+    @UseGuards(JwtAuthGuard)
+    @Post('generate')
+    async generatePostField(
+        @Request() req: any,
+        @Body() data: {
+            target: 'title' | 'details';
+            title?: string;
+            details?: string;
+            tags?: string[];
+            fileIds?: string[];
+        },
+    ) {
+        if (data.target !== 'title' && data.target !== 'details') {
+            throw new NotFoundException('Unknown post field');
+        }
+        return this.postService.generatePostField(req.user.userId, data.target, data);
+    }
+
     @UseGuards(OptionalJwtAuthGuard)
     @Get('course/:courseId')
     async getPostsByCourseId (
@@ -142,7 +160,8 @@ export class PostController {
             throw new NotFoundException("Course not found");
         }
 
-        const canViewAllPosts = await this.postService.canViewAllCoursePosts(courseId, user?.userId);
+        const canViewAllPosts = user?.role === 'ADMIN'
+            || await this.postService.canViewAllCoursePosts(courseId, user?.userId);
         const pagination = this.getPagination(offset, limit);
         const posts = await this.postService.getPostsByCourseId(courseId, user?.userId, {
             previewOnly: previewOnly === 'true',
@@ -175,6 +194,7 @@ export class PostController {
 
         const canViewPost = !post.courseId
             || post.isPreview
+            || user?.role === 'ADMIN'
             || (user?.userId && user.userId === post.userId)
             || (user?.userId && post.course?.subscribers?.some((subscription: any) => subscription.userId === user.userId));
 
