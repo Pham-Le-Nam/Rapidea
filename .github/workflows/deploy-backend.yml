@@ -46,6 +46,14 @@ jobs:
                     cache: npm
                     cache-dependency-path: apps/backend/package-lock.json
 
+            -   name: Use consistent npm version
+                run: npm install --global npm@10.9.4
+
+            -   name: Display tool versions
+                run: |
+                    node --version
+                    npm --version
+
             -   name: Install backend dependencies
                 working-directory: apps/backend
                 run: npm ci
