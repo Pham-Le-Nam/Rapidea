@@ -30,7 +30,7 @@ export class FileController {
         @Param('id') id: string,
     ) {
         const user = req.user;
-        const fileUrl = this.fileService.getFileUrl(id);
+        const fileUrl = await this.fileService.getFileUrl(id);
 
         // Need logic to check if the user is the owner or subscribed to the course
 

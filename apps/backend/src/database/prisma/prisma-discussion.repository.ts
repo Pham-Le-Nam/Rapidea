@@ -47,6 +47,13 @@ export class PrismaDiscussionRepository implements DiscussionRepository {
         });
     }
 
+    findPostSummary(postId: string) {
+        return this.prisma.post.findUnique({
+            where: { id: postId },
+            select: { userId: true, title: true },
+        });
+    }
+
     async findByPostId(postId: string, startIndex: number = 0, amount: number = 5) {
         const discussion = await this.prisma.discussion.findMany({
             where: {

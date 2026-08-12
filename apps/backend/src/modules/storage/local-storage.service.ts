@@ -1,18 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { mkdir, rename, rm, writeFile } from 'fs/promises';
 import path from 'path';
-import { StorageService } from './storage.service';
+import { StorageService, StorageWriteOptions } from './storage.service';
 
 @Injectable()
 export class LocalStorageService implements StorageService {
     private readonly root = process.env.STORAGE_ROOT || process.env.STORAGE_URL || 'storage';
     private readonly publicUrl = process.env.STORAGE_PUBLIC_URL;
+    private readonly publicPath = process.env.STORAGE_PUBLIC_PATH || process.env.STORAGE_URL || 'storage';
 
     async ensureDirectory(key: string): Promise<void> {
         await mkdir(this.resolvePath(key), { recursive: true });
     }
 
     async deleteDirectory(key: string): Promise<void> {
+        this.assertNonEmptyDirectoryKey(key);
         await rm(this.resolvePath(key), {
             recursive: true,
             force: true,
@@ -20,11 +22,13 @@ export class LocalStorageService implements StorageService {
     }
 
     async moveDirectory(sourceKey: string, destinationKey: string): Promise<void> {
+        this.assertNonEmptyDirectoryKey(sourceKey);
+        this.assertNonEmptyDirectoryKey(destinationKey);
         await mkdir(path.dirname(this.resolvePath(destinationKey)), { recursive: true });
         await rename(this.resolvePath(sourceKey), this.resolvePath(destinationKey));
     }
 
-    async writeFile(key: string, buffer: Buffer): Promise<void> {
+    async writeFile(key: string, buffer: Buffer, _options?: StorageWriteOptions): Promise<void> {
         const filePath = this.resolvePath(key);
 
         await mkdir(path.dirname(filePath), { recursive: true });
@@ -46,10 +50,14 @@ export class LocalStorageService implements StorageService {
         const normalizedKey = this.normalizeKey(key);
 
         if (!this.publicUrl) {
-            return path.posix.join(this.normalizeKey(this.root), normalizedKey);
+            return `/${path.posix.join(this.normalizeKey(this.publicPath), normalizedKey)}`;
         }
 
         return `${this.publicUrl.replace(/\/$/, '')}/${normalizedKey}`;
+    }
+
+    async getDownloadUrl(key: string): Promise<string> {
+        return this.getPublicUrl(key);
     }
 
     private resolvePath(key: string): string {
@@ -71,5 +79,11 @@ export class LocalStorageService implements StorageService {
         }
 
         return normalizedKey === '.' ? '' : normalizedKey;
+    }
+
+    private assertNonEmptyDirectoryKey(key: string): void {
+        if (!this.normalizeKey(key)) {
+            throw new Error('Storage directory key cannot be empty');
+        }
     }
 }

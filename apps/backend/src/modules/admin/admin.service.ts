@@ -1,21 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { AdminRepository } from './admin.repository';
 import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class AdminService {
     constructor(
-        private readonly prisma: PrismaService,
+        @Inject('ADMIN_REPOSITORY') private readonly adminRepo: AdminRepository,
         private readonly notifications: NotificationService,
     ) {}
 
     async getModerationQueue() {
-        return this.prisma.file.findMany({
-            where: { moderationStatus: { in: ['SERIOUS_WARNING', 'WARNING'] } },
-            include: { user: { select: { id: true, username: true, email: true } } },
-            orderBy: { createdAt: 'desc' },
-            take: 100,
-        });
+        return this.adminRepo.findModerationQueue();
     }
 
     async warn(adminId: string, userId: string, message: string, link?: string) {
@@ -30,29 +25,20 @@ export class AdminService {
     }
 
     async ban(userId: string, reason: string) {
-        const user = await this.prisma.users.findUnique({ where: { id: userId } });
+        const user = await this.adminRepo.banUser(userId, reason);
         if (!user) throw new NotFoundException('User not found');
-        return this.prisma.users.update({
-            where: { id: userId },
-            data: {
-                isBanned: true,
-                bannedAt: new Date(),
-                banReason: reason.trim(),
-                sessionVersion: { increment: 1 },
-            },
-            select: { id: true, username: true, isBanned: true, bannedAt: true, banReason: true },
-        });
+        return user;
     }
 
     async deletePost(postId: string) {
-        return this.prisma.post.delete({ where: { id: postId } });
+        return this.adminRepo.deletePost(postId);
     }
 
     async deleteCourse(courseId: string) {
-        return this.prisma.course.delete({ where: { id: courseId } });
+        return this.adminRepo.deleteCourse(courseId);
     }
 
     async deleteFile(fileId: string) {
-        return this.prisma.file.delete({ where: { id: fileId } });
+        return this.adminRepo.deleteFile(fileId);
     }
 }

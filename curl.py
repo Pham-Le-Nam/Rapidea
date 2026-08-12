@@ -1,66 +1,80 @@
+"""Small command-line client for Rapidea authentication endpoints.
+
+Example:
+    python curl.py register --email you@example.com --first-name Jane --last-name Doe
+"""
+
+import argparse
+import getpass
+import os
+import sys
+
 import requests
-from datetime import datetime
 
-# url = "http://localhost:8000/api/auth/login"
-url = "http://localhost:8000/api/ai/study-space/efe6458f-a208-40b6-af34-40127948fb79/chat"
 
-jwt_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlZWMwZWJkZS05NWI4LTRiMDgtYjdiMi00MjVlMTI3M2YxZjAiLCJlbWFpbCI6ImxlbmFtLnBoYW1Ac3R1ZGVudC51dHMuZWR1LmF1Iiwic2Vzc2lvblZlcnNpb24iOjMsImlhdCI6MTc3NzcwNzIwM30.Y5u5rlqwlmaL5dq1o8xdtoVIGLMDeq6h3Jp-N7yxH04"
-startedAt = datetime(2022,8,28)
-endedAt = datetime(2024,12,28)
+DEFAULT_API_URL = os.getenv("RAPIDEA_API_URL", "http://rapidea-backend.ap-southeast-2.elasticbeanstalk.com")
 
-# Login body
-data = {
-    # "email":"lenam.pham@student.uts.edu.au",
-    # "password":"Password",
-    # "platform": "WEBSITE",
-    # "url": "https://www.facebook.com/pham.lenam.5",
-    # "id": "f8d07690-2392-4155-b89b-28660c4bf6dc",
-    # "name": "Test Photo",
-    # "role": "Software Engineer",
-    # "startedAt": "2022-08-28",
-    # "endedAt": "2024-12-28",
-    # "details": "This is a educational social media website where users could upload lectures about anything and learners come to learn from the lectures.",
-    # "projectId": "9c1b2afa-484d-4d0f-804c-b5992e070836",
-    # "major": "Computer Science",
-    # "degree": "Bachelor",
-    # "location": "268 Lý Thường Kiệt, Diên Hồng District, Ho Chi Minh City, Vietnam",
-    # "achievement": "Top 32 OISP Presentation Contest. Average GPA: 3.6. Implemented shortest-path program in Neo4j.",
-    # "position": "Intern",
-    # "projectId": "9c1b2afa-484d-4d0f-804c-b5992e070836"
-    # "title": "Test Note 123",
-    # "fileId": "18f2e216-0057-47cb-8196-5d3d0c5c799e",
-    # "postId": "430dc6ce-a857-4292-bacc-df3dfc5ca53a", 
-    # "studySpaceId": "efe6458f-a208-40b6-af34-40127948fb79",
-    # "spaceId": "efe6458f-a208-40b6-af34-40127948fb79",
-    # "content": {},
-    # "fullname": "Nam Pham",
-    # "rating": 3.5,
-    # "discussion": {"type": "doc", "content": [{"type": "paragraph", "content": [{"text": "This post have a lot of files. Yes! A lot of files", "type": "text"}]}]},
-    # "repliedId": "a413b2b1-4089-4f61-8294-cb1e288d2571",
-    "prompt": "How should I improve the UI?"
-}
 
-params = {
-    "postId": "430dc6ce-a857-4292-bacc-df3dfc5ca53a",
-    "raterId": "2de26b6e-8ffe-48f6-afbf-337c88bbfe55",
-    "startIndex": 0,
-    "amount": 5,
-}
+def register_account(args: argparse.Namespace) -> int:
+    password = args.password or getpass.getpass("Password: ")
+    confirm_password = args.confirm_password or getpass.getpass("Confirm password: ")
 
-headers = {
-    "Authorization": f"Bearer {jwt_token}",
-}
+    payload = {
+        "email": args.email,
+        "password": password,
+        "confirmPassword": confirm_password,
+        "firstname": args.first_name,
+        "lastname": args.last_name,
+        "middlename": args.middle_name,
+    }
 
-# 1 File upload
-files = {
-    "image": ("post.png", open("post.png", "rb"), "image/png")
-}
-# Multiple files upload
-# files = [
-#     ("images", ("post.png", open("post.png", "rb"), "image/png")),
-#     ("images", ("Profile Page.png", open("Profile Page.png", "rb"), "image/png")),
-# ]
+    try:
+        response = requests.post(
+            f"{args.api_url.rstrip('/')}/api/auth/register",
+            json=payload,
+            timeout=30,
+        )
+    except requests.RequestException as error:
+        print(f"Registration request failed: {error}", file=sys.stderr)
+        return 1
 
-response = requests.post(url, json=data, headers=headers, params=params)
-# response = requests.post(url, json=data, headers=headers, files=files)
-print(response.json())
+    try:
+        body = response.json()
+    except ValueError:
+        body = {"message": response.text or "The server returned no JSON response."}
+
+    if not response.ok:
+        message = body.get("message", body) if isinstance(body, dict) else body
+        print(f"Registration failed ({response.status_code}): {message}", file=sys.stderr)
+        return 1
+
+    message = body.get("success_message", "Registration request accepted.")
+    print(message)
+    print("Open the verification email to verify ownership and create the account.")
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Call Rapidea backend endpoints.")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    register = subparsers.add_parser("register", help="Register and send an email-verification link.")
+    register.add_argument("--email", required=True)
+    register.add_argument("--first-name", required=True)
+    register.add_argument("--last-name", required=True)
+    register.add_argument("--middle-name", default="")
+    register.add_argument("--password", help="Avoid this option on shared systems; omit it for a hidden prompt.")
+    register.add_argument("--confirm-password", help="Omit it for a hidden confirmation prompt.")
+    register.add_argument("--api-url", default=DEFAULT_API_URL)
+    register.set_defaults(handler=register_account)
+
+    return parser
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    return args.handler(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

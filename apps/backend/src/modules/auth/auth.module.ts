@@ -8,6 +8,7 @@ import { UsersModule } from '../users/users.module';
 import { PasswordResetTokenModule } from '../password-reset-token/password-reset-token.module';
 import { ConfigService } from '@nestjs/config';
 import { MailService } from '../mail/mail.service';
+import { PrismaAuthRepository } from '../../database/prisma/prisma-auth.repository';
 
 @Module({
     imports: [
@@ -36,6 +37,7 @@ import { MailService } from '../mail/mail.service';
         AuthService, 
         JwtStrategy, 
         MailService,
+        { provide: 'AUTH_REPOSITORY', useClass: PrismaAuthRepository },
     ],
     controllers: [
         AuthController,

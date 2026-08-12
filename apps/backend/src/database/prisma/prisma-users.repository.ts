@@ -76,6 +76,15 @@ export class PrismaUsersRepository implements UsersRepository {
         return this.serializeUser(user);
     }
 
+    async updateCreatorPrompt(userId: string, creatorPrompt: string) {
+        const user = await this.prisma.users.update({
+            where: { id: userId },
+            data: { creatorPrompt: creatorPrompt.trim() || null },
+            select: { creatorPrompt: true },
+        });
+        return user.creatorPrompt;
+    }
+
     async updateById(id: string, firstname?: string, lastname?: string, middlename?: string, avatarId?: number, backgroundId?: number, headline?: string, bio?: string): Promise<any | null> {
         const currentUser = await this.prisma.users.findUnique({
             where: { id },

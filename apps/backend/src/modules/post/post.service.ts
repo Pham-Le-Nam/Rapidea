@@ -2,7 +2,6 @@ import { Injectable, Inject, InternalServerErrorException } from "@nestjs/common
 import { PostRepository } from "./post.repository";
 import { TagsService } from "../tags/tags.service";
 import { NotificationService } from "../notification/notification.service";
-import { PrismaService } from "../../prisma/prisma.service";
 import { buildPostGenerationPrompt } from "./post-generation.prompt";
 
 @Injectable()
@@ -12,7 +11,6 @@ export class PostService {
         private readonly postRepo: PostRepository,
         private readonly tagsService: TagsService,
         private readonly notificationService: NotificationService,
-        private readonly prisma: PrismaService,
     ) {}
 
     async generatePostField(
@@ -23,16 +21,7 @@ export class PostService {
         const apiKey = process.env.OPENAI_API_KEY;
         if (!apiKey) throw new InternalServerErrorException('OPENAI_API_KEY is not configured');
 
-        const [user, files] = await Promise.all([
-            this.prisma.users.findUnique({
-                where: { id: userId },
-                select: { creatorPrompt: true },
-            }),
-            this.prisma.file.findMany({
-                where: { id: { in: input.fileIds ?? [] }, userId },
-                include: { transcript: true, tags: { include: { tag: true } } },
-            }),
-        ]);
+        const { user, files } = await this.postRepo.findGenerationContext(userId, input.fileIds ?? []);
         const materials = files.map((file) => ({
             name: file.name,
             mimeType: file.mimeType,

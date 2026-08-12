@@ -1,0 +1,1 @@
+//# sourceMappingURL=prisma-folder-in-course.repository.js.map

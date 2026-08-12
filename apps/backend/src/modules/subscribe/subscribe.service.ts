@@ -4,7 +4,6 @@ import Stripe from 'stripe';
 import { SubscribeRepository } from './subscribe.repository';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../../../generated/prisma/enums';
-import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class SubscribeService {
@@ -12,7 +11,6 @@ export class SubscribeService {
         @Inject('SUBSCRIBE_REPOSITORY')
         private readonly subscribeRepo: SubscribeRepository,
         private readonly notificationService: NotificationService,
-        private readonly prisma: PrismaService,
         private readonly config: ConfigService,
     ) {}
 
@@ -21,10 +19,7 @@ export class SubscribeService {
             throw new BadRequestException("Course id is required");
         }
 
-        const coursePrice = await this.prisma.course.findUnique({
-            where: { id: courseId },
-            select: { price: true },
-        });
+        const coursePrice = await this.subscribeRepo.getCoursePrice(courseId);
         if (!coursePrice) throw new BadRequestException('Course not found');
         if (coursePrice.price > 0) {
             throw new BadRequestException({
@@ -37,12 +32,8 @@ export class SubscribeService {
     }
 
     async createCheckoutSession(courseId: string, userId: string) {
-        const [course, user, existing] = await Promise.all([
-            this.prisma.course.findUnique({
-                where: { id: courseId },
-                include: { user: { include: { payoutAccount: true } } },
-            }),
-            this.prisma.users.findUnique({ where: { id: userId } }),
+        const [{ course, user }, existing] = await Promise.all([
+            this.subscribeRepo.getCheckoutContext(courseId, userId),
             this.subscribeRepo.getSubscription(courseId, userId),
         ]);
         if (!course || !user) throw new BadRequestException('Course or user not found');
@@ -78,17 +69,14 @@ export class SubscribeService {
     }
 
     async confirmCheckoutSession(sessionId: string, userId: string) {
-        const existingPayment = await this.prisma.subscribe.findUnique({ where: { paymentSessionId: sessionId } });
+        const existingPayment = await this.subscribeRepo.findByPaymentSession(sessionId);
         if (existingPayment) return existingPayment;
         const session = await this.getStripe().checkout.sessions.retrieve(sessionId);
         if (session.payment_status !== 'paid' || session.metadata?.userId !== userId || !session.metadata?.courseId) {
             throw new UnauthorizedException('This payment cannot be used for this subscription.');
         }
         const subscription = await this.createSubscription(session.metadata.courseId, userId);
-        return this.prisma.subscribe.update({
-            where: { id: subscription.id },
-            data: { paymentSessionId: session.id },
-        });
+        return this.subscribeRepo.attachPaymentSession(subscription.id, session.id);
     }
 
     private async createSubscription(courseId: string, userId: string) {
@@ -104,13 +92,7 @@ export class SubscribeService {
             throw new InternalServerErrorException("Couldn't subscribe to course");
         }
 
-        const course = await this.prisma.course.findUnique({
-            where: { id: courseId },
-            select: {
-                title: true,
-                userId: true,
-            },
-        });
+        const course = await this.subscribeRepo.findCourseSummary(courseId);
 
         if (course) {
             await this.notificationService.createNotification({
@@ -154,13 +136,7 @@ export class SubscribeService {
         }
 
         const subscription = await this.subscribeRepo.reviewByCourseId(courseId, userId, review.trim(), rating);
-        const course = await this.prisma.course.findUnique({
-            where: { id: courseId },
-            select: {
-                title: true,
-                userId: true,
-            },
-        });
+        const course = await this.subscribeRepo.findCourseSummary(courseId);
 
         if (course) {
             await this.notificationService.createNotification({

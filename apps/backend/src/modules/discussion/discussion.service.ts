@@ -7,7 +7,6 @@ import {
 import { DiscussionRepository } from './discussion.repository';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../../../generated/prisma/enums';
-import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class DiscussionService {
@@ -15,7 +14,6 @@ export class DiscussionService {
         @Inject('DISCUSSION_REPOSITORY')
         private readonly discussionRepo: DiscussionRepository,
         private readonly notificationService: NotificationService,
-        private readonly prisma: PrismaService,
     ) {}
 
     async createDiscussion (discussion: any, postId: string, userId: string, repliedId?: string) {
@@ -39,13 +37,7 @@ export class DiscussionService {
             throw new InternalServerErrorException("Couldn't create discussion", "Couldn't create discussion");
         }
 
-        const post = await this.prisma.post.findUnique({
-            where: { id: postId },
-            select: {
-                userId: true,
-                title: true,
-            },
-        });
+        const post = await this.discussionRepo.findPostSummary(postId);
 
         if (post) {
             await this.notificationService.createNotification({

@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Inject, Injectable } from '@nestjs/common';
+import { TagsRepository } from './tags.repository';
 import { EDUCATION_TAGS } from './education-tags';
 
 type SuggestedTag = {
@@ -13,28 +13,16 @@ export class TagsService {
     private readonly embeddingModel = process.env.TEXT_EMBEDDING_MODEL || 'text-embedding-3-small';
     private readonly openAiApiKey = process.env.OPENAI_API_KEY;
 
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(@Inject('TAGS_REPOSITORY') private readonly tagsRepo: TagsRepository) {}
 
     async ensureDefaultTags() {
-        await this.prisma.$transaction(
-            EDUCATION_TAGS.map((name) => this.prisma.tag.upsert({
-                where: { name },
-                update: {},
-                create: { name },
-            })),
-        );
+        await this.tagsRepo.ensure(EDUCATION_TAGS);
     }
 
     async listTags() {
         await this.ensureDefaultTags();
 
-        return this.prisma.tag.findMany({
-            orderBy: { name: 'asc' },
-            select: {
-                id: true,
-                name: true,
-            },
-        });
+        return this.tagsRepo.list();
     }
 
     async suggestTags(text: string, limit = 5): Promise<SuggestedTag[]> {
@@ -45,13 +33,7 @@ export class TagsService {
             return [];
         }
 
-        const tags = await this.prisma.tag.findMany({
-            select: {
-                id: true,
-                name: true,
-                embedding: true,
-            },
-        });
+        const tags = await this.tagsRepo.listWithEmbeddings();
 
         const textEmbedding = await this.createEmbedding(normalizedText);
         if (!textEmbedding) {
@@ -64,13 +46,7 @@ export class TagsService {
         }
 
         const refreshedTags = missingEmbeddingTags.length > 0
-            ? await this.prisma.tag.findMany({
-                select: {
-                    id: true,
-                    name: true,
-                    embedding: true,
-                },
-            })
+            ? await this.tagsRepo.listWithEmbeddings()
             : tags;
 
         const scoredTags = refreshedTags
@@ -90,22 +66,7 @@ export class TagsService {
     async setCourseTags(courseId: string, tagNames: string[], isSuggested = false) {
         const tags = await this.upsertTagsByName(tagNames);
 
-        await this.prisma.courseTag.deleteMany({
-            where: { courseId },
-        });
-
-        if (tags.length === 0) {
-            return [];
-        }
-
-        await this.prisma.courseTag.createMany({
-            data: tags.map((tag) => ({
-                courseId,
-                tagId: tag.id,
-                isSuggested,
-            })),
-            skipDuplicates: true,
-        });
+        await this.tagsRepo.replaceCourseTags(courseId, tags, isSuggested);
 
         return tags;
     }
@@ -113,22 +74,7 @@ export class TagsService {
     async setPostTags(postId: string, tagNames: string[], isSuggested = false) {
         const tags = await this.upsertTagsByName(tagNames);
 
-        await this.prisma.postTag.deleteMany({
-            where: { postId },
-        });
-
-        if (tags.length === 0) {
-            return [];
-        }
-
-        await this.prisma.postTag.createMany({
-            data: tags.map((tag) => ({
-                postId,
-                tagId: tag.id,
-                isSuggested,
-            })),
-            skipDuplicates: true,
-        });
+        await this.tagsRepo.replacePostTags(postId, tags, isSuggested);
 
         return tags;
     }
@@ -138,46 +84,19 @@ export class TagsService {
         const tags = await this.upsertTagsByName(tagNames);
         const scoreByName = new Map(suggestions.map((tag) => [tag.name, tag.score]));
 
-        await this.prisma.fileTag.deleteMany({
-            where: { fileId },
-        });
-
-        if (tags.length === 0) {
-            return [];
-        }
-
-        await this.prisma.fileTag.createMany({
-            data: tags.map((tag) => ({
-                fileId,
-                tagId: tag.id,
-                isSuggested: true,
-                score: scoreByName.get(tag.name),
-            })),
-            skipDuplicates: true,
-        });
+        await this.tagsRepo.replaceFileTags(fileId, tags, scoreByName);
 
         return tags;
     }
 
     async addFileTagsToPost(postId: string, fileId: string) {
-        const fileTags = await this.prisma.fileTag.findMany({
-            where: { fileId },
-            include: { tag: true },
-        });
+        const fileTags = await this.tagsRepo.findFileTags([fileId]);
 
         if (fileTags.length === 0) {
             return [];
         }
 
-        await this.prisma.postTag.createMany({
-            data: fileTags.map((fileTag) => ({
-                postId,
-                tagId: fileTag.tagId,
-                isSuggested: true,
-                score: fileTag.score,
-            })),
-            skipDuplicates: true,
-        });
+        await this.tagsRepo.addFileTagsToPost(postId, fileTags);
 
         return fileTags.map((fileTag) => fileTag.tag);
     }
@@ -187,55 +106,21 @@ export class TagsService {
             return [];
         }
 
-        const fileTags = await this.prisma.fileTag.findMany({
-            where: {
-                fileId: { in: fileIds },
-            },
-            include: { tag: true },
-        });
+        const fileTags = await this.tagsRepo.findFileTags(fileIds);
 
         return Array.from(new Set(fileTags.map((fileTag) => fileTag.tag.name)));
     }
 
     async createTranscript(fileId: string) {
-        return this.prisma.fileTranscript.upsert({
-            where: { fileId },
-            update: {
-                status: 'PROCESSING',
-                errorMessage: null,
-                provider: 'openai',
-                model: process.env.VIDEO_TRANSCRIPTION_MODEL || 'gpt-4o-mini-transcribe',
-            },
-            create: {
-                fileId,
-                status: 'PROCESSING',
-                provider: 'openai',
-                model: process.env.VIDEO_TRANSCRIPTION_MODEL || 'gpt-4o-mini-transcribe',
-            },
-        });
+        return this.tagsRepo.createTranscript(fileId);
     }
 
     async completeTranscript(fileId: string, text: string, language?: string, durationSec?: number) {
-        return this.prisma.fileTranscript.update({
-            where: { fileId },
-            data: {
-                status: 'COMPLETED',
-                text,
-                language,
-                durationSec,
-                errorMessage: null,
-            },
-        });
+        return this.tagsRepo.completeTranscript(fileId, text, language, durationSec);
     }
 
     async failTranscript(fileId: string, errorMessage: string) {
-        return this.prisma.fileTranscript.update({
-            where: { fileId },
-            data: {
-                status: 'FAILED',
-                errorMessage,
-            },
-        });
+        return this.tagsRepo.failTranscript(fileId, errorMessage);
     }
 
     async transcribeMedia(uploadedFile: Express.Multer.File) {
@@ -281,23 +166,8 @@ export class TagsService {
             return [];
         }
 
-        await this.prisma.$transaction(
-            cleanTagNames.map((name) => this.prisma.tag.upsert({
-                where: { name },
-                update: {},
-                create: { name },
-            })),
-        );
-
-        return this.prisma.tag.findMany({
-            where: {
-                name: { in: cleanTagNames },
-            },
-            select: {
-                id: true,
-                name: true,
-            },
-        });
+        await this.tagsRepo.ensure(cleanTagNames);
+        return this.tagsRepo.findByNames(cleanTagNames);
     }
 
     private async backfillTagEmbeddings(tags: { id: string; name: string }[]) {
@@ -306,14 +176,7 @@ export class TagsService {
             return;
         }
 
-        await this.prisma.$transaction(
-            tags.map((tag, index) => this.prisma.tag.update({
-                where: { id: tag.id },
-                data: {
-                    embedding: embeddings[index] ?? undefined,
-                },
-            })),
-        );
+        await this.tagsRepo.updateEmbeddings(tags, embeddings);
     }
 
     private async createEmbedding(text: string) {

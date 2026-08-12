@@ -1,13 +1,13 @@
 import {
     BadRequestException,
-    Injectable,
+    Inject, Injectable,
     InternalServerErrorException,
     RequestTimeoutException,
     UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../../prisma/prisma.service';
+import { AuthRepository } from './auth.repository';
 import { UsersService } from '../users/users.service';
 import { MailService } from '../mail/mail.service';
 import { PasswordResetTokenService } from '../password-reset-token/password-reset-token.service';
@@ -28,7 +28,7 @@ export class AuthService {
         private jwtService: JwtService,
         private mailService: MailService,
         private passwordResetTokenService: PasswordResetTokenService,
-        private prisma: PrismaService,
+        @Inject('AUTH_REPOSITORY') private authRepo: AuthRepository,
         private config: ConfigService,
     ) {}
 
@@ -56,7 +56,7 @@ export class AuthService {
 
     async verifyEmailToken(rawToken: string) {
         const tokenHash = this.hashToken(rawToken);
-        const record = await this.prisma.emailAuthToken.findUnique({ where: { tokenHash } });
+        const record = await this.authRepo.findEmailToken(tokenHash);
         if (!record || record.purpose !== 'REGISTER' || record.usedAt || record.expiresAt <= new Date()) {
             throw new RequestTimeoutException('This verification link is invalid, expired, or has already been used.');
         }
@@ -76,11 +76,8 @@ export class AuthService {
             );
         }
 
-        const consumed = await this.prisma.emailAuthToken.updateMany({
-            where: { id: record.id, usedAt: null, expiresAt: { gt: new Date() } },
-            data: { usedAt: new Date() },
-        });
-        if (consumed.count !== 1) throw new UnauthorizedException('This email link has already been used.');
+        const consumed = await this.authRepo.consumeEmailToken(record.id);
+        if (!consumed) throw new UnauthorizedException('This email link has already been used.');
         return this.createSession(user.id);
     }
 
@@ -154,38 +151,18 @@ export class AuthService {
 
     private async finishOAuth(provider: string, providerUserId: string, email: string, firstname?: string, lastname?: string) {
         email = this.normalizeEmail(email);
-        let account = await this.prisma.oAuthAccount.findUnique({
-            where: { provider_providerUserId: { provider, providerUserId } },
-            include: { user: true },
-        });
+        let account = await this.authRepo.findOAuthAccount(provider, providerUserId);
         let user = account?.user ?? await this.usersService.getUserByEmail(email);
         if (!user) user = await this.usersService.createUser(email, null, firstname || 'New', lastname || 'User');
         if (!account) {
-            account = await this.prisma.oAuthAccount.create({
-                data: { provider, providerUserId, userId: user.id },
-                include: { user: true },
-            });
+            account = await this.authRepo.createOAuthAccount(provider, providerUserId, user.id);
         }
         return this.createSession(account.userId);
     }
 
     private async createRegistrationToken(email: string, pendingUser: PendingRegistration) {
         const rawToken = crypto.randomBytes(32).toString('base64url');
-        await this.prisma.$transaction([
-            this.prisma.emailAuthToken.updateMany({
-                where: { email, purpose: 'REGISTER', usedAt: null },
-                data: { usedAt: new Date() },
-            }),
-            this.prisma.emailAuthToken.create({
-                data: {
-                    tokenHash: this.hashToken(rawToken),
-                    email,
-                    purpose: 'REGISTER',
-                    pendingUser: pendingUser as any,
-                    expiresAt: new Date(Date.now() + 15 * 60 * 1000),
-                },
-            }),
-        ]);
+        await this.authRepo.replaceRegistrationToken(email, this.hashToken(rawToken), pendingUser, new Date(Date.now() + 15 * 60 * 1000));
         return rawToken;
     }
 
@@ -202,21 +179,33 @@ export class AuthService {
         return user;
     }
 
-    private normalizeEmail(email: string) { return email.trim().toLowerCase(); }
-    private hashToken(token: string) { return crypto.createHash('sha256').update(token).digest('hex'); }
+    private normalizeEmail(email: string) { 
+        return email.trim().toLowerCase(); 
+    }
+
+    private hashToken(token: string) { 
+        return crypto.createHash('sha256').update(token).digest('hex'); 
+    }
+
     private required(name: string) {
         const value = this.config.get<string>(name);
-        if (!value) throw new InternalServerErrorException(`${name} is not configured`);
+        if (!value) {
+            throw new InternalServerErrorException(`${name} is not configured`);
+        }
         return value;
     }
+
     private oauthCallback(provider: string) {
         const backend = this.config.get<string>('BACKEND_URL') ?? `http://localhost:${this.config.get('API_PORT') ?? 1234}`;
         return `${backend}/api/auth/oauth/${provider}/callback`;
     }
+
     private verifyOAuthState(state: string, provider: string) {
         try {
             const payload = this.jwtService.verify(state) as { provider: string };
-            if (payload.provider !== provider) throw new Error();
+            if (payload.provider !== provider) {
+                throw new Error();
+            }
         } catch {
             throw new UnauthorizedException('OAuth state is invalid or expired.');
         }

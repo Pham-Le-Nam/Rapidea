@@ -6,6 +6,24 @@ import { RatePostRepository } from '../../modules/rate-post/rate-post.repository
 export class PrismaRatePostRepository implements RatePostRepository {
     constructor(private prisma: PrismaService) {}
 
+    findPostSummary(postId: string) {
+        return this.prisma.post.findUnique({ where: { id: postId }, select: { userId: true, title: true } });
+    }
+
+    findOwnedRating(id: string, userId: string) {
+        return this.prisma.ratePost.findFirst({ where: { id, userId }, select: { postId: true } });
+    }
+
+    findPostAccess(postId: string, userId: string) {
+        return this.prisma.post.findUnique({
+            where: { id: postId },
+            select: {
+                userId: true, courseId: true, isPreview: true,
+                course: { select: { userId: true, subscribers: { where: { userId }, select: { userId: true }, take: 1 } } },
+            },
+        });
+    }
+
     async create(postId: string, userId: string, rating: number): Promise<any> {
         const post = await this.prisma.post.findUnique({
             where: {

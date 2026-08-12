@@ -13,6 +13,18 @@ import { SubscribeRepository } from '../../modules/subscribe/subscribe.repositor
 export class PrismaSubscribeRepository implements SubscribeRepository {
     constructor(private prisma: PrismaService) {}
 
+    getCoursePrice(courseId: string) { return this.prisma.course.findUnique({ where: { id: courseId }, select: { price: true } }); }
+    async getCheckoutContext(courseId: string, userId: string) {
+        const [course, user] = await Promise.all([
+            this.prisma.course.findUnique({ where: { id: courseId }, include: { user: { include: { payoutAccount: true } } } }),
+            this.prisma.users.findUnique({ where: { id: userId } }),
+        ]);
+        return { course, user };
+    }
+    findByPaymentSession(sessionId: string) { return this.prisma.subscribe.findUnique({ where: { paymentSessionId: sessionId } }); }
+    attachPaymentSession(subscriptionId: string, sessionId: string) { return this.prisma.subscribe.update({ where: { id: subscriptionId }, data: { paymentSessionId: sessionId } }); }
+    findCourseSummary(courseId: string) { return this.prisma.course.findUnique({ where: { id: courseId }, select: { title: true, userId: true } }); }
+
     async create(courseId: string, userId: string): Promise<any> {
         const course = await this.prisma.course.findUnique({
             where: { id: courseId },

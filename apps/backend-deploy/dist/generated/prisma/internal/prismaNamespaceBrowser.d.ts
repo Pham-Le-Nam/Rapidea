@@ -1,0 +1,438 @@
+import * as runtime from "@prisma/client/runtime/index-browser";
+export type * from '../models';
+export type * from './prismaNamespace';
+export declare const Decimal: typeof runtime.Decimal;
+export declare const NullTypes: {
+    DbNull: (new (secret: never) => typeof runtime.DbNull);
+    JsonNull: (new (secret: never) => typeof runtime.JsonNull);
+    AnyNull: (new (secret: never) => typeof runtime.AnyNull);
+};
+export declare const DbNull: import("@prisma/client-runtime-utils").DbNullClass;
+export declare const JsonNull: import("@prisma/client-runtime-utils").JsonNullClass;
+export declare const AnyNull: import("@prisma/client-runtime-utils").AnyNullClass;
+export declare const ModelName: {
+    readonly Users: "Users";
+    readonly SocialLink: "SocialLink";
+    readonly OAuthAccount: "OAuthAccount";
+    readonly EmailAuthToken: "EmailAuthToken";
+    readonly PayoutAccount: "PayoutAccount";
+    readonly Notification: "Notification";
+    readonly PasswordResetToken: "PasswordResetToken";
+    readonly Follow: "Follow";
+    readonly ChatConversation: "ChatConversation";
+    readonly ChatMessage: "ChatMessage";
+    readonly Course: "Course";
+    readonly Subscribe: "Subscribe";
+    readonly Post: "Post";
+    readonly RecentCourseView: "RecentCourseView";
+    readonly RecentPostView: "RecentPostView";
+    readonly RatePost: "RatePost";
+    readonly Discussion: "Discussion";
+    readonly RateDiscussion: "RateDiscussion";
+    readonly Experience: "Experience";
+    readonly Education: "Education";
+    readonly Project: "Project";
+    readonly ProjectContributor: "ProjectContributor";
+    readonly ProjectLink: "ProjectLink";
+    readonly Folder: "Folder";
+    readonly File: "File";
+    readonly FileTranscript: "FileTranscript";
+    readonly Tag: "Tag";
+    readonly CourseTag: "CourseTag";
+    readonly PostTag: "PostTag";
+    readonly FileTag: "FileTag";
+    readonly FileInCourse: "FileInCourse";
+    readonly FileInPost: "FileInPost";
+    readonly Photo: "Photo";
+};
+export type ModelName = (typeof ModelName)[keyof typeof ModelName];
+export declare const TransactionIsolationLevel: {
+    readonly ReadUncommitted: "ReadUncommitted";
+    readonly ReadCommitted: "ReadCommitted";
+    readonly RepeatableRead: "RepeatableRead";
+    readonly Serializable: "Serializable";
+};
+export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel];
+export declare const UsersScalarFieldEnum: {
+    readonly id: "id";
+    readonly email: "email";
+    readonly password: "password";
+    readonly firstname: "firstname";
+    readonly lastname: "lastname";
+    readonly middlename: "middlename";
+    readonly username: "username";
+    readonly avatarId: "avatarId";
+    readonly backgroundId: "backgroundId";
+    readonly headline: "headline";
+    readonly bio: "bio";
+    readonly postsCount: "postsCount";
+    readonly coursesCount: "coursesCount";
+    readonly followersCount: "followersCount";
+    readonly followingCount: "followingCount";
+    readonly subscribersCount: "subscribersCount";
+    readonly ratingCount: "ratingCount";
+    readonly ratingTotal: "ratingTotal";
+    readonly rating: "rating";
+    readonly sessionVersion: "sessionVersion";
+    readonly role: "role";
+    readonly isBanned: "isBanned";
+    readonly bannedAt: "bannedAt";
+    readonly banReason: "banReason";
+    readonly creatorPrompt: "creatorPrompt";
+    readonly createdAt: "createdAt";
+};
+export type UsersScalarFieldEnum = (typeof UsersScalarFieldEnum)[keyof typeof UsersScalarFieldEnum];
+export declare const SocialLinkScalarFieldEnum: {
+    readonly id: "id";
+    readonly platform: "platform";
+    readonly url: "url";
+    readonly userId: "userId";
+    readonly createdAt: "createdAt";
+};
+export type SocialLinkScalarFieldEnum = (typeof SocialLinkScalarFieldEnum)[keyof typeof SocialLinkScalarFieldEnum];
+export declare const OAuthAccountScalarFieldEnum: {
+    readonly id: "id";
+    readonly provider: "provider";
+    readonly providerUserId: "providerUserId";
+    readonly userId: "userId";
+    readonly createdAt: "createdAt";
+};
+export type OAuthAccountScalarFieldEnum = (typeof OAuthAccountScalarFieldEnum)[keyof typeof OAuthAccountScalarFieldEnum];
+export declare const EmailAuthTokenScalarFieldEnum: {
+    readonly id: "id";
+    readonly tokenHash: "tokenHash";
+    readonly email: "email";
+    readonly purpose: "purpose";
+    readonly pendingUser: "pendingUser";
+    readonly expiresAt: "expiresAt";
+    readonly usedAt: "usedAt";
+    readonly createdAt: "createdAt";
+};
+export type EmailAuthTokenScalarFieldEnum = (typeof EmailAuthTokenScalarFieldEnum)[keyof typeof EmailAuthTokenScalarFieldEnum];
+export declare const PayoutAccountScalarFieldEnum: {
+    readonly id: "id";
+    readonly userId: "userId";
+    readonly accountHolderName: "accountHolderName";
+    readonly country: "country";
+    readonly currency: "currency";
+    readonly payoutMethod: "payoutMethod";
+    readonly bankName: "bankName";
+    readonly routingNumber: "routingNumber";
+    readonly accountNumber: "accountNumber";
+    readonly paypalEmail: "paypalEmail";
+    readonly taxResidency: "taxResidency";
+    readonly businessType: "businessType";
+    readonly status: "status";
+    readonly createdAt: "createdAt";
+    readonly updatedAt: "updatedAt";
+};
+export type PayoutAccountScalarFieldEnum = (typeof PayoutAccountScalarFieldEnum)[keyof typeof PayoutAccountScalarFieldEnum];
+export declare const NotificationScalarFieldEnum: {
+    readonly id: "id";
+    readonly userId: "userId";
+    readonly actorId: "actorId";
+    readonly type: "type";
+    readonly title: "title";
+    readonly message: "message";
+    readonly link: "link";
+    readonly readAt: "readAt";
+    readonly createdAt: "createdAt";
+};
+export type NotificationScalarFieldEnum = (typeof NotificationScalarFieldEnum)[keyof typeof NotificationScalarFieldEnum];
+export declare const PasswordResetTokenScalarFieldEnum: {
+    readonly id: "id";
+    readonly userId: "userId";
+    readonly token: "token";
+    readonly expiresAt: "expiresAt";
+    readonly used: "used";
+    readonly createdAt: "createdAt";
+};
+export type PasswordResetTokenScalarFieldEnum = (typeof PasswordResetTokenScalarFieldEnum)[keyof typeof PasswordResetTokenScalarFieldEnum];
+export declare const FollowScalarFieldEnum: {
+    readonly followerId: "followerId";
+    readonly followingId: "followingId";
+    readonly createdAt: "createdAt";
+};
+export type FollowScalarFieldEnum = (typeof FollowScalarFieldEnum)[keyof typeof FollowScalarFieldEnum];
+export declare const ChatConversationScalarFieldEnum: {
+    readonly id: "id";
+    readonly userAId: "userAId";
+    readonly userBId: "userBId";
+    readonly lastMessageAt: "lastMessageAt";
+    readonly createdAt: "createdAt";
+    readonly updatedAt: "updatedAt";
+};
+export type ChatConversationScalarFieldEnum = (typeof ChatConversationScalarFieldEnum)[keyof typeof ChatConversationScalarFieldEnum];
+export declare const ChatMessageScalarFieldEnum: {
+    readonly id: "id";
+    readonly conversationId: "conversationId";
+    readonly senderId: "senderId";
+    readonly text: "text";
+    readonly readAt: "readAt";
+    readonly createdAt: "createdAt";
+};
+export type ChatMessageScalarFieldEnum = (typeof ChatMessageScalarFieldEnum)[keyof typeof ChatMessageScalarFieldEnum];
+export declare const CourseScalarFieldEnum: {
+    readonly id: "id";
+    readonly title: "title";
+    readonly description: "description";
+    readonly userId: "userId";
+    readonly price: "price";
+    readonly currency: "currency";
+    readonly thumbnailId: "thumbnailId";
+    readonly folderId: "folderId";
+    readonly subscribersCount: "subscribersCount";
+    readonly postsCount: "postsCount";
+    readonly ratingCount: "ratingCount";
+    readonly ratingTotal: "ratingTotal";
+    readonly rating: "rating";
+    readonly createdAt: "createdAt";
+    readonly lastUpdated: "lastUpdated";
+};
+export type CourseScalarFieldEnum = (typeof CourseScalarFieldEnum)[keyof typeof CourseScalarFieldEnum];
+export declare const SubscribeScalarFieldEnum: {
+    readonly id: "id";
+    readonly courseId: "courseId";
+    readonly userId: "userId";
+    readonly review: "review";
+    readonly rating: "rating";
+    readonly price: "price";
+    readonly currency: "currency";
+    readonly paymentSessionId: "paymentSessionId";
+    readonly createdAt: "createdAt";
+};
+export type SubscribeScalarFieldEnum = (typeof SubscribeScalarFieldEnum)[keyof typeof SubscribeScalarFieldEnum];
+export declare const PostScalarFieldEnum: {
+    readonly id: "id";
+    readonly title: "title";
+    readonly content: "content";
+    readonly userId: "userId";
+    readonly courseId: "courseId";
+    readonly isPreview: "isPreview";
+    readonly ratingCount: "ratingCount";
+    readonly ratingTotal: "ratingTotal";
+    readonly rating: "rating";
+    readonly createdAt: "createdAt";
+    readonly lastUpdated: "lastUpdated";
+};
+export type PostScalarFieldEnum = (typeof PostScalarFieldEnum)[keyof typeof PostScalarFieldEnum];
+export declare const RecentCourseViewScalarFieldEnum: {
+    readonly id: "id";
+    readonly courseId: "courseId";
+    readonly userId: "userId";
+    readonly viewedAt: "viewedAt";
+};
+export type RecentCourseViewScalarFieldEnum = (typeof RecentCourseViewScalarFieldEnum)[keyof typeof RecentCourseViewScalarFieldEnum];
+export declare const RecentPostViewScalarFieldEnum: {
+    readonly id: "id";
+    readonly postId: "postId";
+    readonly userId: "userId";
+    readonly viewedAt: "viewedAt";
+};
+export type RecentPostViewScalarFieldEnum = (typeof RecentPostViewScalarFieldEnum)[keyof typeof RecentPostViewScalarFieldEnum];
+export declare const RatePostScalarFieldEnum: {
+    readonly id: "id";
+    readonly postId: "postId";
+    readonly userId: "userId";
+    readonly rating: "rating";
+    readonly createdAt: "createdAt";
+};
+export type RatePostScalarFieldEnum = (typeof RatePostScalarFieldEnum)[keyof typeof RatePostScalarFieldEnum];
+export declare const DiscussionScalarFieldEnum: {
+    readonly id: "id";
+    readonly discussion: "discussion";
+    readonly ratingCount: "ratingCount";
+    readonly ratingTotal: "ratingTotal";
+    readonly rating: "rating";
+    readonly postId: "postId";
+    readonly userId: "userId";
+    readonly parentId: "parentId";
+    readonly repliedId: "repliedId";
+    readonly createdAt: "createdAt";
+};
+export type DiscussionScalarFieldEnum = (typeof DiscussionScalarFieldEnum)[keyof typeof DiscussionScalarFieldEnum];
+export declare const RateDiscussionScalarFieldEnum: {
+    readonly id: "id";
+    readonly discussionId: "discussionId";
+    readonly userId: "userId";
+    readonly rating: "rating";
+    readonly createdAt: "createdAt";
+};
+export type RateDiscussionScalarFieldEnum = (typeof RateDiscussionScalarFieldEnum)[keyof typeof RateDiscussionScalarFieldEnum];
+export declare const ExperienceScalarFieldEnum: {
+    readonly id: "id";
+    readonly name: "name";
+    readonly position: "position";
+    readonly role: "role";
+    readonly startedAt: "startedAt";
+    readonly endedAt: "endedAt";
+    readonly location: "location";
+    readonly achievement: "achievement";
+    readonly order: "order";
+    readonly userId: "userId";
+    readonly logoId: "logoId";
+    readonly createdAt: "createdAt";
+};
+export type ExperienceScalarFieldEnum = (typeof ExperienceScalarFieldEnum)[keyof typeof ExperienceScalarFieldEnum];
+export declare const EducationScalarFieldEnum: {
+    readonly id: "id";
+    readonly name: "name";
+    readonly major: "major";
+    readonly degree: "degree";
+    readonly startedAt: "startedAt";
+    readonly endedAt: "endedAt";
+    readonly location: "location";
+    readonly achievement: "achievement";
+    readonly order: "order";
+    readonly userId: "userId";
+    readonly logoId: "logoId";
+    readonly createdAt: "createdAt";
+};
+export type EducationScalarFieldEnum = (typeof EducationScalarFieldEnum)[keyof typeof EducationScalarFieldEnum];
+export declare const ProjectScalarFieldEnum: {
+    readonly id: "id";
+    readonly name: "name";
+    readonly role: "role";
+    readonly startedAt: "startedAt";
+    readonly endedAt: "endedAt";
+    readonly details: "details";
+    readonly order: "order";
+    readonly userId: "userId";
+    readonly logoId: "logoId";
+    readonly createdAt: "createdAt";
+};
+export type ProjectScalarFieldEnum = (typeof ProjectScalarFieldEnum)[keyof typeof ProjectScalarFieldEnum];
+export declare const ProjectContributorScalarFieldEnum: {
+    readonly projectId: "projectId";
+    readonly userId: "userId";
+    readonly role: "role";
+    readonly createdAt: "createdAt";
+};
+export type ProjectContributorScalarFieldEnum = (typeof ProjectContributorScalarFieldEnum)[keyof typeof ProjectContributorScalarFieldEnum];
+export declare const ProjectLinkScalarFieldEnum: {
+    readonly id: "id";
+    readonly projectId: "projectId";
+    readonly name: "name";
+    readonly url: "url";
+    readonly createdAt: "createdAt";
+};
+export type ProjectLinkScalarFieldEnum = (typeof ProjectLinkScalarFieldEnum)[keyof typeof ProjectLinkScalarFieldEnum];
+export declare const FolderScalarFieldEnum: {
+    readonly id: "id";
+    readonly userId: "userId";
+    readonly name: "name";
+    readonly parentId: "parentId";
+    readonly createdAt: "createdAt";
+};
+export type FolderScalarFieldEnum = (typeof FolderScalarFieldEnum)[keyof typeof FolderScalarFieldEnum];
+export declare const FileScalarFieldEnum: {
+    readonly id: "id";
+    readonly name: "name";
+    readonly mimeType: "mimeType";
+    readonly size: "size";
+    readonly userId: "userId";
+    readonly folderId: "folderId";
+    readonly createdAt: "createdAt";
+    readonly moderationStatus: "moderationStatus";
+    readonly moderationScore: "moderationScore";
+    readonly moderationCategories: "moderationCategories";
+    readonly moderationMessage: "moderationMessage";
+};
+export type FileScalarFieldEnum = (typeof FileScalarFieldEnum)[keyof typeof FileScalarFieldEnum];
+export declare const FileTranscriptScalarFieldEnum: {
+    readonly id: "id";
+    readonly fileId: "fileId";
+    readonly status: "status";
+    readonly text: "text";
+    readonly language: "language";
+    readonly durationSec: "durationSec";
+    readonly provider: "provider";
+    readonly model: "model";
+    readonly errorMessage: "errorMessage";
+    readonly createdAt: "createdAt";
+    readonly updatedAt: "updatedAt";
+};
+export type FileTranscriptScalarFieldEnum = (typeof FileTranscriptScalarFieldEnum)[keyof typeof FileTranscriptScalarFieldEnum];
+export declare const TagScalarFieldEnum: {
+    readonly id: "id";
+    readonly name: "name";
+    readonly embedding: "embedding";
+    readonly createdAt: "createdAt";
+};
+export type TagScalarFieldEnum = (typeof TagScalarFieldEnum)[keyof typeof TagScalarFieldEnum];
+export declare const CourseTagScalarFieldEnum: {
+    readonly courseId: "courseId";
+    readonly tagId: "tagId";
+    readonly isSuggested: "isSuggested";
+    readonly score: "score";
+    readonly createdAt: "createdAt";
+};
+export type CourseTagScalarFieldEnum = (typeof CourseTagScalarFieldEnum)[keyof typeof CourseTagScalarFieldEnum];
+export declare const PostTagScalarFieldEnum: {
+    readonly postId: "postId";
+    readonly tagId: "tagId";
+    readonly isSuggested: "isSuggested";
+    readonly score: "score";
+    readonly createdAt: "createdAt";
+};
+export type PostTagScalarFieldEnum = (typeof PostTagScalarFieldEnum)[keyof typeof PostTagScalarFieldEnum];
+export declare const FileTagScalarFieldEnum: {
+    readonly fileId: "fileId";
+    readonly tagId: "tagId";
+    readonly isSuggested: "isSuggested";
+    readonly score: "score";
+    readonly createdAt: "createdAt";
+};
+export type FileTagScalarFieldEnum = (typeof FileTagScalarFieldEnum)[keyof typeof FileTagScalarFieldEnum];
+export declare const FileInCourseScalarFieldEnum: {
+    readonly fileId: "fileId";
+    readonly courseId: "courseId";
+    readonly userId: "userId";
+    readonly createdAt: "createdAt";
+};
+export type FileInCourseScalarFieldEnum = (typeof FileInCourseScalarFieldEnum)[keyof typeof FileInCourseScalarFieldEnum];
+export declare const FileInPostScalarFieldEnum: {
+    readonly fileId: "fileId";
+    readonly postId: "postId";
+    readonly userId: "userId";
+    readonly createdAt: "createdAt";
+};
+export type FileInPostScalarFieldEnum = (typeof FileInPostScalarFieldEnum)[keyof typeof FileInPostScalarFieldEnum];
+export declare const PhotoScalarFieldEnum: {
+    readonly id: "id";
+    readonly userId: "userId";
+    readonly url: "url";
+    readonly name: "name";
+    readonly createdAt: "createdAt";
+};
+export type PhotoScalarFieldEnum = (typeof PhotoScalarFieldEnum)[keyof typeof PhotoScalarFieldEnum];
+export declare const SortOrder: {
+    readonly asc: "asc";
+    readonly desc: "desc";
+};
+export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder];
+export declare const NullableJsonNullValueInput: {
+    readonly DbNull: import("@prisma/client-runtime-utils").DbNullClass;
+    readonly JsonNull: import("@prisma/client-runtime-utils").JsonNullClass;
+};
+export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput];
+export declare const JsonNullValueInput: {
+    readonly JsonNull: import("@prisma/client-runtime-utils").JsonNullClass;
+};
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput];
+export declare const QueryMode: {
+    readonly default: "default";
+    readonly insensitive: "insensitive";
+};
+export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode];
+export declare const NullsOrder: {
+    readonly first: "first";
+    readonly last: "last";
+};
+export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder];
+export declare const JsonNullValueFilter: {
+    readonly DbNull: import("@prisma/client-runtime-utils").DbNullClass;
+    readonly JsonNull: import("@prisma/client-runtime-utils").JsonNullClass;
+    readonly AnyNull: import("@prisma/client-runtime-utils").AnyNullClass;
+};
+export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter];

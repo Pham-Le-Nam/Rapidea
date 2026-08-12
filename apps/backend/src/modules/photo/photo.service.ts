@@ -1,7 +1,8 @@
 import { Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
-import * as fs from 'fs/promises';
 import * as path from 'path';
 import { CourseService } from '../course/course.service';
+import { STORAGE_SERVICE } from '../storage/storage.constants';
+import { StorageService } from '../storage/storage.service';
 import { PhotoRepository } from './photo.repository';
 
 @Injectable()
@@ -10,9 +11,10 @@ export class PhotoService {
         @Inject('PHOTO_REPOSITORY')
         private readonly photoRepo: PhotoRepository,
         private readonly courseService: CourseService,
+        @Inject(STORAGE_SERVICE)
+        private readonly storage: StorageService,
     ) {}
 
-    private rootFolder = process.env.STORAGE_URL || 'storage';
     private mediaFolder = 'media';
 
     async uploadPhoto(file: Express.Multer.File, userId: string) {
@@ -31,13 +33,21 @@ export class PhotoService {
             throw new InternalServerErrorException("Couldn't create photo");
         }
 
-        const mediaPath = path.join(process.cwd(), this.rootFolder, this.mediaFolder);
-        await fs.mkdir(mediaPath, { recursive: true });
-        await fs.writeFile(path.join(mediaPath, photo.name), file.buffer);
+        const storageKey = path.posix.join(this.mediaFolder, photo.name);
+
+        try {
+            await this.storage.writeFile(storageKey, file.buffer, {
+                contentType: file.mimetype,
+                cacheControl: 'public, max-age=31536000, immutable',
+            });
+        } catch (error) {
+            await this.photoRepo.delete(photo.id).catch(() => undefined);
+            throw error;
+        }
 
         return {
             ...photo,
-            photoUrl: photo.name,
+            photoUrl: this.storage.getPublicUrl(storageKey),
         };
     }
 
@@ -50,7 +60,7 @@ export class PhotoService {
 
         return {
             ...photo,
-            photoUrl: photo.name,
+            photoUrl: this.storage.getPublicUrl(photo.url || path.posix.join(this.mediaFolder, photo.name)),
         };
     }
 

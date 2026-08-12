@@ -1,40 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { NotificationType } from '../../../generated/prisma/enums';
-import { PrismaService } from '../../prisma/prisma.service';
-
-type CreateNotificationInput = {
-    userId: string;
-    actorId?: string;
-    type: NotificationType;
-    title: string;
-    message: string;
-    link?: string;
-};
+import { CreateNotificationInput, NotificationRepository } from './notification.repository';
 
 @Injectable()
 export class NotificationService {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(@Inject('NOTIFICATION_REPOSITORY') private readonly notificationRepo: NotificationRepository) {}
 
     async createNotification(input: CreateNotificationInput) {
         if (!input.userId || input.userId === input.actorId) {
             return null;
         }
 
-        return this.prisma.notification.create({
-            data: input,
-        });
+        return this.notificationRepo.create(input);
     }
 
     async notifyFollow(followerId: string, followingId: string) {
-        const follower = await this.prisma.users.findUnique({
-            where: { id: followerId },
-            select: {
-                firstname: true,
-                middlename: true,
-                lastname: true,
-                username: true,
-            },
-        });
+        const follower = await this.notificationRepo.findUserName(followerId);
         const followerName = [follower?.firstname, follower?.middlename, follower?.lastname].filter(Boolean).join(' ') || follower?.username || 'Someone';
 
         return this.createNotification({
@@ -62,7 +43,7 @@ export class NotificationService {
             return { count: 0 };
         }
 
-        return this.prisma.notification.createMany({ data });
+        return this.notificationRepo.createMany(data);
     }
 
     async notifyFollowersAndSubscribersOfNewCourse(actorId: string, courseId: string, courseTitle: string) {
@@ -98,10 +79,7 @@ export class NotificationService {
     }
 
     async notifyAdminsOfModerationAlert(actorId: string, fileId: string, fileName: string, message: string) {
-        const admins = await this.prisma.users.findMany({
-            where: { role: 'ADMIN', isBanned: false },
-            select: { id: true },
-        });
+        const admins = await this.notificationRepo.findAdminIds();
         return this.createManyNotifications(admins.map((admin) => ({
             userId: admin.id,
             actorId,
@@ -113,79 +91,19 @@ export class NotificationService {
     }
 
     async getNotifications(userId: string, limit = 20, offset = 0) {
-        const [notifications, unreadCount] = await Promise.all([
-            this.prisma.notification.findMany({
-                where: { userId },
-                include: {
-                    actor: {
-                        select: {
-                            id: true,
-                            firstname: true,
-                            middlename: true,
-                            lastname: true,
-                            username: true,
-                            avatar: true,
-                        },
-                    },
-                },
-                orderBy: [
-                    { createdAt: 'desc' },
-                    { id: 'asc' },
-                ],
-                take: Math.min(Math.max(limit, 1), 50),
-                skip: Math.max(offset, 0),
-            }),
-            this.prisma.notification.count({
-                where: {
-                    userId,
-                    readAt: null,
-                },
-            }),
-        ]);
-
-        return { notifications, unreadCount };
+        return this.notificationRepo.findFeed(userId, limit, offset);
     }
 
     async markAsRead(userId: string, notificationId: string) {
-        return this.prisma.notification.update({
-            where: {
-                id: notificationId,
-                userId,
-            },
-            data: {
-                readAt: new Date(),
-            },
-        });
+        return this.notificationRepo.markAsRead(userId, notificationId);
     }
 
     async markAllAsRead(userId: string) {
-        return this.prisma.notification.updateMany({
-            where: {
-                userId,
-                readAt: null,
-            },
-            data: {
-                readAt: new Date(),
-            },
-        });
+        return this.notificationRepo.markAllAsRead(userId);
     }
 
     private async getFollowersAndSubscribers(userId: string) {
-        const [followers, subscribers] = await Promise.all([
-            this.prisma.follow.findMany({
-                where: { followingId: userId },
-                select: { followerId: true },
-            }),
-            this.prisma.subscribe.findMany({
-                where: {
-                    course: {
-                        userId,
-                    },
-                },
-                distinct: ['userId'],
-                select: { userId: true },
-            }),
-        ]);
+        const { followers, subscribers } = await this.notificationRepo.findFollowersAndSubscribers(userId);
 
         const recipients = new Map<string, { userId: string; kind: 'follower' | 'subscriber' }>();
 
@@ -202,15 +120,7 @@ export class NotificationService {
     }
 
     private async getUserName(userId: string) {
-        const user = await this.prisma.users.findUnique({
-            where: { id: userId },
-            select: {
-                firstname: true,
-                middlename: true,
-                lastname: true,
-                username: true,
-            },
-        });
+        const user = await this.notificationRepo.findUserName(userId);
 
         return [user?.firstname, user?.middlename, user?.lastname].filter(Boolean).join(' ') || user?.username || 'Someone';
     }

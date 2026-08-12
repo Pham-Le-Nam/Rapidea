@@ -12,7 +12,6 @@ import { StorageService } from '../storage/storage.service';
 import { TagsService } from '../tags/tags.service';
 import { ContentModerationService } from './content-moderation.service';
 import { UnprocessableEntityException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
@@ -25,7 +24,6 @@ export class FileService {
         private readonly storage: StorageService,
         private readonly tagsService: TagsService,
         private readonly moderation: ContentModerationService,
-        private readonly prisma: PrismaService,
         private readonly notifications: NotificationService,
     ) {}
 
@@ -53,16 +51,12 @@ export class FileService {
         // Add a file value into the database
         const file = await this.fileRepo.create(folderId, originalname, mimetype, size, userId);
 
-        await this.storage.writeFile(this.joinStorageKey(folderUrl, originalname), buffer);
-        await this.prisma.file.update({
-            where: { id: file.id },
-            data: {
-                moderationStatus: moderation.status,
-                moderationScore: moderation.score,
-                moderationCategories: moderation.categories,
-                moderationMessage: moderation.message,
-            },
-        });
+        await this.storage.writeFile(
+            this.joinStorageKey(folderUrl, originalname),
+            buffer,
+            { contentType: mimetype },
+        );
+        await this.fileRepo.updateModeration(file.id, moderation);
         await this.generateFileTags(file.id, uploadedFile, transcriptText);
         if (moderation.status === 'SERIOUS_WARNING') {
             await this.notifications.notifyAdminsOfModerationAlert(
@@ -135,7 +129,7 @@ export class FileService {
     async getFileUrl (fileId: string) {
         const file = await this.fileRepo.findById(fileId);
         const folderUrl = await this.folderService.getFolderUrl(file.folderId);
-        const fileUrl = this.storage.getPublicUrl(this.joinStorageKey(folderUrl, file.name));
+        const fileUrl = await this.storage.getDownloadUrl(this.joinStorageKey(folderUrl, file.name));
 
         return fileUrl;
     }

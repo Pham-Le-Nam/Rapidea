@@ -1,0 +1,28 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.EDUCATION_TAGS = void 0;
+exports.EDUCATION_TAGS = [
+    'javascript', 'typescript', 'python', 'java', 'csharp', 'cplusplus', 'c', 'go', 'rust', 'php',
+    'ruby', 'swift', 'kotlin', 'dart', 'scala', 'r', 'matlab', 'sql', 'html', 'css',
+    'react', 'nextjs', 'vue', 'nuxt', 'angular', 'svelte', 'nodejs', 'nestjs', 'expressjs', 'fastify',
+    'django', 'flask', 'fastapi', 'spring-boot', 'dotnet', 'laravel', 'rails', 'graphql', 'rest-api', 'grpc',
+    'web-development', 'frontend', 'backend', 'full-stack', 'mobile-development', 'ios', 'android', 'react-native', 'flutter', 'electron',
+    'database-design', 'postgresql', 'mysql', 'mongodb', 'redis', 'sqlite', 'prisma', 'typeorm', 'sequelize', 'migrations',
+    'data-structures', 'algorithms', 'leetcode', 'system-design', 'design-patterns', 'object-oriented-programming', 'functional-programming', 'clean-code', 'refactoring', 'testing',
+    'unit-testing', 'integration-testing', 'end-to-end-testing', 'jest', 'vitest', 'playwright', 'cypress', 'debugging', 'performance', 'security',
+    'authentication', 'authorization', 'oauth', 'jwt', 'api-design', 'microservices', 'event-driven-architecture', 'message-queues', 'kafka', 'rabbitmq',
+    'docker', 'kubernetes', 'devops', 'ci-cd', 'github-actions', 'gitlab-ci', 'terraform', 'aws', 'azure', 'google-cloud',
+    'linux', 'bash', 'powershell', 'git', 'github', 'networking', 'http', 'websockets', 'cloud-computing', 'serverless',
+    'machine-learning', 'deep-learning', 'artificial-intelligence', 'generative-ai', 'llm', 'prompt-engineering', 'computer-vision', 'natural-language-processing', 'reinforcement-learning', 'data-science',
+    'data-analysis', 'data-visualization', 'pandas', 'numpy', 'scikit-learn', 'tensorflow', 'pytorch', 'keras', 'statistics', 'probability',
+    'linear-algebra', 'calculus', 'discrete-math', 'mathematics', 'physics', 'chemistry', 'biology', 'anatomy', 'medicine', 'nursing',
+    'public-health', 'psychology', 'sociology', 'philosophy', 'history', 'geography', 'economics', 'finance', 'accounting', 'business',
+    'marketing', 'sales', 'entrepreneurship', 'product-management', 'project-management', 'agile', 'scrum', 'leadership', 'communication', 'public-speaking',
+    'writing', 'academic-writing', 'research-methods', 'literature-review', 'critical-thinking', 'study-skills', 'exam-preparation', 'language-learning', 'english', 'ielts',
+    'toefl', 'spanish', 'french', 'german', 'japanese', 'korean', 'chinese', 'vietnamese', 'music-theory', 'guitar',
+    'piano', 'audio-production', 'video-editing', 'photography', 'graphic-design', 'ui-design', 'ux-design', 'figma', 'adobe-photoshop', 'adobe-illustrator',
+    'blender', '3d-modeling', 'game-development', 'unity', 'unreal-engine', 'godot', 'blockchain', 'web3', 'smart-contracts', 'solidity',
+    'cybersecurity', 'ethical-hacking', 'penetration-testing', 'cryptography', 'digital-forensics', 'it-support', 'computer-hardware', 'operating-systems', 'compiler-design', 'embedded-systems',
+    'arduino', 'raspberry-pi', 'internet-of-things', 'robotics', 'electrical-engineering', 'mechanical-engineering', 'civil-engineering', 'cad', 'autocad', 'solidworks',
+];
+//# sourceMappingURL=education-tags.js.map

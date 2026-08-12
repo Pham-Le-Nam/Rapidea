@@ -1,14 +1,49 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../../generated/prisma/client';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
-const DB_USER = process.env.DB_USERNAME || "postgres";
-const DB_PASSWORD = process.env.DB_PASSWORD || "postgres";
-const DB_HOST = process.env.DB_HOST || "localhost";
-const DB_PORT = process.env.DB_PORT || "5432";
-const DB_NAME = process.env.DB_NAME || "rapideia_dev";
+function requireEnvironmentVariable(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
 
-const DATABASE_URL = `postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=public`;
+function requireBooleanEnvironmentVariable(name: string): boolean {
+  const value = requireEnvironmentVariable(name).toLowerCase();
+  if (value !== 'true' && value !== 'false') {
+    throw new Error(`${name} must be either true or false`);
+  }
+  return value === 'true';
+}
+
+const DB_USER = requireEnvironmentVariable('DB_USERNAME');
+const DB_PASSWORD = requireEnvironmentVariable('DB_PASSWORD');
+const DB_HOST = requireEnvironmentVariable('DB_HOST');
+const DB_PORT = requireEnvironmentVariable('DB_PORT');
+const DB_NAME = requireEnvironmentVariable('DB_NAME');
+const DB_SSL = requireBooleanEnvironmentVariable('DB_SSL');
+const DB_SSL_CA_PATH = requireEnvironmentVariable('DB_SSL_CA_PATH');
+
+const databaseUrl = new URL(`postgresql://${DB_HOST}:${DB_PORT}`);
+databaseUrl.username = DB_USER;
+databaseUrl.password = DB_PASSWORD;
+databaseUrl.pathname = DB_NAME;
+databaseUrl.searchParams.set('schema', 'public');
+
+function getSslConfig() {
+  if (!DB_SSL) return undefined;
+
+  const caPath = resolve(process.cwd(), DB_SSL_CA_PATH);
+
+  return {
+    ca: readFileSync(caPath, 'utf8'),
+    rejectUnauthorized: true,
+  };
+}
 
 @Injectable()
 export class PrismaService extends PrismaClient
@@ -17,7 +52,8 @@ export class PrismaService extends PrismaClient
   constructor() {
     super({
       adapter: new PrismaPg({
-        connectionString: DATABASE_URL!,
+        connectionString: databaseUrl.toString(),
+        ssl: getSslConfig(),
       }),
     })
   }    

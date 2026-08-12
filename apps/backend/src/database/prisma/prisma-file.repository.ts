@@ -6,6 +6,18 @@ import { FileRepository } from '../../modules/file/file.repository';
 export class PrismaFileRepository implements FileRepository {
     constructor(private prisma: PrismaService) {}
 
+    updateModeration(id: string, moderation: { status: any; score: number | null; categories: any; message?: string | null }) {
+        return this.prisma.file.update({
+            where: { id },
+            data: {
+                moderationStatus: moderation.status,
+                moderationScore: moderation.score,
+                moderationCategories: moderation.categories,
+                moderationMessage: moderation.message,
+            },
+        });
+    }
+
     private async findCourseIdByFolderId(folderId: string): Promise<string | null> {
         let currentFolderId: string | null = folderId;
 

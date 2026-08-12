@@ -3,10 +3,12 @@ import { PrismaPhotoRepository } from 'src/database/prisma/prisma-photo.reposito
 import { CourseModule } from '../course/course.module';
 import { PhotoController } from './photo.controller';
 import { PhotoService } from './photo.service';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
     imports: [
         CourseModule,
+        StorageModule,
     ],
     controllers: [
         PhotoController,

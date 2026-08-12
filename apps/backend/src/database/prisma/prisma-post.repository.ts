@@ -6,6 +6,17 @@ import { PostRepository } from '../../modules/post/post.repository';
 export class PrismaPostRepository implements PostRepository {
     constructor(private prisma: PrismaService) {}
 
+    async findGenerationContext(userId: string, fileIds: string[]) {
+        const [user, files] = await Promise.all([
+            this.prisma.users.findUnique({ where: { id: userId }, select: { creatorPrompt: true } }),
+            this.prisma.file.findMany({
+                where: { id: { in: fileIds }, userId },
+                include: { transcript: true, tags: { include: { tag: true } } },
+            }),
+        ]);
+        return { user, files };
+    }
+
     async create (userId: string, title?: string, content?: any, courseId?: string, isPreview: boolean = false): Promise<any> {
         const user = await this.prisma.users.findUnique({
             where: {

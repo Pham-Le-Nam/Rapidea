@@ -8,7 +8,6 @@ import {
 import { RatePostRepository } from './rate-post.repository';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../../../generated/prisma/enums';
-import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class RatePostService {
@@ -16,7 +15,6 @@ export class RatePostService {
         @Inject("RATE_POST_REPOSITORY")
         private readonly ratePostRepo: RatePostRepository,
         private readonly notificationService: NotificationService,
-        private readonly prisma: PrismaService,
     ) {}
 
     async createRatePost (postId: string, userId: string, rating: number) {
@@ -32,13 +30,7 @@ export class RatePostService {
             throw new InternalServerErrorException("Couldn't rate this post", "Couldn't rate this post");
         }
 
-        const post = await this.prisma.post.findUnique({
-            where: { id: postId },
-            select: {
-                userId: true,
-                title: true,
-            },
-        });
+        const post = await this.ratePostRepo.findPostSummary(postId);
 
         if (post) {
             await this.notificationService.createNotification({
@@ -59,15 +51,7 @@ export class RatePostService {
             throw new InternalServerErrorException("Invalid rating it must be from 0 to 5", "Invalid rating");
         }
 
-        const existingRating = await this.prisma.ratePost.findFirst({
-            where: {
-                id,
-                userId,
-            },
-            select: {
-                postId: true,
-            },
-        });
+        const existingRating = await this.ratePostRepo.findOwnedRating(id, userId);
 
         if (!existingRating) {
             throw new NotFoundException("Post rating not found", "Post rating not found");
@@ -125,24 +109,7 @@ export class RatePostService {
     }
 
     private async assertCanRatePost(postId: string, userId: string) {
-        const post = await this.prisma.post.findUnique({
-            where: { id: postId },
-            select: {
-                userId: true,
-                courseId: true,
-                isPreview: true,
-                course: {
-                    select: {
-                        userId: true,
-                        subscribers: {
-                            where: { userId },
-                            select: { userId: true },
-                            take: 1,
-                        },
-                    },
-                },
-            },
-        });
+        const post = await this.ratePostRepo.findPostAccess(postId, userId);
 
         if (!post) {
             throw new NotFoundException("Post not found", "Post not found");
