@@ -1,1 +1,3 @@
 .env
+apps/backend-deployment.zip
+curl.py

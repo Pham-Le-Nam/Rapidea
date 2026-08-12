@@ -1,0 +1,130 @@
+name: Deploy backend to Elastic Beanstalk
+
+run-name: Deploy backend from ${{ github.ref_name }} at ${{ github.sha }}
+
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - "apps/backend/**"
+            - ".github/workflows/deploy-backend.yml"
+
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    id-token: write
+
+concurrency:
+    group: rapidea-production-backend
+    cancel-in-progress: false
+
+env:
+    AWS_REGION: ap-southeast-2
+
+    # Replace these if their capitalization differs in AWS.
+    EB_APPLICATION_NAME: rapidea-backend-node-22
+    EB_ENVIRONMENT_NAME: Rapidea-backend-node-22-env
+
+    EB_DEPLOYMENT_BUCKET: elasticbeanstalk-ap-southeast-2-747856053586
+
+jobs:
+    build-and-deploy:
+        name: Build and deploy backend
+        runs-on: ubuntu-latest
+        timeout-minutes: 40
+
+        steps:
+            -   name: Check out repository
+                uses: actions/checkout@v4
+
+            -   name: Set up Node.js
+                uses: actions/setup-node@v4
+                with:
+                    node-version: "22"
+                    cache: npm
+                    cache-dependency-path: apps/backend/package-lock.json
+
+            -   name: Install backend dependencies
+                working-directory: apps/backend
+                run: npm ci
+
+            -   name: Generate Prisma client
+                working-directory: apps/backend
+                env:
+                    DB_USERNAME: github_build
+                    DB_PASSWORD: github_build
+                    DB_HOST: localhost
+                    DB_PORT: "5432"
+                    DB_NAME: github_build
+                    DB_SSL: "true"
+                    DB_SSL_CA_PATH: certs/global-bundle.pem
+                run: npx prisma generate --schema prisma/schema.prisma
+
+            -   name: Build backend
+                working-directory: apps/backend
+                run: npm run build
+
+            -   name: Validate required deployment files
+                shell: bash
+                run: |
+                    test -f apps/backend/package.json
+                    test -f apps/backend/package-lock.json
+                    test -f apps/backend/Procfile
+                    test -f apps/backend/dist/src/main.js
+                    test -f apps/backend/certs/global-bundle.pem
+                    test -d apps/backend/generated/prisma
+                    test -d apps/backend/prisma/migrations
+
+            -   name: Create Elastic Beanstalk source bundle
+                working-directory: apps/backend
+                shell: bash
+                run: |
+                    zip -rq ../../backend-deploy.zip . \
+                        -x ".env" \
+                        -x ".env.*" \
+                        -x "node_modules/*" \
+                        -x "storage/*" \
+                        -x "coverage/*" \
+                        -x "test/*" \
+                        -x "*.log"
+
+            -   name: Check deployment bundle
+                shell: bash
+                run: |
+                    unzip -l backend-deploy.zip | head -n 40
+
+                    unzip -l backend-deploy.zip | grep -q "package.json"
+                    unzip -l backend-deploy.zip | grep -q "Procfile"
+                    unzip -l backend-deploy.zip | grep -q "dist/src/main.js"
+
+                    if unzip -l backend-deploy.zip | grep -Eq '(^|/)\.env($|[[:space:]])'; then
+                        echo "The deployment ZIP contains a .env file."
+                        exit 1
+                    fi
+
+            -   name: Configure temporary AWS credentials
+                uses: aws-actions/configure-aws-credentials@v4
+                with:
+                    role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+                    aws-region: ${{ env.AWS_REGION }}
+
+            -   name: Confirm AWS identity
+                shell: bash
+                run: aws sts get-caller-identity
+
+            -   name: Deploy backend to Elastic Beanstalk
+                uses: aws-actions/aws-elasticbeanstalk-deploy@v1.0.4
+                with:
+                    aws-region: ${{ env.AWS_REGION }}
+                    application-name: ${{ env.EB_APPLICATION_NAME }}
+                    environment-name: ${{ env.EB_ENVIRONMENT_NAME }}
+                    version-label: backend-${{ github.sha }}
+                    deployment-package-path: backend-deploy.zip
+                    s3-bucket-name: ${{ env.EB_DEPLOYMENT_BUCKET }}
+                    create-application-if-not-exists: false
+                    create-environment-if-not-exists: false
+                    wait-for-deployment: true
+                    wait-for-environment-recovery: true
+                    deployment-timeout: 1800
