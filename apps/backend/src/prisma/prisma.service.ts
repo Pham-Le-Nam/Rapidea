@@ -20,24 +20,10 @@ function requireBooleanEnvironmentVariable(name: string): boolean {
   return value === 'true';
 }
 
-const DB_USER = requireEnvironmentVariable('DB_USERNAME');
-const DB_PASSWORD = requireEnvironmentVariable('DB_PASSWORD');
-const DB_HOST = requireEnvironmentVariable('DB_HOST');
-const DB_PORT = requireEnvironmentVariable('DB_PORT');
-const DB_NAME = requireEnvironmentVariable('DB_NAME');
-const DB_SSL = requireBooleanEnvironmentVariable('DB_SSL');
-const DB_SSL_CA_PATH = requireEnvironmentVariable('DB_SSL_CA_PATH');
+function getSslConfig(enabled: boolean, caPathValue: string) {
+  if (!enabled) return undefined;
 
-const databaseUrl = new URL(`postgresql://${DB_HOST}:${DB_PORT}`);
-databaseUrl.username = DB_USER;
-databaseUrl.password = DB_PASSWORD;
-databaseUrl.pathname = DB_NAME;
-databaseUrl.searchParams.set('schema', 'public');
-
-function getSslConfig() {
-  if (!DB_SSL) return undefined;
-
-  const caPath = resolve(process.cwd(), DB_SSL_CA_PATH);
+  const caPath = resolve(process.cwd(), caPathValue);
 
   return {
     ca: readFileSync(caPath, 'utf8'),
@@ -50,10 +36,21 @@ export class PrismaService extends PrismaClient
   implements OnModuleInit, OnModuleDestroy {
   
   constructor() {
+    const databaseUrl = new URL(
+      `postgresql://${requireEnvironmentVariable('DB_HOST')}:${requireEnvironmentVariable('DB_PORT')}`,
+    );
+    databaseUrl.username = requireEnvironmentVariable('DB_USERNAME');
+    databaseUrl.password = requireEnvironmentVariable('DB_PASSWORD');
+    databaseUrl.pathname = requireEnvironmentVariable('DB_NAME');
+    databaseUrl.searchParams.set('schema', 'public');
+
     super({
       adapter: new PrismaPg({
         connectionString: databaseUrl.toString(),
-        ssl: getSslConfig(),
+        ssl: getSslConfig(
+          requireBooleanEnvironmentVariable('DB_SSL'),
+          requireEnvironmentVariable('DB_SSL_CA_PATH'),
+        ),
       }),
     })
   }    
