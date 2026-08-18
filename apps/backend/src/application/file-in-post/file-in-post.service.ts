@@ -2,7 +2,6 @@ import { ForbiddenException, Inject, Injectable, InternalServerErrorException } 
 import { FileInPostRepository } from '../../domain/file-in-post/repositories/file-in-post.repository';
 import { FileService } from '../file/file.service';
 import { PostService } from '../post/post.service';
-import { TagsService } from '../tags/tags.service';
 
 @Injectable()
 export class FileInPostService {
@@ -11,7 +10,6 @@ export class FileInPostService {
         private readonly fileInPostRepo: FileInPostRepository,
         private readonly fileService: FileService,
         private readonly postService: PostService,
-        private readonly tagsService: TagsService,
     ) {}
 
     async addFileToPost (fileId: string, postId: string, userId: string) {
@@ -36,7 +34,6 @@ export class FileInPostService {
         }
 
         const fileInPost = await this.fileInPostRepo.create(fileId, postId, userId);
-        await this.tagsService.addFileTagsToPost(postId, fileId);
 
         return fileInPost;
     }

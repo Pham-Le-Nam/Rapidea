@@ -126,6 +126,13 @@ export function getTagNames(entity?: any) {
     return entity?.tags?.map((tagEntry: any) => tagEntry.tag?.name ?? tagEntry.name).filter(Boolean) ?? [];
 }
 
+export function getExplicitTagNames(entity?: any) {
+    return entity?.tags
+        ?.filter((tagEntry: any) => tagEntry.isSuggested !== true)
+        .map((tagEntry: any) => tagEntry.tag?.name ?? tagEntry.name)
+        .filter(Boolean) ?? [];
+}
+
 export function extractTextFromEditorContent(content: any): string {
     if (!content) {
         return "";

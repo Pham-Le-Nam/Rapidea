@@ -90,28 +90,6 @@ export class TagsService {
         return tags;
     }
 
-    async addFileTagsToPost(postId: string, fileId: string) {
-        const fileTags = await this.tagsRepo.findFileTags([fileId]);
-
-        if (fileTags.length === 0) {
-            return [];
-        }
-
-        await this.tagsRepo.addFileTagsToPost(postId, fileTags);
-
-        return fileTags.map((fileTag) => fileTag.tag);
-    }
-
-    async getFileTagNames(fileIds: string[]) {
-        if (fileIds.length === 0) {
-            return [];
-        }
-
-        const fileTags = await this.tagsRepo.findFileTags(fileIds);
-
-        return Array.from(new Set(fileTags.map((fileTag) => fileTag.tag.name)));
-    }
-
     async createTranscript(fileId: string) {
         return this.tagsRepo.createTranscript(fileId);
     }

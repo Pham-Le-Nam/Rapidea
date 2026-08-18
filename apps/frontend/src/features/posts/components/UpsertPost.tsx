@@ -20,7 +20,7 @@ import { toast } from "react-hot-toast";
 import { useAuth } from "@/providers";
 import { useNavigate } from "react-router-dom";
 import { addFileToPostApi, addPostApi, generatePostFieldApi, removeFileToPostApi, updatePostApi } from "@/features/posts/api";
-import { TagSelector, extractTextFromEditorContent, getTagNames } from "@/features/tags";
+import { TagSelector, extractTextFromEditorContent, getExplicitTagNames, getTagNames } from "@/features/tags";
 
 type UpsertPostProps = {
     className?: string;
@@ -39,7 +39,7 @@ function UpsertPost({ className, post, uploadedFiles, course, courseOptions = []
     const [selectedCourseId, setSelectedCourseId] = useState(post?.courseId ?? course?.id ?? "general");
     const [deleteFiles, setDeleteFiles] = useState<any[]>([]);
     const [files, setFiles] = useState<any[]>([]);
-    const [tags, setTags] = useState<string[]>(getTagNames(post));
+    const [tags, setTags] = useState<string[]>(getExplicitTagNames(post));
     const [generating, setGenerating] = useState<"title" | "details" | null>(null);
 
     const { logout } = useAuth();
@@ -124,18 +124,17 @@ function UpsertPost({ className, post, uploadedFiles, course, courseOptions = []
         setSelectedCourseId(post?.courseId ?? course?.id ?? "general");
         setDeleteFiles([]);
         setFiles([]);
-        setTags(getTagNames(post));
+        setTags(getExplicitTagNames(post));
     }
 
     const createPost = async () => {
         try {
-            const fileTagNames = files.flatMap((file) => getTagNames(file));
             const response = await addPostApi(
                 title,
                 content,
                 selectedPostCourseId,
                 isPreview,
-                Array.from(new Set([...tags, ...fileTagNames])),
+                tags,
             );
 
             if (!response) {
@@ -178,15 +177,13 @@ function UpsertPost({ className, post, uploadedFiles, course, courseOptions = []
                 throw Error("Post not found");
             }
 
-            const retainedUploadedFiles = uploadedFiles?.filter((file) => !deleteFiles.find((deleteFile) => deleteFile.id === file.id)) ?? [];
-            const fileTagNames = [...retainedUploadedFiles, ...files].flatMap((file) => getTagNames(file));
             const response = await updatePostApi(
                 title,
                 content,
                 postId,
                 isPreview,
                 selectedPostCourseId ?? null,
-                Array.from(new Set([...tags, ...fileTagNames])),
+                tags,
             );
 
             if (!response) {
