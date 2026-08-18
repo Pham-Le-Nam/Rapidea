@@ -1,4 +1,4 @@
-import { Injectable, Inject, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Inject, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { FolderRepository } from '../../domain/folder/repositories/folder.repository';
 import { STORAGE_SERVICE, StorageService } from '../ports/storage.service';
 
@@ -85,6 +85,16 @@ export class FolderService {
 
     async findAllChildren (folderId: string) {
         return this.folderRepo.findAllChildren(folderId);
+    }
+
+    async getPostUsages(folderId: string, userId: string) {
+        const usages = await this.folderRepo.findPostUsages(folderId, userId);
+
+        if (!usages) {
+            throw new NotFoundException("Folder not found");
+        }
+
+        return usages;
     }
 
     async getFolderUrl (folderId: string) {

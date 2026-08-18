@@ -16,7 +16,7 @@ import {
 import { useAuth } from "@/providers";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { createFolderApi, deleteFileApi, deleteFolderApi, getFileApi, getFolderApi, renameFolderApi, updateFileApi, uploadFileApi } from "@/features/files/api";
+import { createFolderApi, deleteFileApi, deleteFolderApi, getFileApi, getFolderApi, getFolderPostUsagesApi, getPostsUsingFileApi, renameFolderApi, updateFileApi, uploadFileApi } from "@/features/files/api";
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import {
     Dialog,
@@ -58,9 +58,15 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
     const [isLoading, setIsLoading] = useState(true);
     const isRootActionLocked = lockRootActions && isRootFolder;
 
-    const loadFolder = async (folderId: string, nextBreadcrumbs?: FolderCrumb[]) => {
+    const loadFolder = async (
+        folderId: string,
+        nextBreadcrumbs?: FolderCrumb[],
+        showLoading = true,
+    ) => {
         try {
-            setIsLoading(true);
+            if (showLoading) {
+                setIsLoading(true);
+            }
             const response = await getFolderApi(folderId);
 
             if (!response) {
@@ -114,8 +120,14 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
             }
             throw error;
         } finally {
-            setIsLoading(false);
+            if (showLoading) {
+                setIsLoading(false);
+            }
         }
+    }
+
+    const refreshFolder = async (folderId: string) => {
+        await loadFolder(folderId, undefined, false);
     }
 
     const createFolder = async () => {
@@ -132,7 +144,8 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
             }
 
             if (folder) {
-                loadFolder(folder.id);
+                await refreshFolder(folder.id);
+                setNewFolderName("");
             }
         } catch (error: any) {
             if (error.response?.status === 401) {
@@ -332,7 +345,7 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
 
                             {!isRootActionLocked && (
                                 <DropdownMenuItem asChild>
-                                    <FileUpload className="hover:bg-gray-100 w-full text-lg" folderId={folder?.id} reloadFolder={loadFolder}/>
+                                    <FileUpload className="hover:bg-gray-100 w-full text-lg" folderId={folder?.id} refreshFolder={refreshFolder}/>
                                 </DropdownMenuItem>
                             )}
                         </DropdownMenuContent>
@@ -372,7 +385,14 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                                     </DropdownMenuItem>
 
                                     <DropdownMenuItem asChild>
-                                        <DeleteDocument title="Folder" submit={deleteFolder} document={childFolder} className="hover:bg-gray-100 w-full text-lg"/>
+                                        <DeleteDocument
+                                            title="Folder"
+                                            submit={deleteFolder}
+                                            document={childFolder}
+                                            className="hover:bg-gray-100 w-full text-lg"
+                                            destructive
+                                            getRelatedFiles={getFolderPostUsagesApi}
+                                        />
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -409,7 +429,14 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
 
                                     {!isRootActionLocked && (
                                         <DropdownMenuItem asChild>
-                                            <DeleteDocument title="File" submit={deleteFile} document={childFile} className="hover:bg-gray-100 w-full text-lg"/>
+                                            <DeleteDocument
+                                                title="File"
+                                                submit={deleteFile}
+                                                document={childFile}
+                                                className="hover:bg-gray-100 w-full text-lg"
+                                                destructive
+                                                getRelatedPosts={getPostsUsingFileApi}
+                                            />
                                         </DropdownMenuItem>
                                     )}
                                 </DropdownMenuContent>
@@ -488,10 +515,10 @@ function DocumentName ({ submit, value, setValue, title, className }: DocumentNa
 type FileUploadProps = {
     className?: string;
     folderId: string;
-    reloadFolder: (folderId: string) => Promise<void>;
+    refreshFolder: (folderId: string) => Promise<void>;
 }
 
-function FileUpload ({ className, folderId, reloadFolder }: FileUploadProps) {
+function FileUpload ({ className, folderId, refreshFolder }: FileUploadProps) {
     const [files, setFiles] = useState<File[]>([]);
     const { logout } = useAuth();
     const navigate = useNavigate();
@@ -548,7 +575,8 @@ function FileUpload ({ className, folderId, reloadFolder }: FileUploadProps) {
             }
         }
         
-        reloadFolder(folderId);
+        await refreshFolder(folderId);
+        setFiles([]);
     }
 
     return (
@@ -615,11 +643,108 @@ type DeleteDocumentProps = {
     title: string;
     submit: (documentId: string) => Promise<void>;
     document: any;
+    destructive?: boolean;
+    getRelatedPosts?: (documentId: string) => Promise<PostUsage[]>;
+    getRelatedFiles?: (documentId: string) => Promise<FilePostUsage[]>;
 }
 
-function DeleteDocument ({ className, title, submit, document }: DeleteDocumentProps) {
+type PostUsage = {
+    id: string;
+    title?: string | null;
+}
+
+type FilePostUsage = {
+    id: string;
+    name: string;
+    path: string;
+    posts: PostUsage[];
+}
+
+function DeleteDocument ({
+    className,
+    title,
+    submit,
+    document,
+    destructive = false,
+    getRelatedPosts,
+    getRelatedFiles,
+}: DeleteDocumentProps) {
+    const [open, setOpen] = useState(false);
+    const [relatedPosts, setRelatedPosts] = useState<PostUsage[]>([]);
+    const [relatedFiles, setRelatedFiles] = useState<FilePostUsage[]>([]);
+    const [showPostWarning, setShowPostWarning] = useState(false);
+    const [isChecking, setIsChecking] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const resetWarning = () => {
+        setRelatedPosts([]);
+        setRelatedFiles([]);
+        setShowPostWarning(false);
+        setIsChecking(false);
+        setIsDeleting(false);
+    }
+
+    const handleOpenChange = (nextOpen: boolean) => {
+        setOpen(nextOpen);
+
+        if (!nextOpen) {
+            resetWarning();
+        }
+    }
+
+    const confirmDelete = async () => {
+        try {
+            setIsDeleting(true);
+            await submit(document.id);
+            setOpen(false);
+        } catch (error: any) {
+            if (error.response?.status !== 401) {
+                toast.error(`Couldn't delete ${document.name}.`);
+            }
+        } finally {
+            setIsDeleting(false);
+        }
+    }
+
+    const reviewDelete = async () => {
+        if (!getRelatedPosts && !getRelatedFiles) {
+            await confirmDelete();
+            return;
+        }
+
+        try {
+            setIsChecking(true);
+            if (getRelatedFiles) {
+                const files = await getRelatedFiles(document.id);
+
+                if (files.length > 0) {
+                    setRelatedFiles(files);
+                    setShowPostWarning(true);
+                    return;
+                }
+            } else if (getRelatedPosts) {
+                const posts = await getRelatedPosts(document.id);
+
+                if (posts.length > 0) {
+                    setRelatedPosts(posts);
+                    setShowPostWarning(true);
+                    return;
+                }
+            }
+        } catch {
+            toast.error(getRelatedFiles
+                ? "Couldn't check whether this folder contains files used in any posts."
+                : "Couldn't check whether this file is used in any posts.");
+            return;
+        } finally {
+            setIsChecking(false);
+        }
+
+        await confirmDelete();
+    }
+
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
                 <span className={className}>
                     Delete
@@ -628,23 +753,64 @@ function DeleteDocument ({ className, title, submit, document }: DeleteDocumentP
             <DialogContent className="flex flex-col items-center">
                 <DialogHeader className="flex flex-col items-center">
                     <DialogTitle>
-                        {`Delete ${title} ${document.name}?`}
+                        {showPostWarning
+                            ? `Delete ${title} used in posts?`
+                            : `Delete ${title} ${document.name}?`}
                     </DialogTitle>
                 </DialogHeader>
                 <DialogDescription>
-                    This action cannot be undone.
+                    {showPostWarning
+                        ? relatedFiles.length > 0
+                            ? `Deleting ${document.name} will delete files that are used in the following posts:`
+                            : `Deleting ${document.name} will also remove it from the following posts:`
+                        : "This action cannot be undone."}
                 </DialogDescription>
+                {showPostWarning && relatedFiles.length > 0 && (
+                    <ul className="max-h-64 w-full list-disc space-y-2 overflow-y-auto pl-6 text-sm">
+                        {relatedFiles.map((file) => (
+                            <li key={file.id}>
+                                <span className="font-medium">{file.path}</span>
+                                <ul className="mt-1 list-disc space-y-1 pl-6 text-muted-foreground">
+                                    {file.posts.map((post) => (
+                                        <li key={post.id}>
+                                            {post.title?.trim() || `Untitled post (${post.id})`}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                {showPostWarning && relatedFiles.length === 0 && (
+                    <ul className="max-h-48 w-full list-disc space-y-1 overflow-y-auto pl-6 text-sm">
+                        {relatedPosts.map((post) => (
+                            <li key={post.id}>
+                                {post.title?.trim() || `Untitled post (${post.id})`}
+                            </li>
+                        ))}
+                    </ul>
+                )}
                 <DialogFooter className="pt-3 w-full">
                     <DialogClose asChild>
                         <Button variant="outline" className="flex-1">
                             Cancel
                         </Button>
                     </DialogClose>
-                    <DialogClose asChild>
-                        <Button type="submit" className="bg-main hover:bg-main-hover flex-1" onClick={() => submit(document.id)}>
-                            Delete
-                        </Button>
-                    </DialogClose>
+                    <Button
+                        type="button"
+                        variant={destructive ? "destructive" : "default"}
+                        className="flex-1"
+                        disabled={isChecking || isDeleting}
+                        onClick={showPostWarning ? confirmDelete : reviewDelete}
+                    >
+                        {isChecking
+                            ? "Checking..."
+                            : isDeleting
+                                ? "Deleting..."
+                                : showPostWarning
+                                    ? "Delete anyway"
+                                    : "Delete"}
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

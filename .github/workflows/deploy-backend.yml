@@ -82,6 +82,7 @@ jobs:
                     test -f apps/backend/Procfile
                     test -f apps/backend/dist/src/main.js
                     test -f apps/backend/certs/global-bundle.pem
+                    test -f apps/backend/.platform/nginx/conf.d/client_max_body_size.conf
                     test -d apps/backend/generated/prisma
                     test -d apps/backend/prisma/migrations
 
@@ -106,6 +107,7 @@ jobs:
                     unzip -l backend-deploy.zip | grep -q "package.json"
                     unzip -l backend-deploy.zip | grep -q "Procfile"
                     unzip -l backend-deploy.zip | grep -q "dist/src/main.js"
+                    unzip -l backend-deploy.zip | grep -q ".platform/nginx/conf.d/client_max_body_size.conf"
 
                     if unzip -l backend-deploy.zip | grep -Eq '(^|/)\.env($|[[:space:]])'; then
                         echo "The deployment ZIP contains a .env file."

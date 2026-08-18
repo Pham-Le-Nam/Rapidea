@@ -7,12 +7,20 @@ import { StorageModule } from './storage.module';
 import { TagsModule } from './tags.module';
 import { ContentModerationService } from '../../ai/content-moderation.service';
 import { CONTENT_MODERATION_SERVICE } from '../../../application/ports/content-moderation.service';
+import { MulterModule } from '@nestjs/platform-express';
+
+const MAX_FILE_UPLOAD_SIZE_BYTES = 100 * 1024 * 1024;
 
 @Module({
     imports: [
         FolderModule,
         StorageModule,
         TagsModule,
+        MulterModule.register({
+            limits: {
+                fileSize: MAX_FILE_UPLOAD_SIZE_BYTES,
+            },
+        }),
     ],
     controllers: [
         FileController,

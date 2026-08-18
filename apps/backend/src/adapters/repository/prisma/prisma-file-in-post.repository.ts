@@ -55,26 +55,24 @@ export class PrismaFileInPostRepository implements FileInPostRepository {
     }
 
     async getPosts(fileId: string): Promise<any> {
-        const posts = await this.prisma.fileInPost.findMany({
+        return this.prisma.fileInPost.findMany({
             where: {
                 fileId,
             },
+            orderBy: {
+                post: {
+                    createdAt: 'desc',
+                },
+            },
             select: {
-                postId: true,
+                post: {
+                    select: {
+                        id: true,
+                        title: true,
+                    },
+                },
             },
-        });
-
-        if (!posts) {
-            throw new InternalServerErrorException("Posts not found");
-        }
-
-        const ids = posts.map(post => post.postId);
-
-        return this.prisma.post.findMany({
-            where: {
-                id: { in: ids },
-            },
-        });
+        }).then((relations) => relations.map(({ post }) => post));
     }
 
     async getFiles(postId: string): Promise<any> {

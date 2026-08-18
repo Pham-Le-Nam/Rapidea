@@ -4,6 +4,8 @@ export {
     deleteFolderApi,
     getFileApi,
     getFolderApi,
+    getFolderPostUsagesApi,
+    getPostsUsingFileApi,
     getUserFoldersApi,
     renameFolderApi,
     updateFileApi,

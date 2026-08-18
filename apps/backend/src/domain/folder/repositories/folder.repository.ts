@@ -9,4 +9,5 @@ export interface FolderRepository {
     findChildrenFolders(id: string): Promise<any>;
     findChildrenFiles(id: string): Promise<any>;
     findAllChildren(id: string): Promise<any>;
+    findPostUsages(id: string, userId: string): Promise<any | null>;
 }

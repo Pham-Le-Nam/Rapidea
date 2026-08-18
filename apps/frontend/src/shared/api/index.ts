@@ -1082,6 +1082,21 @@ export async function deleteFolderApi (folderId: string) {
     return response.data;
 }
 
+export async function getFolderPostUsagesApi(folderId: string) {
+    const token = authTokenStorage.get();
+
+    const response = await API.get(
+        `api/folder/${folderId}/post-usages`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        },
+    );
+
+    return response.data;
+}
+
 export async function uploadFileApi(folderId: string, file: File) {
     const token = authTokenStorage.get();
 
@@ -1150,6 +1165,21 @@ export async function deleteFileApi (fileId: string) {
         {
             headers: {
                 Authorization: `Bearer ${token}`
+            },
+        },
+    );
+
+    return response.data;
+}
+
+export async function getPostsUsingFileApi(fileId: string) {
+    const token = authTokenStorage.get();
+
+    const response = await API.get(
+        `api/file-in-post/file/${fileId}`,
+        {
+            headers: {
+                Authorization: `Bearer ${token}`,
             },
         },
     );

@@ -1,4 +1,4 @@
-import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { FileInPostRepository } from '../../domain/file-in-post/repositories/file-in-post.repository';
 import { FileService } from '../file/file.service';
 import { PostService } from '../post/post.service';
@@ -51,7 +51,13 @@ export class FileInPostService {
         return fileInPost;
     }
 
-    async getPostsByFileId (fileId: string) {
+    async getPostsByFileId (fileId: string, userId: string) {
+        const file = await this.fileService.getFileById(fileId);
+
+        if (file.userId !== userId) {
+            throw new ForbiddenException("You are not the owner of this file");
+        }
+
         return this.fileInPostRepo.getPosts(fileId);
     }
 

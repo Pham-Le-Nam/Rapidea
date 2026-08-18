@@ -169,4 +169,105 @@ export class PrismaFolderRepository implements FolderRepository {
         };
     }
 
+    async findPostUsages(id: string, userId: string): Promise<any | null> {
+        const rootFolder = await this.prisma.folder.findUnique({
+            where: {
+                id,
+                userId,
+            },
+            select: {
+                id: true,
+                name: true,
+            },
+        });
+
+        if (!rootFolder) {
+            return null;
+        }
+
+        const folderIds = [rootFolder.id];
+        const folderPaths = new Map<string, string>([
+            [rootFolder.id, rootFolder.name],
+        ]);
+        let pendingParentIds = [rootFolder.id];
+
+        while (pendingParentIds.length > 0) {
+            const children = await this.prisma.folder.findMany({
+                where: {
+                    parentId: {
+                        in: pendingParentIds,
+                    },
+                    userId,
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    parentId: true,
+                },
+            });
+
+            children.forEach((child) => {
+                const parentPath = child.parentId
+                    ? folderPaths.get(child.parentId)
+                    : undefined;
+
+                folderPaths.set(
+                    child.id,
+                    parentPath ? `${parentPath}/${child.name}` : child.name,
+                );
+            });
+
+            pendingParentIds = children.map(({ id: childId }) => childId);
+            folderIds.push(...pendingParentIds);
+        }
+
+        const files = await this.prisma.file.findMany({
+            where: {
+                userId,
+                folderId: {
+                    in: folderIds,
+                },
+                inPosts: {
+                    some: {},
+                },
+            },
+            orderBy: [
+                { name: 'asc' },
+                { id: 'asc' },
+            ],
+            select: {
+                id: true,
+                name: true,
+                folderId: true,
+                inPosts: {
+                    orderBy: {
+                        post: {
+                            createdAt: 'desc',
+                        },
+                    },
+                    select: {
+                        post: {
+                            select: {
+                                id: true,
+                                title: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        return files
+            .map(({ folderId, inPosts, ...file }) => {
+                const folderPath = folderPaths.get(folderId);
+
+                return {
+                    ...file,
+                    path: folderPath ? `${folderPath}/${file.name}` : file.name,
+                    posts: inPosts.map(({ post }) => post),
+                };
+            })
+            .sort((left, right) => left.path.localeCompare(right.path));
+    }
+
 }

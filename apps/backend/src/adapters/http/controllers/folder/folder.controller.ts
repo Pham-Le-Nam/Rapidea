@@ -47,6 +47,15 @@ export class FolderController {
         };
     }
 
+    @UseGuards(JwtAuthGuard)
+    @Get(':id/post-usages')
+    async getFolderPostUsages(
+        @Param('id') id: string,
+        @Request() req: any,
+    ) {
+        return this.folderService.getPostUsages(id, req.user.userId);
+    }
+
     @UseGuards(OptionalJwtAuthGuard)
     @Get(':id')
     async getFolderById (

@@ -53,6 +53,15 @@ export class FileInPostController {
         return fileInPost;
     }
 
+    @UseGuards(JwtAuthGuard)
+    @Get('file/:fileId')
+    async getPostsUsingFile(
+        @Request() req: any,
+        @Param('fileId') fileId: string,
+    ) {
+        return this.fileInPostService.getPostsByFileId(fileId, req.user.userId);
+    }
+
     @UseGuards(OptionalJwtAuthGuard)
     @Get('post/:postId')
     async getFilesOfPost(
