@@ -85,7 +85,7 @@ export class PrismaUsersRepository implements UsersRepository {
         return user.creatorPrompt;
     }
 
-    async updateById(id: string, firstname?: string, lastname?: string, middlename?: string, avatarId?: number, backgroundId?: number, headline?: string, bio?: string): Promise<any | null> {
+    async updateById(id: string, firstname?: string, lastname?: string, middlename?: string, avatarId?: number | null, backgroundId?: number | null, headline?: string, bio?: string): Promise<any | null> {
         const currentUser = await this.prisma.users.findUnique({
             where: { id },
             select: {
@@ -128,7 +128,7 @@ export class PrismaUsersRepository implements UsersRepository {
         return this.serializeUser(user);
     }
 
-    async updateByUsername(currentUsername: string, firstname?: string, lastname?: string, middlename?: string, avatarId?: number, backgroundId?: number, headline?: string, bio?: string): Promise<any | null> {
+    async updateByUsername(currentUsername: string, firstname?: string, lastname?: string, middlename?: string, avatarId?: number | null, backgroundId?: number | null, headline?: string, bio?: string): Promise<any | null> {
         const currentUser = await this.prisma.users.findUnique({
             where: { username: currentUsername },
             select: {

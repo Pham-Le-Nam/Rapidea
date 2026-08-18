@@ -258,6 +258,7 @@ function Profile() {
                                 outputWidth={1500}
                                 outputHeight={500}
                                 allowZoom
+                                hasCurrentPhoto={Boolean(profile?.backgroundId || profile?.background)}
                                 reloadProfile={loadProfile}
                             />
                         </div>
@@ -346,7 +347,7 @@ function Profile() {
                                     </h1>
                                 )}
                                 {bio && (
-                                    <p className="line-clamp-2 text-xs text-gray-600">
+                                    <p className="whitespace-pre-wrap break-words text-xs text-gray-600">
                                         {bio}
                                     </p>
                                 )}
@@ -468,8 +469,8 @@ function EditProfileDialog({
                 firstname: firstname.trim(),
                 lastname: lastname.trim(),
                 middlename: middlename.trim() || undefined,
-                headline: headline.trim() || undefined,
-                bio: bio.trim() || undefined,
+                headline: headline.trim(),
+                bio: bio.trim(),
             });
 
             toast.success("Profile updated");
@@ -704,12 +705,15 @@ function ProfilePhotoDialog({
         }
     }
 
-    const deleteAvatar = async () => {
+    const deletePhoto = async () => {
         try {
             setIsSaving(true);
-            await updateProfileApi(currentUsername, { avatarId: null });
+            await updateProfileApi(
+                currentUsername,
+                field === "avatarId" ? { avatarId: null } : { backgroundId: null },
+            );
 
-            toast.success("Avatar deleted");
+            toast.success(`${title} deleted`);
             setAdjustedFile(null);
             setSourceName("");
             await reloadProfile();
@@ -720,7 +724,7 @@ function ProfilePhotoDialog({
                 toast.error("Token Expired. You have been logged out. Please log in to continue");
                 navigate("/login");
             } else {
-                toast.error("Couldn't delete avatar");
+                toast.error(`Couldn't delete ${title.toLowerCase()}`);
             }
         } finally {
             setIsSaving(false);
@@ -774,16 +778,14 @@ function ProfilePhotoDialog({
                 />
 
                 <DialogFooter>
-                    {field === "avatarId" && (
-                        <Button
-                            variant="destructive"
-                            type="button"
-                            disabled={isSaving || !hasCurrentPhoto}
-                            onClick={deleteAvatar}
-                        >
-                            Delete avatar
-                        </Button>
-                    )}
+                    <Button
+                        variant="destructive"
+                        type="button"
+                        disabled={isSaving || !hasCurrentPhoto}
+                        onClick={deletePhoto}
+                    >
+                        Delete {title.toLowerCase()}
+                    </Button>
                     <DialogClose asChild>
                         <Button variant="outline" type="button">
                             Cancel

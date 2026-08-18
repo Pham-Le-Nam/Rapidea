@@ -85,11 +85,11 @@ export class UsersService {
         });
     }
 
-    async updateProfileById(id: string, firstname?: string, lastname? : string, middlename? : string, avatarId?: number, backgroundId?: number, headline?: string, bio?: string) {
+    async updateProfileById(id: string, firstname?: string, lastname? : string, middlename? : string, avatarId?: number | null, backgroundId?: number | null, headline?: string, bio?: string) {
         return this.usersRepo.updateById(id, firstname, lastname, middlename, avatarId, backgroundId, headline, bio);
     }
 
-    async updateProfileByUsername(currentUsername: string, firstname?: string, lastname? : string, middlename? : string, avatarId?: number, backgroundId?: number, headline?: string, bio?: string) {
+    async updateProfileByUsername(currentUsername: string, firstname?: string, lastname? : string, middlename? : string, avatarId?: number | null, backgroundId?: number | null, headline?: string, bio?: string) {
         const currentUser = await this.usersRepo.findByUsername(currentUsername);
         const updatedUser = await this.usersRepo.updateByUsername(currentUsername, firstname, lastname, middlename, avatarId, backgroundId, headline, bio);
 

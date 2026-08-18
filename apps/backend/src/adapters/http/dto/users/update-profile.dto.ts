@@ -19,11 +19,11 @@ export class UpdateProfileDto {
     
     @IsInt()
     @IsOptional()
-    avatarId?: number;
+    avatarId?: number | null;
     
     @IsInt()
     @IsOptional()
-    backgroundId?: number;
+    backgroundId?: number | null;
     
     @IsString()
     @IsOptional()

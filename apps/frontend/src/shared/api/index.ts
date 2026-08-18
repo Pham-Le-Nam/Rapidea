@@ -187,7 +187,7 @@ export async function updateProfileApi(
         lastname?: string;
         middlename?: string;
         avatarId?: number | null;
-        backgroundId?: number;
+        backgroundId?: number | null;
         headline?: string;
         bio?: string;
     },
