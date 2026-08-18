@@ -579,9 +579,14 @@ function Post ({ post, reloadPosts, canViewAllPosts, courseOptions = [] }: PostP
 
             {files?.map((file) => (
                 <Button 
-                    className={`w-full h-full min-w-0 flex items-center justify-start gap-2 rounded-xl border-2 bg-white hover:bg-gray-100 text-black text-lg font-normal [&>svg]:w-5 [&>svg]:h-5 ${isPostLocked ? "blur-sm pointer-events-none select-none" : ""}`}
+                    className={`w-full h-full min-w-0 flex items-center justify-start gap-2 rounded-xl border-2 text-black text-lg font-normal transition-colors [&>svg]:w-5 [&>svg]:h-5 ${
+                        viewFile?.id === file.id
+                            ? "border-gray-400 bg-gray-200 hover:bg-gray-300"
+                            : "bg-white hover:bg-gray-100"
+                    } ${isPostLocked ? "blur-sm pointer-events-none select-none" : ""}`}
                     key={file.id}
                     onClick={() => setViewFile(file)}
+                    aria-pressed={viewFile?.id === file.id}
                 >
                     <FileIcon />
                     <span className="wrap-anywhere whitespace-normal text-start">

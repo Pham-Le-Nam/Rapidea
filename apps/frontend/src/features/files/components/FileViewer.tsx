@@ -59,6 +59,22 @@ export default function FileViewer({ file, isLocked = false }: FileViewerProps) 
         type === "application/msword" ||
         type ===
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+    const isPowerPointFile =
+        type === "application/vnd.ms-powerpoint" ||
+        type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+        /\.pptx?$/i.test(file?.name ?? "");
+
+    const canEmbedWithOfficeViewer = (() => {
+        try {
+            const fileUrl = new URL(url);
+            return fileUrl.protocol === "https:" &&
+                fileUrl.hostname !== "localhost" &&
+                fileUrl.hostname !== "127.0.0.1";
+        } catch {
+            return false;
+        }
+    })();
     
     useEffect(() => {
         if (isTextFile) {
@@ -105,6 +121,41 @@ export default function FileViewer({ file, isLocked = false }: FileViewerProps) 
                 src={url}
                 className={`w-full ${height} border rounded-lg mt-3`}
             />
+        );
+    }
+
+    // PowerPoint presentations require a publicly reachable URL so Microsoft
+    // Office for the web can retrieve and render the file inside the iframe.
+    if (isPowerPointFile) {
+        if (!canEmbedWithOfficeViewer) {
+            return (
+                <div className={`flex w-full ${height} flex-col items-center justify-center gap-3 rounded-lg border bg-gray-50 p-4 text-center`}>
+                    <p className="text-sm text-gray-600">
+                        PowerPoint preview requires a publicly reachable HTTPS file URL and is unavailable for local files.
+                    </p>
+                    <a href={url} target="_blank" rel="noreferrer" className="text-blue-600 underline">
+                        Open or download presentation
+                    </a>
+                </div>
+            );
+        }
+
+        const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+
+        return (
+            <div className="mt-3 w-full">
+                <iframe
+                    src={viewerUrl}
+                    title={`PowerPoint preview: ${file?.name ?? "presentation"}`}
+                    className={`w-full ${height} rounded-lg border`}
+                />
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+                    <span>Preview provided by Microsoft Office for the web.</span>
+                    <a href={url} target="_blank" rel="noreferrer" className="text-blue-600 underline">
+                        Open or download presentation
+                    </a>
+                </div>
+            </div>
         );
     }
 
