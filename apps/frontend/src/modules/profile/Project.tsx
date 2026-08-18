@@ -18,6 +18,15 @@ import { Label } from "@/components/ui/label"
 import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { DEFAULT_PROJECT_LOGO_URL } from "@/lib/media";
+import {
+    ProfileItemImage,
+    ProfileItemImageEditor,
+} from "./ProfileItemImage";
+import {
+    type ProfileItemImageChange,
+    resolveProfileItemLogoId,
+} from "./profileItemImageUtils";
 
 type projectProps = {
     username: string,
@@ -99,7 +108,7 @@ function Project({ username, isOwner = false }: projectProps) {
 
             {visibleProjects.map((project, index) => (
                 <div className="flex flex-row items-start justify-start gap-3 border-b w-full pb-3" key={`${project.name}-${index}`}>
-                    <img src="http://localhost:1234/storage/media/default_avatar.png" className="rounded-full w-10 aspect-square"/>
+                    <ProfileItemImage logoId={project.logoId} alt={`${project.name} logo`} fallbackUrl={DEFAULT_PROJECT_LOGO_URL} />
 
                     <div className="mt-2 w-full">
                         <h1 className="font-bold">
@@ -143,11 +152,11 @@ function Project({ username, isOwner = false }: projectProps) {
 
                     {isOwner && (
                         <div className="flex flex-col">
-                            <Button type="button" className="bg-white hover:bg-gray-100 text-black border" onClick={() => deleteProject(project.id)}>
+                            <EditProject project={project} reloadProject={loadProjects} linksList={projectsLinksLists[index]}/>
+
+                            <Button type="button" className="border bg-white text-red-600 hover:bg-gray-100 hover:text-red-600" onClick={() => deleteProject(project.id)}>
                                 Delete
                             </Button>
-
-                            <EditProject project={project} reloadProject={loadProjects} linksList={projectsLinksLists[index]}/>
                         </div>
                     )}
                 </div>
@@ -181,6 +190,7 @@ function EditProject({ project, reloadProject, linksList }: EditProjectProps) {
     const [links, setLinks] = useState<any[]>([]);
     const [linkName, setLinkName] = useState("");
     const [linkUrl, setLinkUrl] = useState("");
+    const [imageChange, setImageChange] = useState<ProfileItemImageChange>(undefined);
     const { logout } = useAuth();
     const navigate = useNavigate();
 
@@ -190,17 +200,16 @@ function EditProject({ project, reloadProject, linksList }: EditProjectProps) {
 
     const submit = async () => {
         try {
-            console.log(links.length);
-
             for (const link of links) {
                 await updateProjectLinkApi(link.id, link.name, link.url);
             }
 
-            const response = await updateProjectApi(project.id, projectName, role, startedAt, endedAt, description);
+            const logoId = await resolveProfileItemLogoId(project.logoId, imageChange);
+            const response = await updateProjectApi(project.id, projectName, role, startedAt, endedAt, description, logoId);
 
             if (response) {
                 toast.success("Update project Successfully!");
-                reloadProject();
+                window.location.reload();
             }
         } catch (error: any) {
             if (error.response?.status === 401) {
@@ -290,6 +299,13 @@ function EditProject({ project, reloadProject, linksList }: EditProjectProps) {
                         </DialogDescription>
                     </DialogHeader>
                     <FieldGroup>
+                        <ProfileItemImageEditor
+                            title="Project"
+                            currentLogoId={project.logoId}
+                            value={imageChange}
+                            onChange={setImageChange}
+                            fallbackUrl={DEFAULT_PROJECT_LOGO_URL}
+                        />
                         <Field>
                             <Label htmlFor="project-name-1">Project Name</Label>
                             <Input id="project-name-1" name="project-name" value={projectName} onChange={(n) => setProjectName(n.target.value)}/>
@@ -311,7 +327,13 @@ function EditProject({ project, reloadProject, linksList }: EditProjectProps) {
                         </div>
                         <Field>
                             <Label htmlFor="description-1">Description</Label>
-                            <Input id="description-1" name="description" value={description} onChange={(n) => setDescription(n.target.value)}/>
+                            <textarea
+                                id="description-1"
+                                name="description"
+                                value={description}
+                                className="min-h-24 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                onChange={(event) => setDescription(event.target.value)}
+                            />
                         </Field>
 
                         {links?.map((link, index) => (
@@ -383,12 +405,14 @@ function AddProject({ reloadProject }: AddProjectProps) {
     const [links, setLinks] = useState<any[]>([]);
     const [linkName, setLinkName] = useState("");
     const [linkUrl, setLinkUrl] = useState("");
+    const [imageChange, setImageChange] = useState<ProfileItemImageChange>(undefined);
     const { logout } = useAuth();
     const navigate = useNavigate();
 
     const submit = async () => {
         try {
-            const response = await addProjectApi(projectName, role, startedAt, endedAt, description);
+            const logoId = await resolveProfileItemLogoId(undefined, imageChange);
+            const response = await addProjectApi(projectName, role, startedAt, endedAt, description, logoId ?? undefined);
             
             for (const link of links) {
                 await addProjectLinkApi(response.id, link.name, link.url);
@@ -486,6 +510,12 @@ function AddProject({ reloadProject }: AddProjectProps) {
                         </DialogDescription>
                     </DialogHeader>
                     <FieldGroup>
+                        <ProfileItemImageEditor
+                            title="Project"
+                            value={imageChange}
+                            onChange={setImageChange}
+                            fallbackUrl={DEFAULT_PROJECT_LOGO_URL}
+                        />
                         <Field>
                             <Label htmlFor="project-name-1">Project Name</Label>
                             <Input id="project-name-1" name="project-name" value={projectName} onChange={(n) => setProjectName(n.target.value)}/>
@@ -507,7 +537,13 @@ function AddProject({ reloadProject }: AddProjectProps) {
                         </div>
                         <Field>
                             <Label htmlFor="description-1">Description</Label>
-                            <Input id="description-1" name="description" value={description} onChange={(n) => setDescription(n.target.value)}/>
+                            <textarea
+                                id="description-1"
+                                name="description"
+                                value={description}
+                                className="min-h-24 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                onChange={(event) => setDescription(event.target.value)}
+                            />
                         </Field>
 
                         {links?.map((link, index) => (

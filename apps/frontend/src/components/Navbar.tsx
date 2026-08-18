@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
+import { buildMediaUrl, DEFAULT_AVATAR_URL } from "@/lib/media";
 import { BellIcon, CreditCardIcon, LogOutIcon, SearchIcon, SettingsIcon, UserIcon } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -57,18 +58,8 @@ function Navbar() {
     const searchRef = useRef<HTMLDivElement | null>(null);
     const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
 
-    const getPhotoUrl = (value?: string) => {
-        if (!value) return "";
-
-        if (value.startsWith("http")) {
-            return value;
-        }
-
-        return `${import.meta.env.VITE_PHOTO_STORAGE}${value}`;
-    }
-
-    const avatarUrl = getPhotoUrl(profile?.avatarUrl || profile?.avatar?.name)
-        || `${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`;
+    const avatarUrl = buildMediaUrl(profile?.avatarUrl || profile?.avatar?.name)
+        || DEFAULT_AVATAR_URL;
 
     useEffect(() => {
         if (!isLoggedIn) {
@@ -493,7 +484,7 @@ function SearchResultImage({ item }: { item: SearchItem }) {
 
     return (
         <img
-            src={imageName.startsWith("http") ? imageName : `${import.meta.env.VITE_PHOTO_STORAGE}${imageName}`}
+            src={buildMediaUrl(imageName)}
             className="size-8 shrink-0 rounded-full border object-cover"
         />
     );

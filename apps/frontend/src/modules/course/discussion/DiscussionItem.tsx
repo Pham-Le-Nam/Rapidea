@@ -5,6 +5,7 @@ import type { Discussion, Profile } from "./types";
 import { DEFAULT_AVATAR } from "./constants";
 import { formatDate, getDiscussionText, getProfileName, handleDiscussionTextareaKeyDown, LinkedDiscussionText } from "./text";
 import { DiscussionRating } from "./DiscussionRating";
+import { buildMediaUrl } from "@/lib/media";
 
 type DiscussionItemProps = {
     discussion: Discussion;
@@ -48,11 +49,7 @@ export function DiscussionItem ({
 
         if (!avatarUrl) return DEFAULT_AVATAR;
 
-        if (avatarUrl.startsWith("http")) {
-            return avatarUrl;
-        }
-
-        return `${import.meta.env.VITE_PHOTO_STORAGE}${avatarUrl}`;
+        return buildMediaUrl(avatarUrl);
     }
 
     return (

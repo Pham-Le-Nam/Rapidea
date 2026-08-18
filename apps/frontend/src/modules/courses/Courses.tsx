@@ -18,6 +18,7 @@ import { ComboboxBasic } from "@/components/ui/comboboxBasic";
 import { useAuth } from "@/context/AuthContext";
 import toast from "react-hot-toast";
 import { addCourseApi, deleteCourseApi, getCoursesApi, udpateCourseApi, uploadPhotoApi } from "@/api";
+import { buildMediaUrl, DEFAULT_COURSE_THUMBNAIL_URL } from "@/lib/media";
 import LoadingScreen from "@/components/LoadingScreen";
 import TagSelector, { getTagNames } from "@/modules/course/TagSelector";
 
@@ -149,9 +150,7 @@ function CourseComponent ({ course, isOwner, loadCourses }: CourseComponentProp)
     const isLong = description.length >= 50;
     const visibleDescription = showAllDescription ? description : description.slice(0, shortenedSize);
     const courseLink = `/course/${course.id}`;
-    const thumbnailUrl = course.thumbnail?.name
-        ? `${import.meta.env.VITE_PHOTO_STORAGE}${course.thumbnail.name}`
-        : `${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`;
+    const thumbnailUrl = buildMediaUrl(course.thumbnail?.name) || DEFAULT_COURSE_THUMBNAIL_URL;
 
     const shortenCount = (count: number) => {
         let shorten = "";

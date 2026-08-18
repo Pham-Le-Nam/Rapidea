@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,6 +43,9 @@ import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import { CameraIcon } from "lucide-react";
 import LoadingScreen from "@/components/LoadingScreen";
+import { ImageAdjuster } from "./ImageAdjuster";
+import { PROFILE_AVATAR_MAX_SIZE } from "./profileImageConstants";
+import { buildMediaUrl, DEFAULT_AVATAR_URL, DEFAULT_BACKGROUND_URL } from "@/lib/media";
 
 function Profile() {
     type SocialLink = {
@@ -63,8 +66,8 @@ function Profile() {
     const [subscribersCount, setSubscribersCount] = useState(0);
     const [ratingCount, setRatingCount] = useState("");
     const [rating, setRating] = useState(0);
-    const [avatarUrl, setAvatarUrl] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`);
-    const [backgroundUrl, setBackgroundUrl] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`)
+    const [avatarUrl, setAvatarUrl] = useState(DEFAULT_AVATAR_URL);
+    const [backgroundUrl, setBackgroundUrl] = useState(DEFAULT_BACKGROUND_URL)
     const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
     const [isUser, setIsUser] = useState(false);
     const [isOwner, setIsOwner] = useState(false);
@@ -90,16 +93,6 @@ function Profile() {
 
     const socialPlatforms = Object.keys(socialIcons) as Array<keyof typeof socialIcons>;
 
-    const getPhotoUrl = (value?: string) => {
-        if (!value) return "";
-
-        if (value.startsWith("http")) {
-            return value;
-        }
-
-        return `${import.meta.env.VITE_PHOTO_STORAGE}${value}`;
-    }
-    
     if (!username) {
         throw new Error("Invalid profile link");
     }
@@ -120,8 +113,10 @@ function Profile() {
 
             setHeadline(profileResponse.headline ?? "");
             setBio(profileResponse.bio ?? "");
-            setAvatarUrl(getPhotoUrl(profileResponse.avatarUrl || profileResponse.avatar?.name) || `${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`);
-            setBackgroundUrl(getPhotoUrl(profileResponse.backgroundUrl || profileResponse.background?.name) || `${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`);
+            const nextAvatarUrl = buildMediaUrl(profileResponse.avatarUrl || profileResponse.avatar?.name) || DEFAULT_AVATAR_URL;
+            const nextBackgroundUrl = buildMediaUrl(profileResponse.backgroundUrl || profileResponse.background?.name) || DEFAULT_BACKGROUND_URL;
+            setAvatarUrl(nextAvatarUrl);
+            setBackgroundUrl(nextBackgroundUrl);
 
             setCoursesCount(profileResponse.coursesCount);
             setPostsCount(profileResponse.postsCount);
@@ -282,10 +277,11 @@ function Profile() {
                                         currentUsername={username}
                                         field="avatarId"
                                         aspectRatio={1}
-                                        outputWidth={512}
-                                        outputHeight={512}
+                                        outputWidth={PROFILE_AVATAR_MAX_SIZE}
+                                        outputHeight={PROFILE_AVATAR_MAX_SIZE}
                                         roundedPreview
                                         allowZoom
+                                        hasCurrentPhoto={Boolean(profile?.avatarId || profile?.avatar)}
                                         reloadProfile={loadProfile}
                                     />
                                 </div>
@@ -651,6 +647,7 @@ type ProfilePhotoDialogProps = {
     outputHeight: number;
     roundedPreview?: boolean;
     allowZoom?: boolean;
+    hasCurrentPhoto?: boolean;
     reloadProfile: () => Promise<void>;
 }
 
@@ -665,8 +662,10 @@ function ProfilePhotoDialog({
     outputHeight,
     roundedPreview = false,
     allowZoom = false,
+    hasCurrentPhoto = false,
     reloadProfile,
 }: ProfilePhotoDialogProps) {
+    const [isOpen, setIsOpen] = useState(false);
     const [adjustedFile, setAdjustedFile] = useState<File | null>(null);
     const [sourceName, setSourceName] = useState("");
     const [isSaving, setIsSaving] = useState(false);
@@ -691,6 +690,7 @@ function ProfilePhotoDialog({
             setAdjustedFile(null);
             setSourceName("");
             await reloadProfile();
+            setIsOpen(false);
         } catch (error: any) {
             if (error.response?.status === 401) {
                 logout();
@@ -704,8 +704,40 @@ function ProfilePhotoDialog({
         }
     }
 
+    const deleteAvatar = async () => {
+        try {
+            setIsSaving(true);
+            await updateProfileApi(currentUsername, { avatarId: null });
+
+            toast.success("Avatar deleted");
+            setAdjustedFile(null);
+            setSourceName("");
+            await reloadProfile();
+            setIsOpen(false);
+        } catch (error: any) {
+            if (error.response?.status === 401) {
+                logout();
+                toast.error("Token Expired. You have been logged out. Please log in to continue");
+                navigate("/login");
+            } else {
+                toast.error("Couldn't delete avatar");
+            }
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
     return (
-        <Dialog>
+        <Dialog
+            open={isOpen}
+            onOpenChange={(open) => {
+                setIsOpen(open);
+                if (!open) {
+                    setAdjustedFile(null);
+                    setSourceName("");
+                }
+            }}
+        >
             <DialogTrigger asChild>
                 <Button
                     type="button"
@@ -742,6 +774,16 @@ function ProfilePhotoDialog({
                 />
 
                 <DialogFooter>
+                    {field === "avatarId" && (
+                        <Button
+                            variant="destructive"
+                            type="button"
+                            disabled={isSaving || !hasCurrentPhoto}
+                            onClick={deleteAvatar}
+                        >
+                            Delete avatar
+                        </Button>
+                    )}
                     <DialogClose asChild>
                         <Button variant="outline" type="button">
                             Cancel
@@ -753,243 +795,6 @@ function ProfilePhotoDialog({
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    )
-}
-
-type ImageAdjusterProps = {
-    title: string;
-    description: string;
-    aspectRatio: number;
-    outputWidth: number;
-    outputHeight: number;
-    selectedName?: string;
-    roundedPreview?: boolean;
-    allowZoom?: boolean;
-    onAdjustedFile: (file: File, sourceName: string) => void;
-}
-
-function ImageAdjuster({
-    title,
-    description,
-    aspectRatio,
-    outputWidth,
-    outputHeight,
-    selectedName,
-    roundedPreview = false,
-    allowZoom = false,
-    onAdjustedFile,
-}: ImageAdjusterProps) {
-    const previewRef = useRef<HTMLDivElement | null>(null);
-    const dragStartRef = useRef<{ pointerX: number; pointerY: number; offsetX: number; offsetY: number } | null>(null);
-    const [imageSrc, setImageSrc] = useState("");
-    const [image, setImage] = useState<HTMLImageElement | null>(null);
-    const [sourceName, setSourceName] = useState("");
-    const [sourceResolution, setSourceResolution] = useState("");
-    const [offset, setOffset] = useState({ x: 0, y: 0 });
-    const [zoom, setZoom] = useState(1);
-    const inputId = `profile-${title.toLowerCase()}-adjuster`;
-
-    useEffect(() => {
-        return () => {
-            if (imageSrc) {
-                URL.revokeObjectURL(imageSrc);
-            }
-        };
-    }, [imageSrc]);
-
-    useEffect(() => {
-        if (!image || !sourceName) return;
-
-        createAdjustedFile({ x: 0, y: 0 }, 1);
-    }, [image, sourceName]);
-
-    const getPreviewMetrics = (nextZoom = zoom) => {
-        if (!previewRef.current || !image) return null;
-
-        const previewWidth = previewRef.current.clientWidth;
-        const previewHeight = previewRef.current.clientHeight;
-        const coverScale = Math.max(previewWidth / image.naturalWidth, previewHeight / image.naturalHeight) * nextZoom;
-        const displayWidth = image.naturalWidth * coverScale;
-        const displayHeight = image.naturalHeight * coverScale;
-
-        return {
-            previewWidth,
-            previewHeight,
-            coverScale,
-            displayWidth,
-            displayHeight,
-            maxOffsetX: Math.max(0, (displayWidth - previewWidth) / 2),
-            maxOffsetY: Math.max(0, (displayHeight - previewHeight) / 2),
-        };
-    }
-
-    const clampOffset = (nextOffset: { x: number; y: number }, nextZoom = zoom) => {
-        const metrics = getPreviewMetrics(nextZoom);
-
-        if (!metrics) return nextOffset;
-
-        return {
-            x: Math.min(metrics.maxOffsetX, Math.max(-metrics.maxOffsetX, nextOffset.x)),
-            y: Math.min(metrics.maxOffsetY, Math.max(-metrics.maxOffsetY, nextOffset.y)),
-        };
-    }
-
-    const createAdjustedFile = async (nextOffset = offset, nextZoom = zoom) => {
-        if (!image || !previewRef.current) return;
-
-        const metrics = getPreviewMetrics(nextZoom);
-        if (!metrics) return;
-
-        const canvas = document.createElement("canvas");
-        canvas.width = outputWidth;
-        canvas.height = outputHeight;
-
-        const context = canvas.getContext("2d");
-        if (!context) return;
-
-        const imageLeft = metrics.previewWidth / 2 + nextOffset.x - metrics.displayWidth / 2;
-        const imageTop = metrics.previewHeight / 2 + nextOffset.y - metrics.displayHeight / 2;
-        const sourceX = (0 - imageLeft) / metrics.coverScale;
-        const sourceY = (0 - imageTop) / metrics.coverScale;
-        const sourceWidth = metrics.previewWidth / metrics.coverScale;
-        const sourceHeight = metrics.previewHeight / metrics.coverScale;
-
-        context.drawImage(
-            image,
-            sourceX,
-            sourceY,
-            sourceWidth,
-            sourceHeight,
-            0,
-            0,
-            outputWidth,
-            outputHeight,
-        );
-
-        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
-        if (!blob) return;
-
-        const fileName = `${title.toLowerCase()}-${Date.now()}.jpg`;
-        onAdjustedFile(new File([blob], fileName, { type: "image/jpeg" }), sourceName);
-    }
-
-    const loadImage = (file?: File) => {
-        if (!file) return;
-
-        const nextImageSrc = URL.createObjectURL(file);
-        const nextImage = new Image();
-        nextImage.onload = () => {
-            if (imageSrc) {
-                URL.revokeObjectURL(imageSrc);
-            }
-
-            setImageSrc(nextImageSrc);
-            setImage(nextImage);
-            setSourceName(file.name);
-            setSourceResolution(`${nextImage.naturalWidth} x ${nextImage.naturalHeight}px`);
-            setOffset({ x: 0, y: 0 });
-            setZoom(1);
-        };
-        nextImage.src = nextImageSrc;
-    }
-
-    const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-        if (!image) return;
-
-        event.currentTarget.setPointerCapture(event.pointerId);
-        dragStartRef.current = {
-            pointerX: event.clientX,
-            pointerY: event.clientY,
-            offsetX: offset.x,
-            offsetY: offset.y,
-        };
-    }
-
-    const dragImage = (event: React.PointerEvent<HTMLDivElement>) => {
-        if (!dragStartRef.current) return;
-
-        const nextOffset = clampOffset({
-            x: dragStartRef.current.offsetX + event.clientX - dragStartRef.current.pointerX,
-            y: dragStartRef.current.offsetY + event.clientY - dragStartRef.current.pointerY,
-        });
-
-        setOffset(nextOffset);
-    }
-
-    const stopDrag = async () => {
-        if (!dragStartRef.current) return;
-
-        dragStartRef.current = null;
-        await createAdjustedFile();
-    }
-
-    const updateZoom = async (value: number) => {
-        const nextZoom = Number(value);
-        const nextOffset = clampOffset(offset, nextZoom);
-        setZoom(nextZoom);
-        setOffset(nextOffset);
-        await createAdjustedFile(nextOffset, nextZoom);
-    }
-
-    return (
-        <div className="flex flex-col gap-3 rounded-md border p-3">
-            <div>
-                <Label htmlFor={inputId}>{title}</Label>
-                <p className="text-xs text-gray-500">{description}</p>
-            </div>
-
-            <Input id={inputId} type="file" accept="image/*" onChange={(event) => loadImage(event.target.files?.[0])} />
-
-            <div
-                ref={previewRef}
-                className={`relative w-full overflow-hidden border bg-gray-100 ${roundedPreview ? "rounded-full" : "rounded-md"}`}
-                style={{ aspectRatio }}
-                onPointerDown={startDrag}
-                onPointerMove={dragImage}
-                onPointerUp={stopDrag}
-                onPointerCancel={stopDrag}
-            >
-                {imageSrc ? (
-                    <img
-                        src={imageSrc}
-                        className="absolute left-1/2 top-1/2 max-w-none cursor-grab select-none"
-                        style={{
-                            width: "100%",
-                            minHeight: "100%",
-                            transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px)) scale(${zoom})`,
-                            transformOrigin: "center",
-                        }}
-                        draggable={false}
-                    />
-                ) : (
-                    <div className="flex h-full items-center justify-center text-sm text-gray-500">
-                        Select an image
-                    </div>
-                )}
-            </div>
-
-            <div className="grid gap-1 text-xs text-gray-600">
-                <span>Source: {sourceResolution || "No image selected"}</span>
-                <span>Saved crop: {outputWidth} x {outputHeight}px</span>
-                {selectedName && <span>Ready: {selectedName}</span>}
-            </div>
-
-            {allowZoom && imageSrc && (
-                <div className="flex items-center gap-3">
-                    <Label htmlFor={`${inputId}-zoom`} className="text-xs">Zoom</Label>
-                    <Input
-                        id={`${inputId}-zoom`}
-                        type="range"
-                        min={1}
-                        max={3}
-                        step={0.05}
-                        value={zoom}
-                        onChange={(event) => updateZoom(Number(event.target.value))}
-                    />
-                    <span className="w-10 text-xs text-gray-600">{Math.round(zoom * 100)}%</span>
-                </div>
-            )}
-        </div>
     )
 }
 

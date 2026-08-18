@@ -1,0 +1,1 @@
+export const PROFILE_AVATAR_MAX_SIZE = 512;

@@ -183,7 +183,7 @@ export async function updateProfileApi(
         firstname?: string;
         lastname?: string;
         middlename?: string;
-        avatarId?: number;
+        avatarId?: number | null;
         backgroundId?: number;
         headline?: string;
         bio?: string;
@@ -218,6 +218,12 @@ export async function uploadPhotoApi(photo: File) {
             },
         },
     );
+
+    return response.data;
+}
+
+export async function getPhotoApi(id: number) {
+    const response = await API.get(`api/photo/${id}`);
 
     return response.data;
 }
@@ -522,7 +528,7 @@ export async function getProjectLinkApi(projectId: string) {
     return response.data;
 }
 
-export async function updateEducationApi(educationId: string, schoolName?: string, location?: string, major?: string, degree?: string, startedAt?: string, endedAt?: string, description?: string, logoId?: number) {
+export async function updateEducationApi(educationId: string, schoolName?: string, location?: string, major?: string, degree?: string, startedAt?: string, endedAt?: string, description?: string, logoId?: number | null) {
     const token = localStorage.getItem("token");
 
     const response = await API.post(
@@ -573,7 +579,7 @@ export async function addEducationApi(schoolName: string, location?: string, maj
     return response.data;
 }
 
-export async function updateExperienceApi(experienceId: string, organizationName?: string, location?: string, position?: string, role?: string, startedAt?: string, endedAt?: string, description?: string, logoId?: number) {
+export async function updateExperienceApi(experienceId: string, organizationName?: string, location?: string, position?: string, role?: string, startedAt?: string, endedAt?: string, description?: string, logoId?: number | null) {
     const token = localStorage.getItem("token");
     console.log(experienceId);
 
@@ -719,7 +725,7 @@ export async function updateProjectLinkApi (id: string, name: string, url: strin
     return response.data;
 }
 
-export async function updateProjectApi (id: string, name?: string, role?: string, startedAt?: string, endedAt?: string, details?: string, logoId?: number) {
+export async function updateProjectApi (id: string, name?: string, role?: string, startedAt?: string, endedAt?: string, details?: string, logoId?: number | null) {
     const token = localStorage.getItem("token");
 
     const response = await API.post(

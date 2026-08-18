@@ -1,3 +1,5 @@
+import { buildMediaUrl, DEFAULT_AVATAR_URL } from "@/lib/media";
+
 export type ChatRelationship = {
     viewerFollowsOther?: boolean;
     otherFollowsViewer?: boolean;
@@ -54,14 +56,10 @@ export function getChatAvatarUrl(user?: ChatUser) {
     const avatarName = user?.avatar?.name ?? user?.avatarName;
 
     if (!avatarName) {
-        return `${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`;
+        return DEFAULT_AVATAR_URL;
     }
 
-    if (avatarName.startsWith("http")) {
-        return avatarName;
-    }
-
-    return `${import.meta.env.VITE_PHOTO_STORAGE}${avatarName}`;
+    return buildMediaUrl(avatarName);
 }
 
 export function getRelationshipLabels(relationship?: ChatRelationship) {

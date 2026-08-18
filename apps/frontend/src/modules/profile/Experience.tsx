@@ -18,6 +18,15 @@ import { Label } from "@/components/ui/label"
 import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { DEFAULT_EXPERIENCE_LOGO_URL } from "@/lib/media";
+import {
+    ProfileItemImage,
+    ProfileItemImageEditor,
+} from "./ProfileItemImage";
+import {
+    type ProfileItemImageChange,
+    resolveProfileItemLogoId,
+} from "./profileItemImageUtils";
 
 type ExperienceProps = {
     username: string,
@@ -82,7 +91,7 @@ function Experience({ username, isOwner = false }: ExperienceProps) {
 
             {visibleExperience.map((experience) => (
                 <div className="flex flex-row items-start justify-start gap-3 border-b w-full pb-3" key={experience.name}>
-                    <img src="http://localhost:1234/storage/media/default_avatar.png" className="rounded-full w-10 aspect-square"/>
+                    <ProfileItemImage logoId={experience.logoId} alt={`${experience.name} logo`} fallbackUrl={DEFAULT_EXPERIENCE_LOGO_URL} />
 
                     <div className="mt-2 w-full">
                         <h1 className="font-bold w-full">
@@ -108,11 +117,11 @@ function Experience({ username, isOwner = false }: ExperienceProps) {
 
                     {isOwner && (
                         <div className="flex flex-col">
-                            <Button type="button" className="bg-white hover:bg-gray-100 text-black border" onClick={() => deleteExperience(experience.id)}>
+                            <EditExperience experience={experience} reloadExperience={loadExperience}/>
+
+                            <Button type="button" className="border bg-white text-red-600 hover:bg-gray-100 hover:text-red-600" onClick={() => deleteExperience(experience.id)}>
                                 Delete
                             </Button>
-
-                            <EditExperience experience={experience} reloadExperience={loadExperience}/>
                         </div>
                     )}
 
@@ -146,10 +155,12 @@ function EditExperience({ experience, reloadExperience }: EditExperienceProps) {
     const [startedAt, setStartedAt] = useState(FormatDateInput(experience.startedAt));
     const [endedAt, setEndedAt] = useState(FormatDateInput(experience.endedAt));
     const [description, setDescription] = useState(experience.achievement);
+    const [imageChange, setImageChange] = useState<ProfileItemImageChange>(undefined);
 
     const submit = async () => {
         try {
-            const response = await updateExperienceApi(experience.id, organizationName, location, position, role, startedAt, endedAt, description);
+            const logoId = await resolveProfileItemLogoId(experience.logoId, imageChange);
+            const response = await updateExperienceApi(experience.id, organizationName, location, position, role, startedAt, endedAt, description, logoId);
 
             if (response) {
                 toast.success("Update Experience Successfully!");
@@ -180,6 +191,13 @@ function EditExperience({ experience, reloadExperience }: EditExperienceProps) {
                         </DialogDescription>
                     </DialogHeader>
                     <FieldGroup>
+                        <ProfileItemImageEditor
+                            title="Experience"
+                            currentLogoId={experience.logoId}
+                            value={imageChange}
+                            onChange={setImageChange}
+                            fallbackUrl={DEFAULT_EXPERIENCE_LOGO_URL}
+                        />
                         <Field>
                             <Label htmlFor="organization-name-1">Organization Name</Label>
                             <Input id="organization-name-1" name="organization-name" value={organizationName} onChange={(n) => setOrganizationName(n.target.value)}/>
@@ -212,7 +230,13 @@ function EditExperience({ experience, reloadExperience }: EditExperienceProps) {
                         </div>
                         <Field>
                             <Label htmlFor="description-1">Description</Label>
-                            <Input id="description-1" name="description" value={description} onChange={(n) => setDescription(n.target.value)}/>
+                            <textarea
+                                id="description-1"
+                                name="description"
+                                value={description}
+                                className="min-h-24 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                onChange={(event) => setDescription(event.target.value)}
+                            />
                         </Field>
                     </FieldGroup>
                     <DialogFooter className="pt-3">
@@ -243,10 +267,12 @@ function AddExperience({ reloadExperience }: AddExperienceProps) {
     const [startedAt, setStartedAt] = useState("");
     const [endedAt, setEndedAt] = useState("");
     const [description, setDescription] = useState("");
+    const [imageChange, setImageChange] = useState<ProfileItemImageChange>(undefined);
 
     const submit = async () => {
         try {
-            const response = await addExperienceApi(organizationName, location, position, role, startedAt, endedAt, description);
+            const logoId = await resolveProfileItemLogoId(undefined, imageChange);
+            const response = await addExperienceApi(organizationName, location, position, role, startedAt, endedAt, description, logoId ?? undefined);
 
             if (response) {
                 toast.success("Add Experience Successfully!");
@@ -279,6 +305,12 @@ function AddExperience({ reloadExperience }: AddExperienceProps) {
                         </DialogDescription>
                     </DialogHeader>
                     <FieldGroup>
+                        <ProfileItemImageEditor
+                            title="Experience"
+                            value={imageChange}
+                            onChange={setImageChange}
+                            fallbackUrl={DEFAULT_EXPERIENCE_LOGO_URL}
+                        />
                         <Field>
                             <Label htmlFor="organization-name-1">Organization Name</Label>
                             <Input id="organization-name-1" name="organization-name" value={organizationName} onChange={(n) => setOrganizationName(n.target.value)}/>
@@ -311,7 +343,13 @@ function AddExperience({ reloadExperience }: AddExperienceProps) {
                         </div>
                         <Field>
                             <Label htmlFor="description-1">Description</Label>
-                            <Input id="description-1" name="description" value={description} onChange={(n) => setDescription(n.target.value)}/>
+                            <textarea
+                                id="description-1"
+                                name="description"
+                                value={description}
+                                className="min-h-24 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                onChange={(event) => setDescription(event.target.value)}
+                            />
                         </Field>
                     </FieldGroup>
                     <DialogFooter className="pt-3">

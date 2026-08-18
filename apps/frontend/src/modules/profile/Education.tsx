@@ -18,6 +18,15 @@ import { Label } from "@/components/ui/label";
 import toast from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { DEFAULT_EDUCATION_LOGO_URL } from "@/lib/media";
+import {
+    ProfileItemImage,
+    ProfileItemImageEditor,
+} from "./ProfileItemImage";
+import {
+    type ProfileItemImageChange,
+    resolveProfileItemLogoId,
+} from "./profileItemImageUtils";
 
 type educationProps = {
     username: string,
@@ -83,7 +92,7 @@ export function Education({ username, isOwner = false }: educationProps) {
 
             {visibleEducation.map((education) => (
                 <div className="flex flex-row items-start justify-start gap-3 border-b w-full pb-3" key={education.name}>
-                    <img src="http://localhost:1234/storage/media/default_avatar.png" className="rounded-full w-10 aspect-square"/>
+                    <ProfileItemImage logoId={education.logoId} alt={`${education.name} logo`} fallbackUrl={DEFAULT_EDUCATION_LOGO_URL} />
 
                     <div className="mt-2 w-full">
                         <h1 className="font-bold w-full">
@@ -109,11 +118,11 @@ export function Education({ username, isOwner = false }: educationProps) {
 
                     {isOwner && (
                         <div className="flex flex-col">
-                            <Button type="button" className="bg-white hover:bg-gray-100 text-black border" onClick={() => deleteEducation(education.id)}>
+                            <EditEducation education={education} reloadEducation={loadEducation}/>
+
+                            <Button type="button" className="border bg-white text-red-600 hover:bg-gray-100 hover:text-red-600" onClick={() => deleteEducation(education.id)}>
                                 Delete
                             </Button>
-
-                            <EditEducation education={education} reloadEducation={loadEducation}/>
                         </div>
                     )}
                 </div>
@@ -143,10 +152,12 @@ function EditEducation({ education, reloadEducation }: EditEducationProps) {
     const [startedAt, setStartedAt] = useState(FormatDateInput(education.startedAt));
     const [endedAt, setEndedAt] = useState(FormatDateInput(education.endedAt));
     const [description, setDescription] = useState(education.achievement);
+    const [imageChange, setImageChange] = useState<ProfileItemImageChange>(undefined);
 
     const submit = async () => {
         try {
-            const response = await updateEducationApi(education.id, schoolName, location, major, degree, startedAt, endedAt, description);
+            const logoId = await resolveProfileItemLogoId(education.logoId, imageChange);
+            const response = await updateEducationApi(education.id, schoolName, location, major, degree, startedAt, endedAt, description, logoId);
 
             if (response) {
                 toast.success("Update Education Successfully!");
@@ -177,6 +188,13 @@ function EditEducation({ education, reloadEducation }: EditEducationProps) {
                         </DialogDescription>
                     </DialogHeader>
                     <FieldGroup>
+                        <ProfileItemImageEditor
+                            title="Education"
+                            currentLogoId={education.logoId}
+                            value={imageChange}
+                            onChange={setImageChange}
+                            fallbackUrl={DEFAULT_EDUCATION_LOGO_URL}
+                        />
                         <Field>
                             <Label htmlFor="school-name-1">School Name</Label>
                             <Input id="school-name-1" name="school-name" value={schoolName} onChange={(n) => setSchoolName(n.target.value)}/>
@@ -209,7 +227,13 @@ function EditEducation({ education, reloadEducation }: EditEducationProps) {
                         </div>
                         <Field>
                             <Label htmlFor="description-1">Description</Label>
-                            <Input id="description-1" name="description" value={description} onChange={(n) => setDescription(n.target.value)}/>
+                            <textarea
+                                id="description-1"
+                                name="description"
+                                value={description}
+                                className="min-h-24 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                onChange={(event) => setDescription(event.target.value)}
+                            />
                         </Field>
                     </FieldGroup>
                     <DialogFooter className="pt-3">
@@ -240,10 +264,12 @@ function AddEducation({ reloadEducation }: AddEducationProps) {
     const [startedAt, setStartedAt] = useState<string>();
     const [endedAt, setEndedAt] = useState<string>();
     const [description, setDescription] = useState("");
+    const [imageChange, setImageChange] = useState<ProfileItemImageChange>(undefined);
 
     const submit = async () => {
         try {
-            const response = await addEducationApi(schoolName, location, major, degree, startedAt, endedAt, description);
+            const logoId = await resolveProfileItemLogoId(undefined, imageChange);
+            const response = await addEducationApi(schoolName, location, major, degree, startedAt, endedAt, description, logoId ?? undefined);
 
             if (response) {
                 toast.success("Add Education Successfully!");
@@ -276,6 +302,12 @@ function AddEducation({ reloadEducation }: AddEducationProps) {
                         </DialogDescription>
                     </DialogHeader>
                     <FieldGroup>
+                        <ProfileItemImageEditor
+                            title="Education"
+                            value={imageChange}
+                            onChange={setImageChange}
+                            fallbackUrl={DEFAULT_EDUCATION_LOGO_URL}
+                        />
                         <Field>
                             <Label htmlFor="name-1">School Name</Label>
                             <Input id="school-name-1" name="school-name" value={schoolName} onChange={(n) => setSchoolName(n.target.value)}/>
@@ -308,7 +340,13 @@ function AddEducation({ reloadEducation }: AddEducationProps) {
                         </div>
                         <Field>
                             <Label htmlFor="description-1">Description</Label>
-                            <Input id="description-1" name="description" value={description} onChange={(n) => setDescription(n.target.value)}/>
+                            <textarea
+                                id="description-1"
+                                name="description"
+                                value={description}
+                                className="min-h-24 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                onChange={(event) => setDescription(event.target.value)}
+                            />
                         </Field>
                     </FieldGroup>
                     <DialogFooter className="pt-3">

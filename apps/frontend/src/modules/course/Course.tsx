@@ -14,6 +14,7 @@ import {
 import { Field, FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { buildMediaUrl, DEFAULT_AVATAR_URL, DEFAULT_COURSE_THUMBNAIL_URL } from "@/lib/media";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -46,24 +47,14 @@ function Course () {
     const [viewMode, setViewMode] = useState("post");
     const [course, setCourse] = useState<any>();
     const [owner, setOwner] = useState<any>();
-    const [ownerAvatar, setOwnerAvatar] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`);
+    const [ownerAvatar, setOwnerAvatar] = useState(DEFAULT_AVATAR_URL);
     const [postsCount, setPostsCount] = useState(0);
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [subscription, setSubscription] = useState<any>(null);
     const [lastUpdated, setLastUpdated] = useState("");
-    const [thumbnailUrl, setThumbnailUrl] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`);
+    const [thumbnailUrl, setThumbnailUrl] = useState(DEFAULT_COURSE_THUMBNAIL_URL);
     const [isLoading, setIsLoading] = useState(true);
 
-    const getPhotoUrl = (value?: string) => {
-        if (!value) return "";
-
-        if (value.startsWith("http")) {
-            return value;
-        }
-
-        return `${import.meta.env.VITE_PHOTO_STORAGE}${value}`;
-    }
-    
     const loadCourse = async () => {
         try {
             setIsLoading(true);
@@ -85,15 +76,13 @@ function Course () {
             setCourse(course);
             setOwner(ownerResponse.profile);
             setOwnerAvatar(
-                getPhotoUrl(ownerResponse.profile.avatarUrl || ownerResponse.profile.avatar?.name)
-                    || `${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`
+                buildMediaUrl(ownerResponse.profile.avatarUrl || ownerResponse.profile.avatar?.name)
+                    || DEFAULT_AVATAR_URL
             );
             setPostsCount(course.postsCount ?? 0);
             setLastUpdated(course.lastUpdated ?? course.createdAt ?? "");
             setThumbnailUrl(
-                course.thumbnail?.name
-                    ? `${import.meta.env.VITE_PHOTO_STORAGE}${course.thumbnail.name}`
-                    : `${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`
+                buildMediaUrl(course.thumbnail?.name) || DEFAULT_COURSE_THUMBNAIL_URL
             );
 
             if (!response.isOwner && isLoggedIn) {

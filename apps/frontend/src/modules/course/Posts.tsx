@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "react-hot-toast";
 import { addRatePostApi, deletePostApi, getChildrenDiscussionsApi, getCourseApi, getDiscussionsByPostApi, getFilesOfPostApi, getPostApi, getPostsOfCourseApi, getProfileByIdApi, getRatePostApi, getUserFoldersApi, updateRatePostApi } from "@/api";
 import { TextRenderer } from "@/components/ui/texteditor";
+import { buildMediaUrl, DEFAULT_AVATAR_URL, DEFAULT_COURSE_THUMBNAIL_URL } from "@/lib/media";
 import { 
     FileIcon, 
     MoreVerticalIcon,
@@ -227,8 +228,8 @@ type PostProps = {
 function Post ({ post, reloadPosts, canViewAllPosts, courseOptions = [] }: PostProps) {
     const { id } = useParams();
     const targetPostId = post?.id ?? id;
-    const [courseImg, setCourseImg] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`);
-    const [ownerAvatar, setOwnerAvatar] = useState(`${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`);
+    const [courseImg, setCourseImg] = useState(DEFAULT_COURSE_THUMBNAIL_URL);
+    const [ownerAvatar, setOwnerAvatar] = useState(DEFAULT_AVATAR_URL);
     const { logout, isLoggedIn } = useAuth();
     const navigate = useNavigate();
     const [course, setCourse] = useState<any>();
@@ -245,16 +246,6 @@ function Post ({ post, reloadPosts, canViewAllPosts, courseOptions = [] }: PostP
     const [commentCount, setCommentCount] = useState(0);
     const [isPostLoading, setIsPostLoading] = useState(true);
     const containerWidth = post ? "w-full" : "w-full";
-
-    const getPhotoUrl = (value?: string) => {
-        if (!value) return "";
-
-        if (value.startsWith("http")) {
-            return value;
-        }
-
-        return `${import.meta.env.VITE_PHOTO_STORAGE}${value}`;
-    }
 
     const loadPostDetails = async () => {
         try {
@@ -285,13 +276,11 @@ function Post ({ post, reloadPosts, canViewAllPosts, courseOptions = [] }: PostP
                 setFileFolder(folderResponse.freeFolder);
             }
             setCourseImg(
-                courseResponse?.course?.thumbnail?.name
-                    ? `${import.meta.env.VITE_PHOTO_STORAGE}${courseResponse.course.thumbnail.name}`
-                    : `${import.meta.env.VITE_PHOTO_STORAGE}default_background.jpg`
+                buildMediaUrl(courseResponse?.course?.thumbnail?.name) || DEFAULT_COURSE_THUMBNAIL_URL
             );
             setOwnerAvatar(
-                getPhotoUrl(ownerResponse.profile.avatarUrl || ownerResponse.profile.avatar?.name)
-                    || `${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`
+                buildMediaUrl(ownerResponse.profile.avatarUrl || ownerResponse.profile.avatar?.name)
+                    || DEFAULT_AVATAR_URL
             );
 
             if (fileResponse) {

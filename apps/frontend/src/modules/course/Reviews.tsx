@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
 import LoadingScreen from "@/components/LoadingScreen";
+import { buildMediaUrl, DEFAULT_AVATAR_URL } from "@/lib/media";
 
 type ReviewsProps = {
     course: any;
@@ -101,9 +102,7 @@ export function Reviews({
     const getAvatarUrl = (profile: any) => {
         const avatarName = profile?.avatar?.name;
 
-        return avatarName
-            ? `${import.meta.env.VITE_PHOTO_STORAGE}${avatarName}`
-            : `${import.meta.env.VITE_PHOTO_STORAGE}default_avatar.png`;
+        return buildMediaUrl(avatarName) || DEFAULT_AVATAR_URL;
     }
 
     const getProfilePath = (profile: any) => (
