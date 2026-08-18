@@ -1,0 +1,104 @@
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
+import { ProjectContributorRepository } from '../../../domain/project-contributor/repositories/project-contributor.repository';
+
+@Injectable()
+export class PrismaProjectContributorRepository implements ProjectContributorRepository {
+    constructor(private prisma: PrismaService) {}
+
+    async create(projectId: string, userId: string, role: string): Promise<any> {
+        const project = await this.prisma.project.findUnique({
+            where: {
+                id: projectId,
+            },
+        });
+
+        const user = await this.prisma.users.findUnique({
+            where: {
+                id: userId,
+            },
+        });
+
+        if (!project) {
+            throw new InternalServerErrorException("Project not found");
+        }
+
+        if (!user) {
+            throw new InternalServerErrorException("User not found");
+        }
+
+        return this.prisma.projectContributor.create({
+            data: {
+                projectId,
+                userId,
+                role,
+            },
+        });
+    }
+
+    async updateRole(projectId: string, userId: string, role?: string): Promise<any> {
+        return this.prisma.projectContributor.update({
+            where: {
+                projectId_userId: {
+                    projectId,
+                    userId,
+                }
+            },
+            data: {
+                role,
+            },
+        });
+    }
+
+    async deleteOne(projectId: string, userId: string): Promise<any> {
+        return this.prisma.projectContributor.delete({
+            where: {
+                projectId_userId: {
+                    projectId,
+                    userId,
+                },
+            },
+        });
+    }
+
+    async deleteNotIn(projectId: string, userIds: string[]): Promise<boolean> {
+        await this.prisma.projectContributor.deleteMany({
+            where: {
+                projectId,
+                userId: { notIn: userIds },
+            },
+        });
+
+        return true;
+    }
+
+    async findContributors(projectId: string): Promise<any> {
+        const contributors = await this.prisma.projectContributor.findMany({
+            where: {
+                projectId,
+            },
+            select: {
+                userId: true,
+            },
+        });
+
+        const ids = contributors.map(contributor => contributor.userId)
+
+        return this.prisma.users.findMany({
+            where: {
+                id: { in: ids },
+            },
+        });
+    }
+
+    async findContributor(projectId: string, userId: string): Promise<any> {
+        return this.prisma.projectContributor.findUnique({
+            where: {
+                projectId_userId: {
+                    projectId,
+                    userId,
+                },
+            },
+        });
+    }
+}

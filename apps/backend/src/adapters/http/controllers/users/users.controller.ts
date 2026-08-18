@@ -1,0 +1,136 @@
+import { Controller, Get, Param, UseGuards, Request, NotFoundException, Post, Body, UnauthorizedException } from '@nestjs/common';
+import { UsersService } from '../../../../application/users/users.service';
+import { OptionalJwtAuthGuard } from '../../guards/auth/optional-jwt.guard';
+import { JwtAuthGuard } from '../../guards/auth/jwt.guard';
+import { UpdateProfileDto } from '../../dto/users/update-profile.dto';
+import { UpdatePayoutAccountDto } from '../../dto/users/update-payout-account.dto';
+import { UpdateCreatorPromptDto } from '../../dto/users/update-creator-prompt.dto';
+
+@Controller('api/users')
+export class UsersController {
+    constructor(
+        private readonly usersService: UsersService,
+    ) {}
+
+    @UseGuards(JwtAuthGuard)
+    @Get('me')
+    async getMe(
+        @Request() req: any,
+    ) {
+        const profile = await this.usersService.getUserById(req.user.userId);
+
+        if (!profile) {
+            throw new NotFoundException('User not found');
+        }
+
+        return {
+            profile,
+        };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('me/creator-prompt')
+    async updateCreatorPrompt(
+        @Request() req: any,
+        @Body() dto: UpdateCreatorPromptDto,
+    ) {
+        return {
+            creatorPrompt: await this.usersService.updateCreatorPrompt(req.user.userId, dto.creatorPrompt),
+        };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('me/payout-account')
+    async getPayoutAccount(
+        @Request() req: any,
+    ) {
+        const payoutAccount = await this.usersService.getPayoutAccount(req.user.userId);
+
+        return {
+            payoutAccount,
+        };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('me/payout-account')
+    async updatePayoutAccount(
+        @Request() req: any,
+        @Body() updatePayoutAccountDto: UpdatePayoutAccountDto,
+    ) {
+        const payoutAccount = await this.usersService.updatePayoutAccount(req.user.userId, updatePayoutAccountDto);
+
+        return {
+            payoutAccount,
+        };
+    }
+
+    @UseGuards(OptionalJwtAuthGuard)
+    @Get(':username')
+    async getProfile(
+        @Param('username') username: string,
+        @Request() req: any,
+    ) {
+        const viewer = req.user; // This will be undefined if the user is not authenticated
+
+        const profile = await this.usersService.getUserByUsername(username);
+
+        if (!profile) {
+            throw new NotFoundException('User not found');
+        }
+
+        return {
+            profile,
+            viewerId: viewer?.userId,
+            profileId: profile.id,
+        };
+    }
+
+    @UseGuards(OptionalJwtAuthGuard)
+    @Get('id/:id')
+    async getProfileById(
+        @Param('id') id: string,
+        @Request() req: any,
+    ) {
+        const viewer = req.user; // This will be undefined if the user is not authenticated
+
+        const profile = await this.usersService.getUserById(id);
+
+        if (!profile) {
+            throw new NotFoundException('User not found');
+        }
+
+        return {
+            profile,
+            viewerId: viewer?.userId,
+            profileId: profile.id,
+        };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post(':username')
+    async editProfile(
+        @Param('username') username: string,
+        @Request() req: any,
+        @Body() updateProfileDto: UpdateProfileDto,
+    ) {
+        const viewer = req.user; // This will be undefined if the user is not authenticated
+        const profile = await this.usersService.getUserByUsername(username);
+
+        if (viewer.userId != profile.id) {
+            throw new UnauthorizedException("Not allowed to edit other user's profile.");
+        }
+
+        const updatedProfile = await this.usersService.updateProfileByUsername(
+            username,
+            updateProfileDto.firstname,
+            updateProfileDto.lastname,
+            updateProfileDto.middlename,
+            updateProfileDto.avatarId,
+            updateProfileDto.backgroundId,
+            updateProfileDto.headline,
+            updateProfileDto.bio,
+        );
+
+        return updatedProfile;
+    }
+}
