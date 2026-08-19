@@ -5,16 +5,51 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { renderAsync } from "docx-preview";
 import { buildApiUrl } from "@/shared/lib/media";
+import { isOfficeViewerEmbeddableUrl } from "@/features/files/utils/officeViewer";
 
 type FileViewerProps = {
     file: any;
     isLocked?: boolean;
 };
 
-function isPowerPoint(file: any) {
-    return file?.mimeType === "application/vnd.ms-powerpoint" ||
-        file?.mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
-        /\.pptx?$/i.test(file?.name ?? "");
+const OFFICE_PREVIEW_EXTENSIONS = new Set([
+    "doc",
+    "docx",
+    "docm",
+    "dot",
+    "dotx",
+    "dotm",
+    "odt",
+    "xls",
+    "xlsx",
+    "xlsm",
+    "xlm",
+    "xlsb",
+    "ods",
+    "one",
+    "ppt",
+    "pptx",
+    "pps",
+    "ppsx",
+    "pot",
+    "potx",
+    "pptm",
+    "potm",
+    "ppsm",
+    "odp",
+]);
+
+function fileExtension(file: any) {
+    const fileName = String(file?.name ?? "");
+    const extensionStart = fileName.lastIndexOf(".");
+
+    return extensionStart >= 0
+        ? fileName.slice(extensionStart + 1).toLowerCase()
+        : "";
+}
+
+function canUseOfficeViewer(file: any) {
+    return OFFICE_PREVIEW_EXTENSIONS.has(fileExtension(file));
 }
 
 export default function FileViewer({ file, isLocked = false }: FileViewerProps) {
@@ -29,23 +64,27 @@ export default function FileViewer({ file, isLocked = false }: FileViewerProps) 
 
     const loadUrl = async () => {
         try {
+            setUrl("");
             setOfficePreviewUrl("");
+            setType(file?.mimeType ?? "");
 
-            const [response, officePreviewResponse] = await Promise.all([
-                getFileApi(file?.id),
-                isPowerPoint(file)
-                    ? getOfficePreviewUrlApi(file?.id)
-                    : Promise.resolve(""),
-            ]);
+            const response = await getFileApi(file?.id);
 
             if (!response) {
                 toast.error("URL not found");
                 throw new Error("URL not found");
             }
 
-            setUrl(buildApiUrl(response));
-            setOfficePreviewUrl(buildApiUrl(officePreviewResponse));
-            setType(file.mimeType);
+            const resolvedUrl = buildApiUrl(response);
+            let resolvedOfficePreviewUrl = "";
+
+            if (canUseOfficeViewer(file)) {
+                const officePreviewResponse = await getOfficePreviewUrlApi(file?.id);
+                resolvedOfficePreviewUrl = buildApiUrl(officePreviewResponse);
+            }
+
+            setUrl(resolvedUrl);
+            setOfficePreviewUrl(resolvedOfficePreviewUrl);
         } catch (error: any) {
             if (error.response?.status === 401) {
                 console.error("Token Expired");
@@ -70,35 +109,26 @@ export default function FileViewer({ file, isLocked = false }: FileViewerProps) 
         type === "application/xml" ||
         type === "text/csv";
 
-    const isDocFile =
-        type === "application/msword" ||
-        type ===
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    const isDocxFile =
+        fileExtension(file) === "docx" ||
+        type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    const isOfficePreviewFile = canUseOfficeViewer(file);
 
-    const isPowerPointFile =
-        isPowerPoint(file) ||
-        type === "application/vnd.ms-powerpoint" ||
-        type === "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-
-    const canEmbedWithOfficeViewer = (() => {
-        try {
-            const fileUrl = new URL(officePreviewUrl);
-            return fileUrl.protocol === "https:" &&
-                fileUrl.hostname !== "localhost" &&
-                fileUrl.hostname !== "127.0.0.1";
-        } catch {
-            return false;
-        }
-    })();
+    const canEmbedWithOfficeViewer = isOfficeViewerEmbeddableUrl(
+        officePreviewUrl,
+    );
+    const useLocalDocxViewer = isDocxFile && !canEmbedWithOfficeViewer;
     
     useEffect(() => {
+        if (!url) return;
+
         if (isTextFile) {
             fetch(url)
                 .then((res) => res.text())
                 .then((data) => setTextContent(data))
                 .catch(() => setTextContent("Failed to load text file"));
             }
-        if (isDocFile) {
+        if (useLocalDocxViewer) {
             fetch(url)
                 .then(res => res.arrayBuffer())
                 .then(buffer => {
@@ -113,7 +143,7 @@ export default function FileViewer({ file, isLocked = false }: FileViewerProps) 
                 });
             });
         }
-    }, [url, isTextFile]);
+    }, [url, isTextFile, useLocalDocxViewer]);
 
     // Image
     if (type?.startsWith("image/")) {
@@ -139,43 +169,43 @@ export default function FileViewer({ file, isLocked = false }: FileViewerProps) 
         );
     }
 
-    // PowerPoint presentations require a publicly reachable URL so Microsoft
-    // Office for the web can retrieve and render the file inside the iframe.
-    if (isPowerPointFile) {
-        if (!canEmbedWithOfficeViewer) {
-            return (
-                <div className={`flex w-full ${height} flex-col items-center justify-center gap-3 rounded-lg border bg-gray-50 p-4 text-center`}>
-                    <p className="text-sm text-gray-600">
-                        PowerPoint preview requires a publicly reachable HTTPS file URL and is unavailable for local files.
-                    </p>
-                    <a href={url} target="_blank" rel="noreferrer" className="text-blue-600 underline">
-                        Open or download presentation
-                    </a>
-                </div>
-            );
-        }
-
+    // Office for the web retrieves supported Office files from the short,
+    // signed HTTPS preview endpoint and renders them inside the iframe.
+    if (isOfficePreviewFile && canEmbedWithOfficeViewer) {
         const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(officePreviewUrl)}`;
 
         return (
             <div className="mt-3 w-full">
                 <iframe
                     src={viewerUrl}
-                    title={`PowerPoint preview: ${file?.name ?? "presentation"}`}
+                    title={`Office preview: ${file?.name ?? "document"}`}
                     className={`w-full ${height} rounded-lg border`}
                 />
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
                     <span>Preview provided by Microsoft Office for the web.</span>
                     <a href={url} target="_blank" rel="noreferrer" className="text-blue-600 underline">
-                        Open or download presentation
+                        Open original file
                     </a>
                 </div>
             </div>
         );
     }
 
-    // Word docs
-    if (isDocFile) {
+    if (isOfficePreviewFile && !useLocalDocxViewer) {
+        return (
+            <div className={`flex w-full ${height} flex-col items-center justify-center gap-3 rounded-lg border bg-gray-50 p-4 text-center`}>
+                <p className="text-sm text-gray-600">
+                    Microsoft Office preview requires the cloud-hosted HTTPS application and is unavailable locally for this file type.
+                </p>
+                <a href={url} target="_blank" rel="noreferrer" className="text-blue-600 underline">
+                    Open or download file
+                </a>
+            </div>
+        );
+    }
+
+    // DOCX files retain their local preview when the Microsoft viewer is unavailable.
+    if (useLocalDocxViewer) {
         return (
             <div className={`${height} w-full overflow-auto border rounded-lg`}>
                 <div className="flex gap-2 mb-2">

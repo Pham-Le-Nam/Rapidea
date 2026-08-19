@@ -19,6 +19,33 @@ import {
 import { UnprocessableEntityException } from '@nestjs/common';
 import { NotificationService } from '../notification/notification.service';
 
+const OFFICE_PREVIEW_EXTENSIONS = new Set([
+    '.doc',
+    '.docx',
+    '.docm',
+    '.dot',
+    '.dotx',
+    '.dotm',
+    '.odt',
+    '.xls',
+    '.xlsx',
+    '.xlsm',
+    '.xlm',
+    '.xlsb',
+    '.ods',
+    '.one',
+    '.ppt',
+    '.pptx',
+    '.pps',
+    '.ppsx',
+    '.pot',
+    '.potx',
+    '.pptm',
+    '.potm',
+    '.ppsm',
+    '.odp',
+]);
+
 @Injectable()
 export class FileService {
     constructor (
@@ -199,13 +226,13 @@ export class FileService {
         }
 
         const result = await this.getFileDownload(fileId);
-        const isPowerPoint = result.file.mimeType === 'application/vnd.ms-powerpoint' ||
-            result.file.mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
-            /\.pptx?$/i.test(result.file.name);
+        const canUseOfficeViewer = OFFICE_PREVIEW_EXTENSIONS.has(
+            path.extname(result.file.name).toLowerCase(),
+        );
 
-        if (!isPowerPoint) {
+        if (!canUseOfficeViewer) {
             result.stream.destroy();
-            throw new NotFoundException('', 'PowerPoint file not found');
+            throw new NotFoundException('', 'Office preview file not found');
         }
 
         return result;
