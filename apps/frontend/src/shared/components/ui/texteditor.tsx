@@ -96,6 +96,21 @@ function TextEditor({
         },
     })
 
+    useEffect(() => {
+        if (!editor) return;
+
+        const nextContent = normalizeEditorContent(value);
+        const editorContent = editor.getJSON();
+
+        if (JSON.stringify(editorContent) === JSON.stringify(nextContent)) {
+            return;
+        }
+
+        editor.commands.setContent(nextContent, {
+            emitUpdate: false,
+        });
+    }, [editor, value]);
+
     if (!editor) return null
 
     return (
