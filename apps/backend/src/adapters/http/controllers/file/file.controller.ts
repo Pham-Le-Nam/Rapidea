@@ -3,6 +3,7 @@ import {
     Get, 
     Param, 
     Post,
+    Query,
     Request,
     UseGuards,
     NotFoundException,
@@ -36,6 +37,33 @@ export class FileController {
         // Need logic to check if the user is the owner or subscribed to the course
 
         return fileUrl;
+    }
+
+    @UseGuards(OptionalJwtAuthGuard)
+    @Get('office-preview-url/:id')
+    async getOfficePreviewUrl (
+        @Param('id') id: string,
+    ) {
+        return this.fileService.createOfficePreviewUrl(id);
+    }
+
+    @Get('office-preview/:id/:fileName')
+    async previewOfficeFile (
+        @Param('id') id: string,
+        @Query('expires') expires: string,
+        @Query('signature') signature: string,
+    ) {
+        const { file, stream } = await this.fileService.getOfficePreview(
+            id,
+            expires,
+            signature,
+        );
+
+        return new StreamableFile(stream, {
+            type: file.mimeType || 'application/octet-stream',
+            disposition: this.inlineContentDisposition(file.name),
+            length: file.size,
+        });
     }
 
     @UseGuards(OptionalJwtAuthGuard)
@@ -125,6 +153,17 @@ export class FileController {
     }
 
     private attachmentContentDisposition(fileName: string): string {
+        return this.contentDisposition('attachment', fileName);
+    }
+
+    private inlineContentDisposition(fileName: string): string {
+        return this.contentDisposition('inline', fileName);
+    }
+
+    private contentDisposition(
+        disposition: 'attachment' | 'inline',
+        fileName: string,
+    ): string {
         const asciiFileName = fileName
             .normalize('NFKD')
             .replace(/[^\x20-\x7E]/g, '_')
@@ -135,6 +174,6 @@ export class FileController {
                 `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
         );
 
-        return `attachment; filename="${asciiFileName || 'download'}"; filename*=UTF-8''${encodedFileName}`;
+        return `${disposition}; filename="${asciiFileName || 'file'}"; filename*=UTF-8''${encodedFileName}`;
     }
 }

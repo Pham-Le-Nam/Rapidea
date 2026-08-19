@@ -1,4 +1,4 @@
-import { getFileApi } from "@/features/files/api";
+import { getFileApi, getOfficePreviewUrlApi } from "@/features/files/api";
 import { useAuth } from "@/providers";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
@@ -11,9 +11,16 @@ type FileViewerProps = {
     isLocked?: boolean;
 };
 
+function isPowerPoint(file: any) {
+    return file?.mimeType === "application/vnd.ms-powerpoint" ||
+        file?.mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+        /\.pptx?$/i.test(file?.name ?? "");
+}
+
 export default function FileViewer({ file, isLocked = false }: FileViewerProps) {
     const [textContent, setTextContent] = useState<string | null>(null);
     const [url, setUrl] = useState("");
+    const [officePreviewUrl, setOfficePreviewUrl] = useState("");
     const [type, setType] = useState("");
     const [zoom, setZoom] = useState(1);
     const height = "h-[400px] md:h-[800px]";
@@ -22,7 +29,14 @@ export default function FileViewer({ file, isLocked = false }: FileViewerProps) 
 
     const loadUrl = async () => {
         try {
-            const response = await getFileApi(file?.id);
+            setOfficePreviewUrl("");
+
+            const [response, officePreviewResponse] = await Promise.all([
+                getFileApi(file?.id),
+                isPowerPoint(file)
+                    ? getOfficePreviewUrlApi(file?.id)
+                    : Promise.resolve(""),
+            ]);
 
             if (!response) {
                 toast.error("URL not found");
@@ -30,6 +44,7 @@ export default function FileViewer({ file, isLocked = false }: FileViewerProps) 
             }
 
             setUrl(buildApiUrl(response));
+            setOfficePreviewUrl(buildApiUrl(officePreviewResponse));
             setType(file.mimeType);
         } catch (error: any) {
             if (error.response?.status === 401) {
@@ -61,13 +76,13 @@ export default function FileViewer({ file, isLocked = false }: FileViewerProps) 
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
     const isPowerPointFile =
+        isPowerPoint(file) ||
         type === "application/vnd.ms-powerpoint" ||
-        type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
-        /\.pptx?$/i.test(file?.name ?? "");
+        type === "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
     const canEmbedWithOfficeViewer = (() => {
         try {
-            const fileUrl = new URL(url);
+            const fileUrl = new URL(officePreviewUrl);
             return fileUrl.protocol === "https:" &&
                 fileUrl.hostname !== "localhost" &&
                 fileUrl.hostname !== "127.0.0.1";
@@ -140,7 +155,7 @@ export default function FileViewer({ file, isLocked = false }: FileViewerProps) 
             );
         }
 
-        const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+        const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(officePreviewUrl)}`;
 
         return (
             <div className="mt-3 w-full">

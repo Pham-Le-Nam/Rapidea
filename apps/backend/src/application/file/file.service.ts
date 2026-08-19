@@ -1,9 +1,12 @@
 import { 
+    ForbiddenException,
     Injectable, 
     Inject, 
     InternalServerErrorException, 
     NotFoundException 
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import * as crypto from 'crypto';
 import { FileRepository } from '../../domain/file/repositories/file.repository';
 import { FolderService } from '../folder/folder.service';
 import path from 'path';
@@ -28,6 +31,7 @@ export class FileService {
         @Inject(CONTENT_MODERATION_SERVICE)
         private readonly moderation: ContentModerationService,
         private readonly notifications: NotificationService,
+        private readonly config: ConfigService,
     ) {}
 
     async createFile (uploadedFile: Express.Multer.File, userId: string, folderId: string) {
@@ -159,8 +163,79 @@ export class FileService {
         };
     }
 
+    async createOfficePreviewUrl (fileId: string) {
+        const file = await this.getFileById(fileId);
+
+        const expiresAt = Math.floor(Date.now() / 1000) + this.officePreviewTtlSeconds();
+        const signature = this.signOfficePreview(fileId, expiresAt);
+        const query = new URLSearchParams({
+            expires: String(expiresAt),
+            signature,
+        });
+
+        return `api/file/office-preview/${encodeURIComponent(fileId)}/${encodeURIComponent(file.name)}?${query}`;
+    }
+
+    async getOfficePreview (
+        fileId: string,
+        expires: string,
+        signature: string,
+    ) {
+        const expiresAt = Number(expires);
+
+        if (!Number.isInteger(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000)) {
+            throw new ForbiddenException('Office preview URL has expired');
+        }
+
+        const expectedSignature = this.signOfficePreview(fileId, expiresAt);
+        const signatureIsValid = /^[a-f\d]{64}$/i.test(signature) &&
+            crypto.timingSafeEqual(
+                Buffer.from(signature, 'hex'),
+                Buffer.from(expectedSignature, 'hex'),
+            );
+
+        if (!signatureIsValid) {
+            throw new ForbiddenException('Office preview signature is invalid');
+        }
+
+        const result = await this.getFileDownload(fileId);
+        const isPowerPoint = result.file.mimeType === 'application/vnd.ms-powerpoint' ||
+            result.file.mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+            /\.pptx?$/i.test(result.file.name);
+
+        if (!isPowerPoint) {
+            result.stream.destroy();
+            throw new NotFoundException('', 'PowerPoint file not found');
+        }
+
+        return result;
+    }
+
     private joinStorageKey(...parts: string[]) {
         return path.posix.join(...parts.map((part) => part.replace(/\\/g, '/')));
+    }
+
+    private signOfficePreview(fileId: string, expiresAt: number): string {
+        const signingKey = this.config.get<string>('JWT_SECRET_KEY');
+
+        if (!signingKey) {
+            throw new InternalServerErrorException('JWT_SECRET_KEY is not configured');
+        }
+
+        return crypto
+            .createHmac('sha256', signingKey)
+            .update(`office-preview:${fileId}:${expiresAt}`)
+            .digest('hex');
+    }
+
+    private officePreviewTtlSeconds(): number {
+        const configuredTtl = Number(
+            this.config.get<string>('STORAGE_DOWNLOAD_URL_TTL_SECONDS') ?? 3600,
+        );
+
+        return Number.isInteger(configuredTtl) && configuredTtl >= 60 && configuredTtl <= 86400
+            ? configuredTtl
+            : 3600;
     }
 
     private async generateFileTags(fileId: string, uploadedFile: Express.Multer.File, existingTranscript = '') {

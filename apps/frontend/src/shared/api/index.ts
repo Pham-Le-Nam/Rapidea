@@ -1135,6 +1135,24 @@ export async function getFileApi(fileId: string) {
     return response.data;
 }
 
+export async function getOfficePreviewUrlApi(fileId: string) {
+    const token = authTokenStorage.get();
+    const config = token
+        ? {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        }
+        : undefined;
+
+    const response = await API.get(
+        `api/file/office-preview-url/${fileId}`,
+        config,
+    );
+
+    return response.data;
+}
+
 export async function updateFileApi (fileId: string, name: string) {
     const token = authTokenStorage.get();
 

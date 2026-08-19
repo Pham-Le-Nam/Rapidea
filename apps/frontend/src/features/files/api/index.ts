@@ -5,6 +5,7 @@ export {
     getFileApi,
     getFolderApi,
     getFolderPostUsagesApi,
+    getOfficePreviewUrlApi,
     getPostsUsingFileApi,
     getUserFoldersApi,
     renameFolderApi,
