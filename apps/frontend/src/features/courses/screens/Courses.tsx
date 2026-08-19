@@ -336,14 +336,18 @@ function CreateCourse ({ reloadCourses, className }: CreateCourseProp) {
     const [price, setPrice] = useState(0);
     const [tags, setTags] = useState<string[]>([]);
     const [showPayoutRequired, setShowPayoutRequired] = useState(false);
+    const [open, setOpen] = useState(false);
+    const [isCreating, setIsCreating] = useState(false);
 
     const createCourse = async () => {
-        try {
-            if (title == "") {
-                toast.error("Please add title for the course");
-                throw new Error("Title not found");
-            }
+        if (title.trim() === "") {
+            toast.error("Please add title for the course");
+            return;
+        }
 
+        setIsCreating(true);
+
+        try {
             const response = await addCourseApi(title, description, price, currency, tags);
 
             if (!response) {
@@ -355,7 +359,9 @@ function CreateCourse ({ reloadCourses, className }: CreateCourseProp) {
             setPrice(0);
             setTags([]);
 
-            reloadCourses();
+            await reloadCourses();
+            toast.success("Course created successfully");
+            setOpen(false);
         } catch (error: any) {
             if (error.response?.data?.code === "PAYOUT_ACCOUNT_REQUIRED") {
                 setShowPayoutRequired(true);
@@ -369,22 +375,34 @@ function CreateCourse ({ reloadCourses, className }: CreateCourseProp) {
             // handle logout or redirect
             }
             toast.error(error.response?.data?.message ?? "Couldn't create course");
+        } finally {
+            setIsCreating(false);
         }
     }
 
     return (
         <>
-        <Dialog>
+        <Dialog
+            open={open}
+            onOpenChange={(nextOpen) => {
+                if (!isCreating) {
+                    setOpen(nextOpen);
+                }
+            }}
+        >
             <DialogTrigger asChild>
                 <Button variant="outline" className={className}>
                     +
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[90%] pointer-events-auto">
+                {isCreating ? (
+                    <LoadingScreen label="Creating course..." />
+                ) : (
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
-                        createCourse();
+                        void createCourse();
                     }}
                 >
                     <DialogHeader>
@@ -436,7 +454,8 @@ function CreateCourse ({ reloadCourses, className }: CreateCourseProp) {
                         </DialogClose>
                         <Button type="submit">Create</Button>
                     </DialogFooter>
-                    </form>
+                </form>
+                )}
             </DialogContent>
         </Dialog>
         <Dialog open={showPayoutRequired} onOpenChange={setShowPayoutRequired}>

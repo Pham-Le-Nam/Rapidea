@@ -1,6 +1,5 @@
 import {
     Dialog,
-    DialogClose,
     DialogContent,
     DialogDescription,
     DialogFooter,
@@ -14,13 +13,15 @@ import { Label } from "@/shared/components/ui/label";
 import { Button } from "@/shared/components/ui/button";
 import { useState } from "react";
 import { TextEditor } from "@/shared/components/ui/texteditor";
-import { Files } from "@/features/files";
-import { SparklesIcon, XIcon } from "lucide-react";
+import { FileViewer, Files } from "@/features/files";
+import { SparklesIcon } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/providers";
 import { useNavigate } from "react-router-dom";
 import { addFileToPostApi, addPostApi, generatePostFieldApi, removeFileToPostApi, updatePostApi } from "@/features/posts/api";
 import { TagSelector, extractTextFromEditorContent, getExplicitTagNames, getTagNames } from "@/features/tags";
+import LoadingScreen from "@/shared/components/LoadingScreen";
+import { SelectedPostFile } from "./SelectedPostFile";
 
 type UpsertPostProps = {
     className?: string;
@@ -33,14 +34,17 @@ type UpsertPostProps = {
 }
 
 function UpsertPost({ className, post, uploadedFiles, course, courseOptions = [], fileFolder, reloadPost }: UpsertPostProps) {
+    const [open, setOpen] = useState(false);
     const [title, setTitle] = useState(post?.title || "");
     const [content, setContent] = useState<Record<string, any>>(post?.content || {});
     const [isPreview, setIsPreview] = useState(!!post?.isPreview);
     const [selectedCourseId, setSelectedCourseId] = useState(post?.courseId ?? course?.id ?? "general");
     const [deleteFiles, setDeleteFiles] = useState<any[]>([]);
     const [files, setFiles] = useState<any[]>([]);
+    const [viewFile, setViewFile] = useState<any | null>(null);
     const [tags, setTags] = useState<string[]>(getExplicitTagNames(post));
     const [generating, setGenerating] = useState<"title" | "details" | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { logout } = useAuth();
     const navigate = useNavigate();
@@ -80,6 +84,7 @@ function UpsertPost({ className, post, uploadedFiles, course, courseOptions = []
 
     const changePostLocation = (value: string) => {
         setSelectedCourseId(value);
+        setViewFile(null);
 
         if (value === "general") {
             setIsPreview(false);
@@ -117,6 +122,12 @@ function UpsertPost({ className, post, uploadedFiles, course, courseOptions = []
         setFiles(prev => prev.filter((_, i) => i !== index));
     }
 
+    const toggleViewFile = (file: any) => {
+        setViewFile((currentFile: any | null) => (
+            currentFile?.id === file.id ? null : file
+        ));
+    }
+
     const resetValues = async () => {
         setTitle(post?.title || "");
         setContent(post?.content || {});
@@ -124,10 +135,13 @@ function UpsertPost({ className, post, uploadedFiles, course, courseOptions = []
         setSelectedCourseId(post?.courseId ?? course?.id ?? "general");
         setDeleteFiles([]);
         setFiles([]);
+        setViewFile(null);
         setTags(getExplicitTagNames(post));
     }
 
     const createPost = async () => {
+        setIsSubmitting(true);
+
         try {
             const response = await addPostApi(
                 title,
@@ -156,19 +170,24 @@ function UpsertPost({ className, post, uploadedFiles, course, courseOptions = []
             toast.success("Post created successfully");
             await reloadPost();
             await resetValues();
+            setOpen(false);
         } catch (error: any) {
             if (error.response?.status === 401) {
-                console.error("Token Expired");
                 logout();
                 toast.error("Token Expired. You have been logged out. Please log in to continue");
-                navigate('/login')
-            // handle logout or redirect
+                navigate('/login');
+                return;
             }
-            throw error;
+
+            toast.error(error.response?.data?.message ?? error.message ?? "Couldn't create post");
+        } finally {
+            setIsSubmitting(false);
         }
     }
 
     const updatePost = async () => {
+        setIsSubmitting(true);
+
         try {
             const postId = post?.id;
 
@@ -212,29 +231,43 @@ function UpsertPost({ className, post, uploadedFiles, course, courseOptions = []
             toast.success("Post uploaded successfully");
             await reloadPost();
             await resetValues();
+            setOpen(false);
         } catch (error: any) {
             if (error.response?.status === 401) {
-                console.error("Token Expired");
                 logout();
                 toast.error("Token Expired. You have been logged out. Please log in to continue");
-                navigate('/login')
-            // handle logout or redirect
+                navigate('/login');
+                return;
             }
-            throw error;
+
+            toast.error(error.response?.data?.message ?? error.message ?? "Couldn't update post");
+        } finally {
+            setIsSubmitting(false);
         }
     }
 
     return (
-        <Dialog>
+        <Dialog
+            open={open}
+            onOpenChange={(nextOpen) => {
+                if (isSubmitting) return;
+                setOpen(nextOpen);
+                if (!nextOpen) void resetValues();
+            }}
+        >
             <DialogTrigger asChild>
                 <Button variant="outline" className={className}>
                     {post ? "Update" : "+"}
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[80%] lg:max-w-[65%] max-h-[90%] overflow-y-auto">
+                {isSubmitting ? (
+                    <LoadingScreen label={post ? "Updating post..." : "Creating post..."} />
+                ) : (
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
+                        void (post ? updatePost() : createPost());
                     }}
                 >
                     <DialogHeader>
@@ -313,50 +346,62 @@ function UpsertPost({ className, post, uploadedFiles, course, courseOptions = []
                                 <Label htmlFor={`create-post`} className="mt-2">
                                     Files
                                 </Label>
+                                <p className="text-sm text-muted-foreground">
+                                    click to inspect the selected file(s)
+                                </p>
                                 {uploadedFiles
-                                    ?.filter(file => !deleteFiles.find(f => f === file))
+                                    ?.filter(file => !deleteFiles.some((deletedFile) => deletedFile.id === file.id))
                                     .map((file, index) => (
-                                        <div className="w-full border flex flex-row items-center px-2 py-1 rounded-md" key={index}>
-                                            <span className="wrap-anywhere whitespace-break-spaces">
-                                                {file.name}
-                                            </span>
-                                            <Button asChild className="ml-auto bg-white hover:bg-gray-100 h-6 w-6" onClick={() => addDeleteFile(file)}>
-                                                <span>
-                                                    <XIcon className="text-black"/>
-                                                </span>
-                                            </Button>
-                                        </div>
+                                        <SelectedPostFile
+                                            key={file.id ?? index}
+                                            file={file}
+                                            isSelected={viewFile?.id === file.id}
+                                            onSelect={() => toggleViewFile(file)}
+                                            onRemove={() => {
+                                                if (viewFile?.id === file.id) {
+                                                    setViewFile(null);
+                                                }
+                                                addDeleteFile(file);
+                                            }}
+                                        />
                                     ))
                                 }
                                 {files.map((file, index) => (
-                                    <div className="w-full border flex flex-row items-center px-2 py-1 rounded-md" key={index}>
-                                        <span className="wrap-anywhere whitespace-break-spaces">
-                                            {file.name}
-                                        </span>
-                                        <Button asChild className="ml-auto bg-white hover:bg-gray-100 h-6 w-6" onClick={() => removeFile(index)}>
-                                            <span>
-                                                <XIcon className="text-black"/>
-                                            </span>
-                                        </Button>
-                                    </div>
+                                    <SelectedPostFile
+                                        key={file.id ?? index}
+                                        file={file}
+                                        isSelected={viewFile?.id === file.id}
+                                        onSelect={() => toggleViewFile(file)}
+                                        onRemove={() => {
+                                            if (viewFile?.id === file.id) {
+                                                setViewFile(null);
+                                            }
+                                            removeFile(index);
+                                        }}
+                                    />
                                 ))}
+                                {viewFile && <FileViewer file={viewFile} />}
                                 <Files rootFolderId={rootFolderId} addFile={addFile}/>
                             </Field>
                         )}
                     </FieldGroup>
                     <DialogFooter className="pt-3">
-                        <DialogClose asChild>
-                            <Button variant="outline" onClick={resetValues}>
-                                Cancel
-                            </Button>
-                        </DialogClose>
-                        <DialogClose asChild>
-                            <Button type="submit" className="bg-main hover:bg-main-hover" onClick={post? updatePost : createPost}>
-                                Save changes
-                            </Button>
-                        </DialogClose>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                void resetValues();
+                                setOpen(false);
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button type="submit" className="bg-main hover:bg-main-hover">
+                            Save changes
+                        </Button>
                     </DialogFooter>
                 </form>
+                )}
             </DialogContent>
         </Dialog>
     )

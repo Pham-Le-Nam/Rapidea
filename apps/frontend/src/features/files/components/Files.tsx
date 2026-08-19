@@ -386,7 +386,7 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                 {isOwner && (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild className="absolute right-0 hover:bg-gray-100 h-full bg-white">
-                            <Button variant="outline" className="border-0 border-l-2">
+                            <Button type="button" variant="outline" className="border-0 border-l-2">
                                 <PlusIcon />
                             </Button>
                         </DropdownMenuTrigger>
@@ -414,6 +414,7 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                 {childrenFolders.map((childFolder: any) => (
                     <div className="flex min-w-0 flex-row justify-start items-center w-full" key={childFolder.name}>
                         <Button 
+                            type="button"
                             className="flex-1 min-w-0 flex items-center justify-start gap-2 rounded-full bg-white hover:bg-gray-100 text-black text-lg p-2 font-normal [&>svg]:w-5 [&>svg]:h-5"
                             onClick={() => loadFolder(childFolder.id, [...breadcrumbs, { id: childFolder.id, name: childFolder.name }])}
                             title={childFolder.name}
@@ -427,7 +428,7 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                         {isOwner && !isRootActionLocked && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild className="hover:bg-gray-100 h-full bg-white shrink-0">
-                                    <Button variant="outline" className="border-0 rounded-full">
+                                    <Button type="button" variant="outline" className="border-0 rounded-full">
                                         <PlusIcon />
                                     </Button>
                                 </DropdownMenuTrigger>
@@ -456,6 +457,7 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                 {childrenFiles.map((childFile: any) => (
                     <div className="flex min-w-0 flex-row justify-start items-center w-full" key={childFile.name}>
                         <Button 
+                            type="button"
                             className="flex-1 min-w-0 flex items-center justify-start gap-2 rounded-full bg-white hover:bg-gray-100 text-black text-lg p-2 font-normal [&>svg]:w-5 [&>svg]:h-5"
                             onClick={() => addFile ? addFile(childFile) : openFile(childFile)}
                             onDoubleClick={() => openFile(childFile)}
@@ -470,7 +472,7 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                         {isOwner && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild className="hover:bg-gray-100 h-full bg-white shrink-0">
-                                    <Button variant="outline" className="border-0 rounded-full">
+                                    <Button type="button" variant="outline" className="border-0 rounded-full">
                                         <PlusIcon />
                                     </Button>
                                 </DropdownMenuTrigger>
@@ -581,7 +583,10 @@ type FileUploadProps = {
 }
 
 function FileUpload ({ className, folderId, refreshFolder }: FileUploadProps) {
+    const [open, setOpen] = useState(false);
     const [files, setFiles] = useState<File[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadLabel, setUploadLabel] = useState("Uploading files...");
     const { logout } = useAuth();
     const navigate = useNavigate();
 
@@ -605,50 +610,74 @@ function FileUpload ({ className, folderId, refreshFolder }: FileUploadProps) {
     }
 
     const uploadFiles = async () => {
-        for (const file of files) {
-            try {
-                const response = await uploadFileApi(folderId, file);
-
-                if (!response) {
-                    toast.error(`Something wrong happened! Couldn't upload file ${file.name}`);
-                    throw Error("No response found");
-                }
-                if (response.moderationMessage) {
-                    response.moderationStatus === "SERIOUS_WARNING"
-                        ? toast.error(response.moderationMessage, { duration: 10000 })
-                        : toast(response.moderationMessage, { duration: 7000 });
-                }
-            } catch (error: any) {
-                if (error.response?.status === 401) {
-                    console.error("Token Expired");
-                    logout();
-                    toast.error("Token Expired. You have been logged out. Please log in to continue");
-                    navigate('/login')
-                // handle logout or redirect
-                }
-                const moderationMessage = error.response?.data?.message?.message
-                    || error.response?.data?.message;
-                toast.error(
-                    typeof moderationMessage === "string"
-                        ? moderationMessage
-                        : `Couldn't upload ${file.name}.`,
-                    { duration: 10000 },
-                );
-            }
+        if (files.length === 0) {
+            toast.error("Please select at least one file to upload.");
+            return;
         }
-        
-        await refreshFolder(folderId);
-        setFiles([]);
+
+        setIsUploading(true);
+
+        try {
+            for (const [index, file] of files.entries()) {
+                setUploadLabel(`Uploading ${index + 1} of ${files.length}: ${file.name}`);
+
+                try {
+                    const response = await uploadFileApi(folderId, file);
+
+                    if (!response) {
+                        throw Error(`Couldn't upload ${file.name}.`);
+                    }
+                    if (response.moderationMessage) {
+                        response.moderationStatus === "SERIOUS_WARNING"
+                            ? toast.error(response.moderationMessage, { duration: 10000 })
+                            : toast(response.moderationMessage, { duration: 7000 });
+                    }
+                } catch (error: any) {
+                    if (error.response?.status === 401) {
+                        logout();
+                        toast.error("Token Expired. You have been logged out. Please log in to continue");
+                        navigate('/login');
+                        return;
+                    }
+                    const moderationMessage = error.response?.data?.message?.message
+                        || error.response?.data?.message;
+                    toast.error(
+                        typeof moderationMessage === "string"
+                            ? moderationMessage
+                            : `Couldn't upload ${file.name}.`,
+                        { duration: 10000 },
+                    );
+                }
+            }
+
+            setUploadLabel("Refreshing folder...");
+            await refreshFolder(folderId);
+            setFiles([]);
+            setOpen(false);
+        } catch {
+            toast.error("Couldn't refresh the folder after uploading.");
+        } finally {
+            setIsUploading(false);
+            setUploadLabel("Uploading files...");
+        }
     }
 
     return (
-        <Dialog>
+        <Dialog
+            open={open}
+            onOpenChange={(nextOpen) => {
+                if (!isUploading) setOpen(nextOpen);
+            }}
+        >
             <DialogTrigger asChild>
                 <span className={className}>
                     Upload Files
                 </span>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[50%]">
+                {isUploading ? (
+                    <LoadingScreen label={uploadLabel} />
+                ) : (
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
@@ -687,13 +716,12 @@ function FileUpload ({ className, folderId, refreshFolder }: FileUploadProps) {
                         <DialogClose asChild>
                             <Button variant="outline">Cancel</Button>
                         </DialogClose>
-                        <DialogClose asChild>
-                            <Button type="submit" className="bg-main hover:bg-main-hover">
-                                Upload
-                            </Button>
-                        </DialogClose>
+                        <Button type="submit" className="bg-main hover:bg-main-hover">
+                            Upload
+                        </Button>
                     </DialogFooter>
                     </form>
+                )}
             </DialogContent>
         </Dialog>
     );
