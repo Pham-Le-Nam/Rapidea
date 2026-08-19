@@ -5,52 +5,17 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { renderAsync } from "docx-preview";
 import { buildApiUrl } from "@/shared/lib/media";
-import { isOfficeViewerEmbeddableUrl } from "@/features/files/utils/officeViewer";
+import {
+    buildOfficeViewerUrl,
+    canUseOfficeViewer,
+    fileExtension,
+    isOfficeViewerEmbeddableUrl,
+} from "@/features/files/utils/officeViewer";
 
 type FileViewerProps = {
     file: any;
     isLocked?: boolean;
 };
-
-const OFFICE_PREVIEW_EXTENSIONS = new Set([
-    "doc",
-    "docx",
-    "docm",
-    "dot",
-    "dotx",
-    "dotm",
-    "odt",
-    "xls",
-    "xlsx",
-    "xlsm",
-    "xlm",
-    "xlsb",
-    "ods",
-    "one",
-    "ppt",
-    "pptx",
-    "pps",
-    "ppsx",
-    "pot",
-    "potx",
-    "pptm",
-    "potm",
-    "ppsm",
-    "odp",
-]);
-
-function fileExtension(file: any) {
-    const fileName = String(file?.name ?? "");
-    const extensionStart = fileName.lastIndexOf(".");
-
-    return extensionStart >= 0
-        ? fileName.slice(extensionStart + 1).toLowerCase()
-        : "";
-}
-
-function canUseOfficeViewer(file: any) {
-    return OFFICE_PREVIEW_EXTENSIONS.has(fileExtension(file));
-}
 
 export default function FileViewer({ file, isLocked = false }: FileViewerProps) {
     const [textContent, setTextContent] = useState<string | null>(null);
@@ -172,7 +137,7 @@ export default function FileViewer({ file, isLocked = false }: FileViewerProps) 
     // Office for the web retrieves supported Office files from the short,
     // signed HTTPS preview endpoint and renders them inside the iframe.
     if (isOfficePreviewFile && canEmbedWithOfficeViewer) {
-        const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(officePreviewUrl)}`;
+        const viewerUrl = buildOfficeViewerUrl(officePreviewUrl);
 
         return (
             <div className="mt-3 w-full">

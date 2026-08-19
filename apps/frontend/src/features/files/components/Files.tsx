@@ -23,6 +23,7 @@ import {
     getFileApi,
     getFolderApi,
     getFolderPostUsagesApi,
+    getOfficePreviewUrlApi,
     getPostsUsingFileApi,
     renameFolderApi,
     updateFileApi,
@@ -44,6 +45,11 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import LoadingScreen from "@/shared/components/LoadingScreen";
 import { buildApiUrl } from "@/shared/lib/media";
+import {
+    buildOfficeViewerUrl,
+    canUseOfficeViewer,
+    isOfficeViewerEmbeddableUrl,
+} from "@/features/files/utils/officeViewer";
 
 type FilesProp = {
     rootFolderId: string,
@@ -199,24 +205,50 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
         }
     }
 
-    const openFile = async (fileId: string) => {
-        try {
-            const response = await getFileApi(fileId);
+    const openFile = async (file: any) => {
+        const openedTab = window.open('about:blank', '_blank');
 
-            if (!response) {
-                toast.error("Something wrong happened! Couldn't retrieve file URL.");
+        if (!openedTab) {
+            toast.error("Couldn't open the file. Please allow pop-ups and try again.");
+            return;
+        }
+
+        openedTab.opener = null;
+
+        try {
+            let targetUrl: string;
+
+            if (canUseOfficeViewer(file)) {
+                const response = await getOfficePreviewUrlApi(file.id);
+                const officePreviewUrl = buildApiUrl(response);
+
+                if (!isOfficeViewerEmbeddableUrl(officePreviewUrl)) {
+                    throw new Error("Microsoft Office preview requires a public HTTPS URL");
+                }
+
+                targetUrl = buildOfficeViewerUrl(officePreviewUrl);
+            } else {
+                const response = await getFileApi(file.id);
+
+                if (!response) {
+                    throw new Error("File URL not found");
+                }
+
+                targetUrl = buildApiUrl(response);
             }
 
-            window.open(buildApiUrl(response), '_blank', 'noopener,noreferrer');
+            openedTab.location.href = targetUrl;
         } catch (error: any) {
+            openedTab.close();
+
             if (error.response?.status === 401) {
-                console.error("Token Expired");
                 logout();
                 toast.error("Token Expired. You have been logged out. Please log in to continue");
-                navigate('/login')
-            // handle logout or redirect
+                navigate('/login');
+                return;
             }
-            throw error;
+
+            toast.error(error.message || "Couldn't open the file preview.");
         }   
     }
 
@@ -425,8 +457,8 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                     <div className="flex min-w-0 flex-row justify-start items-center w-full" key={childFile.name}>
                         <Button 
                             className="flex-1 min-w-0 flex items-center justify-start gap-2 rounded-full bg-white hover:bg-gray-100 text-black text-lg p-2 font-normal [&>svg]:w-5 [&>svg]:h-5"
-                            onClick={() => addFile ? addFile(childFile) : openFile(childFile.id)}
-                            onDoubleClick={() => openFile(childFile.id)}
+                            onClick={() => addFile ? addFile(childFile) : openFile(childFile)}
+                            onDoubleClick={() => openFile(childFile)}
                             title={childFile.name}
                         >
                             <FileIcon className="shrink-0" />
