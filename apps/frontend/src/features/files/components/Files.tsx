@@ -6,6 +6,7 @@ import {
     FolderIcon,
     FileIcon,
     XIcon,
+    DownloadIcon,
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -16,7 +17,18 @@ import {
 import { useAuth } from "@/providers";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { createFolderApi, deleteFileApi, deleteFolderApi, getFileApi, getFolderApi, getFolderPostUsagesApi, getPostsUsingFileApi, renameFolderApi, updateFileApi, uploadFileApi } from "@/features/files/api";
+import {
+    createFolderApi,
+    deleteFileApi,
+    deleteFolderApi,
+    getFileApi,
+    getFolderApi,
+    getFolderPostUsagesApi,
+    getPostsUsingFileApi,
+    renameFolderApi,
+    updateFileApi,
+    uploadFileApi,
+} from "@/features/files/api";
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import {
     Dialog,
@@ -32,6 +44,7 @@ import { Field, FieldGroup } from "@/shared/components/ui/field";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import LoadingScreen from "@/shared/components/LoadingScreen";
+import { buildApiUrl } from "@/shared/lib/media";
 
 type FilesProp = {
     rootFolderId: string,
@@ -195,7 +208,7 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                 toast.error("Something wrong happened! Couldn't retrieve file URL.");
             }
 
-            window.open(`${import.meta.env.VITE_API_URL}/${response}`, '_blank');
+            window.open(buildApiUrl(response), '_blank', 'noopener,noreferrer');
         } catch (error: any) {
             if (error.response?.status === 401) {
                 console.error("Token Expired");
@@ -206,6 +219,15 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
             }
             throw error;
         }   
+    }
+
+    const downloadFile = (file: any) => {
+        const link = document.createElement('a');
+        link.href = buildApiUrl(`api/file/download/${encodeURIComponent(file.id)}`);
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
     }
 
     const renameFile = async (fileId: string, name: string) => {
@@ -423,6 +445,16 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                                 </DropdownMenuTrigger>
 
                                 <DropdownMenuContent>
+                                    <DropdownMenuItem
+                                        asChild
+                                        onClick={() => downloadFile(childFile)}
+                                    >
+                                        <span className="hover:bg-gray-100 w-full text-lg">
+                                            {/* <DownloadIcon /> */}
+                                            Download
+                                        </span>
+                                    </DropdownMenuItem>
+
                                     <DropdownMenuItem asChild>
                                         <DocumentName submit={() => renameFile(childFile.id, newFileName)} value={newFileName} setValue={setNewFileName} title="Rename File" className="hover:bg-gray-100 w-full text-lg"/>
                                     </DropdownMenuItem>
@@ -433,7 +465,7 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                                                 title="File"
                                                 submit={deleteFile}
                                                 document={childFile}
-                                                className="hover:bg-gray-100 w-full text-lg"
+                                                className="hover:bg-gray-100 w-full text-lg text-red-600"
                                                 destructive
                                                 getRelatedPosts={getPostsUsingFileApi}
                                             />

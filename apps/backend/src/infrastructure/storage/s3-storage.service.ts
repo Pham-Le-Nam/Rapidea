@@ -10,7 +10,12 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Injectable } from '@nestjs/common';
 import path from 'path';
-import { StorageService, StorageWriteOptions } from '../../application/ports/storage.service';
+import { Readable } from 'stream';
+import {
+    StorageDownloadOptions,
+    StorageService,
+    StorageWriteOptions,
+} from '../../application/ports/storage.service';
 
 @Injectable()
 export class S3StorageService implements StorageService {
@@ -105,6 +110,19 @@ export class S3StorageService implements StorageService {
         }));
     }
 
+    async readFile(key: string): Promise<Readable> {
+        const response = await this.client.send(new GetObjectCommand({
+            Bucket: this.bucket,
+            Key: this.toObjectKey(key),
+        }));
+
+        if (!response.Body) {
+            throw new Error('S3 returned an empty file body');
+        }
+
+        return response.Body as Readable;
+    }
+
     getPublicUrl(key: string): string {
         const objectKey = this.toObjectKey(key);
         const encodedKey = this.encodeObjectKey(objectKey);
@@ -120,15 +138,35 @@ export class S3StorageService implements StorageService {
         return `https://${this.bucket}.s3.${this.region}.amazonaws.com/${encodedKey}`;
     }
 
-    async getDownloadUrl(key: string): Promise<string> {
+    async getDownloadUrl(
+        key: string,
+        options?: StorageDownloadOptions,
+    ): Promise<string> {
         return getSignedUrl(
             this.client,
             new GetObjectCommand({
                 Bucket: this.bucket,
                 Key: this.toObjectKey(key),
+                ResponseContentDisposition: options?.downloadName
+                    ? this.attachmentContentDisposition(options.downloadName)
+                    : undefined,
             }),
             { expiresIn: this.downloadUrlTtlSeconds },
         );
+    }
+
+    private attachmentContentDisposition(fileName: string): string {
+        const asciiFileName = fileName
+            .normalize('NFKD')
+            .replace(/[^\x20-\x7E]/g, '_')
+            .replace(/["\\]/g, '_');
+        const encodedFileName = encodeURIComponent(fileName).replace(
+            /[!'()*]/g,
+            (character) =>
+                `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+        );
+
+        return `attachment; filename="${asciiFileName || 'download'}"; filename*=UTF-8''${encodedFileName}`;
     }
 
     private async copyObject(sourceObjectKey: string, destinationObjectKey: string): Promise<void> {

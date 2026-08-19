@@ -8,6 +8,7 @@ import {
     NotFoundException,
     Body,
     InternalServerErrorException,
+    StreamableFile,
     UseInterceptors,
     UploadedFile,
 } from "@nestjs/common";
@@ -35,6 +36,20 @@ export class FileController {
         // Need logic to check if the user is the owner or subscribed to the course
 
         return fileUrl;
+    }
+
+    @UseGuards(OptionalJwtAuthGuard)
+    @Get('download/:id')
+    async downloadFile (
+        @Param('id') id: string,
+    ) {
+        const { file, stream } = await this.fileService.getFileDownload(id);
+
+        return new StreamableFile(stream, {
+            type: file.mimeType || 'application/octet-stream',
+            disposition: this.attachmentContentDisposition(file.name),
+            length: file.size,
+        });
     }
 
     @UseGuards(OptionalJwtAuthGuard)
@@ -107,5 +122,19 @@ export class FileController {
         }
 
         return file;
+    }
+
+    private attachmentContentDisposition(fileName: string): string {
+        const asciiFileName = fileName
+            .normalize('NFKD')
+            .replace(/[^\x20-\x7E]/g, '_')
+            .replace(/["\\]/g, '_');
+        const encodedFileName = encodeURIComponent(fileName).replace(
+            /[!'()*]/g,
+            (character) =>
+                `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+        );
+
+        return `attachment; filename="${asciiFileName || 'download'}"; filename*=UTF-8''${encodedFileName}`;
     }
 }

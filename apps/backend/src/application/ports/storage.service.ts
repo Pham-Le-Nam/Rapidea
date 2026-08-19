@@ -1,8 +1,14 @@
+import { Readable } from 'stream';
+
 export const STORAGE_SERVICE = 'STORAGE_SERVICE';
 
 export interface StorageWriteOptions {
     contentType?: string;
     cacheControl?: string;
+}
+
+export interface StorageDownloadOptions {
+    downloadName?: string;
 }
 
 export interface StorageService {
@@ -12,6 +18,7 @@ export interface StorageService {
     writeFile(key: string, buffer: Buffer, options?: StorageWriteOptions): Promise<void>;
     deleteFile(key: string): Promise<void>;
     moveFile(sourceKey: string, destinationKey: string): Promise<void>;
+    readFile(key: string): Promise<Readable>;
     getPublicUrl(key: string): string;
-    getDownloadUrl(key: string): Promise<string>;
+    getDownloadUrl(key: string, options?: StorageDownloadOptions): Promise<string>;
 }

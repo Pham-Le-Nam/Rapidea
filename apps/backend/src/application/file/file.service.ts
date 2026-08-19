@@ -131,10 +131,32 @@ export class FileService {
 
     async getFileUrl (fileId: string) {
         const file = await this.fileRepo.findById(fileId);
+
+        if (!file) {
+            throw new NotFoundException("", "File not found");
+        }
+
         const folderUrl = await this.folderService.getFolderUrl(file.folderId);
         const fileUrl = await this.storage.getDownloadUrl(this.joinStorageKey(folderUrl, file.name));
 
         return fileUrl;
+    }
+
+    async getFileDownload (fileId: string) {
+        const file = await this.fileRepo.findById(fileId);
+
+        if (!file) {
+            throw new NotFoundException("", "File not found");
+        }
+
+        const folderUrl = await this.folderService.getFolderUrl(file.folderId);
+
+        return {
+            file,
+            stream: await this.storage.readFile(
+                this.joinStorageKey(folderUrl, file.name),
+            ),
+        };
     }
 
     private joinStorageKey(...parts: string[]) {

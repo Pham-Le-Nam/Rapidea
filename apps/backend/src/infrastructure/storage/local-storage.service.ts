@@ -1,7 +1,13 @@
 import { Injectable } from '@nestjs/common';
+import { createReadStream } from 'fs';
 import { mkdir, rename, rm, writeFile } from 'fs/promises';
 import path from 'path';
-import { StorageService, StorageWriteOptions } from '../../application/ports/storage.service';
+import { Readable } from 'stream';
+import {
+    StorageDownloadOptions,
+    StorageService,
+    StorageWriteOptions,
+} from '../../application/ports/storage.service';
 
 @Injectable()
 export class LocalStorageService implements StorageService {
@@ -46,6 +52,10 @@ export class LocalStorageService implements StorageService {
         await rename(this.resolvePath(sourceKey), destinationPath);
     }
 
+    async readFile(key: string): Promise<Readable> {
+        return createReadStream(this.resolvePath(key));
+    }
+
     getPublicUrl(key: string): string {
         const normalizedKey = this.normalizeKey(key);
 
@@ -56,7 +66,10 @@ export class LocalStorageService implements StorageService {
         return `${this.publicUrl.replace(/\/$/, '')}/${normalizedKey}`;
     }
 
-    async getDownloadUrl(key: string): Promise<string> {
+    async getDownloadUrl(
+        key: string,
+        _options?: StorageDownloadOptions,
+    ): Promise<string> {
         return this.getPublicUrl(key);
     }
 
