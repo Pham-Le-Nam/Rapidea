@@ -6,7 +6,6 @@ import {
     FolderIcon,
     FileIcon,
     XIcon,
-    DownloadIcon,
 } from "lucide-react";
 import {
     DropdownMenu,
@@ -449,8 +448,7 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                                         asChild
                                         onClick={() => downloadFile(childFile)}
                                     >
-                                        <span className="hover:bg-gray-100 w-full text-lg">
-                                            {/* <DownloadIcon /> */}
+                                        <span className="flex w-full items-center gap-2 text-lg hover:bg-gray-100">
                                             Download
                                         </span>
                                     </DropdownMenuItem>
