@@ -19,6 +19,11 @@ import { JwtAuthGuard } from "../../guards/auth/jwt.guard";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { UpdateFileDto } from "../../dto/file/update-file.dto";
 
+const UTF8_FILE_UPLOAD_OPTIONS = {
+    preservePath: false,
+    defParamCharset: 'utf8',
+};
+
 @Controller('api/file')
 export class FileController {
     constructor (
@@ -99,7 +104,7 @@ export class FileController {
 
     @UseGuards(JwtAuthGuard)
     @Post('add')
-    @UseInterceptors(FileInterceptor('file'))
+    @UseInterceptors(FileInterceptor('file', UTF8_FILE_UPLOAD_OPTIONS))
     async uploadFile (
         @UploadedFile() file: Express.Multer.File,
         @Request() req: any,
