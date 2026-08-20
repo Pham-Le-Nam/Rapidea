@@ -1,5 +1,5 @@
 // mail.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
 import { MailService as MailPort } from '../../application/ports/mail.service';
@@ -15,6 +15,7 @@ export class MailService implements MailPort {
         const resetLink = `${this.config.get('FRONTEND_URL')}/reset-password?token=${encodeURIComponent(token)}`;
 
         await this.mailerService.sendMail({
+            from: this.sender(),
             to: email,
             subject: 'Reset Your Password',
             html: `
@@ -28,9 +29,10 @@ export class MailService implements MailPort {
 
     async sendRegistrationVerification(email: string, token: string) {
         const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173';
-        const link = `${frontendUrl}/auth/email/verify?token=${encodeURIComponent(token)}`;
+        const link = `${frontendUrl}/auth/email/verify#token=${encodeURIComponent(token)}`;
 
         await this.mailerService.sendMail({
+            from: this.sender(),
             to: email,
             subject: 'Confirm your Rapidea account',
             html: `
@@ -46,5 +48,16 @@ export class MailService implements MailPort {
                 </div>
             `,
         });
+    }
+
+    private sender() {
+        const sender = this.config.get<string>('MAIL_FROM')
+            ?? this.config.get<string>('MAIL_USER');
+
+        if (!sender) {
+            throw new InternalServerErrorException('Email delivery is not configured.');
+        }
+
+        return sender.includes('<') ? sender : `Rapidea <${sender}>`;
     }
 }

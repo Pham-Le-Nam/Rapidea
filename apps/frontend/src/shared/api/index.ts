@@ -30,7 +30,7 @@ export async function registerApi(email: string, password: string, confirmPasswo
 };
 
 export async function verifyEmailAuthApi(token: string) {
-    const response = await API.get("api/auth/email/verify", { params: { token } });
+    const response = await API.post("api/auth/email/verify", undefined, { params: { token } });
     return response.data;
 }
 

@@ -13,7 +13,8 @@ export default function EmailVerify() {
     useEffect(() => {
         if (started.current) return;
         started.current = true;
-        const token = params.get("token");
+        const fragment = new URLSearchParams(window.location.hash.slice(1));
+        const token = params.get("token") ?? fragment.get("token");
         if (!token) {
             setMessage("This verification link is missing its token.");
             return;

@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Body, Query, Redirect, Res } from '@nestjs/common';
+import { Controller, Post, Get, Put, Body, Query, Redirect, Res, HttpCode } from '@nestjs/common';
 import type { Response } from 'express';
 import { AuthService } from '../../../../application/auth/auth.service';
 import { RegisterDto } from '../../dto/auth/register.dto';
@@ -24,7 +24,8 @@ export class AuthController {
         return this.authService.login(loginDto.email, loginDto.password);
     }
 
-    @Get('email/verify')
+    @Post('email/verify')
+    @HttpCode(200)
     async verifyEmail(@Query('token') token: string) {
         return this.authService.verifyEmailToken(token);
     }
