@@ -267,6 +267,7 @@ function UpsertPost({ className, post, uploadedFiles, course, courseOptions = []
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
+                        if (e.target !== e.currentTarget) return;
                         void (post ? updatePost() : createPost());
                     }}
                 >
