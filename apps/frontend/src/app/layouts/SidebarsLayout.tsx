@@ -8,7 +8,29 @@ import { ChatBox, type ChatUser } from "@/features/chat";
 import {
   SidebarProvider,
   SidebarTrigger,
+  useSidebar,
 } from "@/shared/components/ui/sidebar";
+
+function ClosedSidebarTrigger({
+    side,
+    label,
+}: {
+    side: "left" | "right";
+    label: string;
+}) {
+    const { isMobile, open, openMobile } = useSidebar();
+    const isOpen = isMobile ? openMobile : open;
+
+    if (isOpen) return null;
+
+    return (
+        <SidebarTrigger
+            className={`fixed ${side === "left" ? "left-2" : "right-2"} mt-2 z-10 min-w-12 min-h-12 rounded-full border-2 bg-white shadow-sm`}
+        >
+            <div>{label}</div>
+        </SidebarTrigger>
+    );
+}
 
 export default function Layout() {
     const [chatRefreshKey, setChatRefreshKey] = useState(0);
@@ -25,12 +47,7 @@ export default function Layout() {
             {/* Automatically open if not in mobile device */}
             <SidebarProvider className="flex-1">
                 <LeftSidebar />
-                <SidebarTrigger className="fixed left-2 mt-2 z-10 min-w-12 min-h-12 rounded-full border-2 bg-white shadow-sm">
-                    {/* <PanelLeftOpenIcon /> */}
-                    <div>
-                        Menu
-                    </div>
-                </SidebarTrigger>
+                <ClosedSidebarTrigger side="left" label="Menu" />
             </SidebarProvider>
 
             {/* MAIN CONTENT */}
@@ -44,11 +61,7 @@ export default function Layout() {
                     refreshKey={chatRefreshKey}
                     onSelectChat={openChat}
                 />
-                <SidebarTrigger className="fixed right-2 mt-2 z-10 min-w-12 min-h-12 rounded-full border-2 bg-white shadow-sm">
-                    <div>
-                        SMS
-                    </div>
-                </SidebarTrigger>
+                <ClosedSidebarTrigger side="right" label="SMS" />
             </SidebarProvider>
 
             <ChatBox
