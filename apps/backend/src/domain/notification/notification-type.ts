@@ -12,6 +12,7 @@ export const NotificationType = {
     ADMIN_WARNING: "ADMIN_WARNING",
     INSTRUCTOR_APPLICATION: "INSTRUCTOR_APPLICATION",
     INSTRUCTOR_APPROVED: "INSTRUCTOR_APPROVED",
+    INSTRUCTOR_DISAPPROVED: "INSTRUCTOR_DISAPPROVED",
 } as const;
 
 export type NotificationType = typeof NotificationType[keyof typeof NotificationType];

@@ -64,6 +64,25 @@ export class PrismaAdminRepository implements AdminRepository {
         });
     }
 
+    async disapproveInstructorApplication(applicationId: string, adminId: string) {
+        return this.prisma.$transaction(async (tx) => {
+            const result = await tx.instructorApplication.updateMany({
+                where: { id: applicationId, status: 'PENDING' },
+                data: {
+                    status: 'DISAPPROVED',
+                    reviewedAt: new Date(),
+                    reviewedById: adminId,
+                },
+            });
+            if (result.count !== 1) return null;
+
+            return tx.instructorApplication.findUnique({
+                where: { id: applicationId },
+                include: { user: { select: { id: true, username: true, email: true } } },
+            });
+        });
+    }
+
     async approveInstructorApplication(applicationId: string, adminId: string) {
         return this.prisma.$transaction(async (tx) => {
             const approval = await tx.instructorApplication.updateMany({

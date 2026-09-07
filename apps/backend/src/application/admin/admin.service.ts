@@ -58,6 +58,22 @@ export class AdminService {
         };
     }
 
+    async disapproveInstructorApplication(applicationId: string, adminId: string) {
+        const application = await this.adminRepo.disapproveInstructorApplication(applicationId, adminId);
+        if (!application) {
+            throw new ConflictException('This instructor application is no longer pending');
+        }
+        await this.notifications.createNotification({
+            userId: application.userId,
+            actorId: adminId,
+            type: 'INSTRUCTOR_DISAPPROVED',
+            title: 'Instructor application disapproved',
+            message: 'Your instructor application was disapproved. Your account remains a learner.',
+            link: '/settings',
+        });
+        return application;
+    }
+
     async approveInstructorApplication(applicationId: string, adminId: string) {
         const application = await this.adminRepo.approveInstructorApplication(applicationId, adminId);
         if (!application) {

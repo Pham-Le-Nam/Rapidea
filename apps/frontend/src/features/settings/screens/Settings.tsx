@@ -15,7 +15,7 @@ import PayoutSettings from "./PayoutSettings";
 
 type Application = {
     id: string;
-    status: "PENDING" | "APPROVED";
+    status: "PENDING" | "APPROVED" | "DISAPPROVED";
     idDocumentName: string;
     submittedAt: string;
     reviewedAt?: string | null;
@@ -96,12 +96,19 @@ export default function Settings() {
                         </div>
                     </div>
 
-                    {application ? (
+                    {application?.status === "DISAPPROVED" ? (
+                        <div className="mt-4 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-950" role="status">
+                            <div className="font-semibold">Application disapproved</div>
+                            <div className="mt-1">Document: {application.idDocumentName}</div>
+                            {application.reviewedAt && <div>Reviewed: {new Date(application.reviewedAt).toLocaleString()}</div>}
+                            <p className="mt-2">Your instructor application was disapproved. Your account remains a learner.</p>
+                        </div>
+                    ) : application ? (
                         <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
                             <div className="font-semibold">Application pending review</div>
                             <div className="mt-1">Document: {application.idDocumentName}</div>
                             <div>Submitted: {new Date(application.submittedAt).toLocaleString()}</div>
-                            <p className="mt-2">You will receive a notification when an administrator approves your application.</p>
+                            <p className="mt-2">You will receive a notification when an administrator reviews your application.</p>
                         </div>
                     ) : (
                         <div className="mt-5 space-y-3">

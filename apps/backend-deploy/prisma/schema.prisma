@@ -177,6 +177,7 @@ enum NotificationType {
     ADMIN_WARNING
     INSTRUCTOR_APPLICATION
     INSTRUCTOR_APPROVED
+    INSTRUCTOR_DISAPPROVED
 }
 
 enum AccountRole {
@@ -188,6 +189,7 @@ enum AccountRole {
 enum InstructorApplicationStatus {
     PENDING
     APPROVED
+    DISAPPROVED
 }
 
 model InstructorApplication {

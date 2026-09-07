@@ -494,6 +494,10 @@ export async function approveInstructorApplicationApi(applicationId: string) {
     return (await API.post(`api/admin/instructor-applications/${applicationId}/approve`)).data;
 }
 
+export async function disapproveInstructorApplicationApi(applicationId: string) {
+    return (await API.post(`api/admin/instructor-applications/${applicationId}/disapprove`)).data;
+}
+
 export async function getChatConversationApi(otherUserId: string, limit: number = 10, before?: string) {
     const token = authTokenStorage.get();
 

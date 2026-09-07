@@ -7,4 +7,5 @@ export {
     getAdminInstructorApplicationsApi,
     getAdminInstructorDocumentApi,
     approveInstructorApplicationApi,
+    disapproveInstructorApplicationApi,
 } from "@/shared/api";

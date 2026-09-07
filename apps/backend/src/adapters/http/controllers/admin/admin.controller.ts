@@ -42,6 +42,11 @@ export class AdminController {
         return this.admin.approveInstructorApplication(id, req.user.userId);
     }
 
+    @Post('instructor-applications/:id/disapprove')
+    disapproveInstructorApplication(@Param('id') id: string, @Request() req: any) {
+        return this.admin.disapproveInstructorApplication(id, req.user.userId);
+    }
+
     @Delete('posts/:id')
     deletePost(@Param('id') id: string) {
         return this.admin.deletePost(id);

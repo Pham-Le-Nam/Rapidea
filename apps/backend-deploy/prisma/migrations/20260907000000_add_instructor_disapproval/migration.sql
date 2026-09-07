@@ -1,0 +1,2 @@
+ALTER TYPE "InstructorApplicationStatus" ADD VALUE 'DISAPPROVED';
+ALTER TYPE "NotificationType" ADD VALUE 'INSTRUCTOR_DISAPPROVED';

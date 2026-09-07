@@ -1,5 +1,6 @@
 import {
     approveInstructorApplicationApi,
+    disapproveInstructorApplicationApi,
     getAdminInstructorApplicationsApi,
     getAdminInstructorDocumentApi,
     getMeApi,
@@ -46,18 +47,20 @@ export default function InstructorApplications() {
         }
     };
 
-    const approve = async (application: any) => {
+    const review = async (application: any, decision: "approve" | "disapprove") => {
         const name = `${application.user.firstname} ${application.user.lastname}`.trim();
-        if (!window.confirm(`Approve ${name || application.user.username} as an instructor?`)) return;
+        const action = decision === "approve" ? "Approve" : "Disapprove";
+        if (!window.confirm(`${action} the instructor application for ${name || application.user.username}?`)) return;
 
         try {
             setWorkingId(application.id);
-            await approveInstructorApplicationApi(application.id);
+            const reviewApi = decision === "approve" ? approveInstructorApplicationApi : disapproveInstructorApplicationApi;
+            await reviewApi(application.id);
             setApplications((current) => current.filter((item) => item.id !== application.id));
-            toast.success("Instructor access approved");
+            toast.success(decision === "approve" ? "Instructor access approved" : "Instructor application disapproved");
         } catch (error: any) {
-            toast.error(error.response?.data?.message ?? "Couldn't approve this application");
-            await load();
+            toast.error(error.response?.data?.message ?? `Couldn't ${decision} this application`);
+            await load().catch(() => toast.error("Couldn't refresh applications"));
         } finally {
             setWorkingId(null);
         }
@@ -96,11 +99,14 @@ export default function InstructorApplications() {
                                 </div>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                                <Button variant="outline" disabled={workingId === application.id} onClick={() => viewDocument(application)}>
+                                <Button variant="outline" disabled={workingId !== null} onClick={() => viewDocument(application)}>
                                     <ExternalLinkIcon className="size-4" />
                                     View ID
                                 </Button>
-                                <Button className="bg-main hover:bg-main-hover" disabled={workingId === application.id} onClick={() => approve(application)}>
+                                <Button variant="destructive" disabled={workingId !== null} onClick={() => review(application, "disapprove")}>
+                                    Disapprove
+                                </Button>
+                                <Button className="bg-main hover:bg-main-hover" disabled={workingId !== null} onClick={() => review(application, "approve")}>
                                     Approve instructor
                                 </Button>
                             </div>
