@@ -5,6 +5,7 @@ export interface AdminRepository {
     deleteCourse(courseId: string): Promise<any>;
     deleteFile(fileId: string): Promise<any>;
     findInstructorApplications(): Promise<any[]>;
+    findInstructorApplicationHistory(): Promise<any[]>;
     findInstructorApplicationById(applicationId: string): Promise<any | null>;
     approveInstructorApplication(applicationId: string, adminId: string): Promise<any | null>;
     disapproveInstructorApplication(applicationId: string, adminId: string): Promise<any | null>;

@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import * as crypto from 'crypto';
 import path from 'path';
 import { UsersRepository } from '../../domain/users/repositories/users.repository';
+import { assertInstructorApplicationAllowed, instructorReapplyAt } from '../../domain/users/instructor-application-policy';
 import { FolderService } from '../folder/folder.service';
 import { NotificationService } from '../notification/notification.service';
 import { STORAGE_SERVICE, StorageService } from '../ports/storage.service';
@@ -102,7 +103,8 @@ export class UsersService {
     }
 
     async getInstructorApplication(userId: string) {
-        return this.usersRepo.findInstructorApplicationByUserId(userId);
+        const application = await this.usersRepo.findInstructorApplicationByUserId(userId);
+        return application ? { ...application, reapplyAt: instructorReapplyAt(application) } : null;
     }
 
     async submitInstructorApplication(userId: string, idDocument?: Express.Multer.File) {
@@ -113,9 +115,7 @@ export class UsersService {
         }
 
         const currentApplication = await this.usersRepo.findInstructorApplicationByUserId(userId);
-        if (currentApplication) {
-            throw new ConflictException('An instructor application has already been submitted');
-        }
+        assertInstructorApplicationAllowed(currentApplication);
         if (!idDocument) throw new BadRequestException('An identity document is required');
         if (!INSTRUCTOR_ID_MIME_TYPES[idDocument.mimetype]) {
             throw new BadRequestException('Upload a PDF, JPG, PNG, or WebP identity document');
@@ -135,22 +135,19 @@ export class UsersService {
         );
         await this.storage.writeFile(documentKey, idDocument.buffer, { contentType: idDocument.mimetype });
 
+        let application: any;
         try {
-            const application = await this.usersRepo.createInstructorApplication(userId, {
+            application = await this.usersRepo.createInstructorApplication(userId, {
                 key: documentKey,
                 name: idDocument.originalname,
                 mimeType: idDocument.mimetype,
             });
-            await this.notifications.notifyAdminsOfInstructorApplication(
-                userId,
-                application.id,
-                user.username,
-            );
-            return application;
         } catch (error) {
             await this.storage.deleteFile(documentKey).catch(() => undefined);
             throw error;
         }
+        await this.notifications.notifyAdminsOfInstructorApplication(userId, application.id, user.username);
+        return application;
     }
 
     private async assertCreator(userId: string) {

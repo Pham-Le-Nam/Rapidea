@@ -5,6 +5,7 @@ export {
     getMeApi,
     sendAdminWarningApi,
     getAdminInstructorApplicationsApi,
+    getAdminInstructorApplicationHistoryApi,
     getAdminInstructorDocumentApi,
     approveInstructorApplicationApi,
     disapproveInstructorApplicationApi,

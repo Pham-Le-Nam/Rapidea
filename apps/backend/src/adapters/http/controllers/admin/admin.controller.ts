@@ -28,6 +28,11 @@ export class AdminController {
         return this.admin.getInstructorApplications();
     }
 
+    @Get('instructor-applications/history')
+    instructorApplicationHistory() {
+        return this.admin.getInstructorApplicationHistory();
+    }
+
     @Get('instructor-applications/:id/document')
     async instructorApplicationDocument(@Param('id') id: string) {
         const document = await this.admin.getInstructorApplicationDocument(id);

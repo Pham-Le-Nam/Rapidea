@@ -71,7 +71,7 @@ model Users {
     uploadedPhotos          Photo[]                 @relation("UploadedPhoto")
     socialLinks             SocialLink[]
     payoutAccount           PayoutAccount?
-    instructorApplication   InstructorApplication?
+    instructorApplications  InstructorApplication[]
     FilesInCourses         FileInCourse[]
     FilesInPosts           FileInPost[]
     
@@ -194,7 +194,7 @@ enum InstructorApplicationStatus {
 
 model InstructorApplication {
     id                  String                      @id @default(uuid())
-    userId              String                      @unique
+    userId              String
     status              InstructorApplicationStatus @default(PENDING)
     idDocumentKey       String
     idDocumentName      String
@@ -206,6 +206,7 @@ model InstructorApplication {
     user                Users                       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@index([status, submittedAt])
+    @@index([userId, submittedAt])
     @@map("instructor_application")
 }
 

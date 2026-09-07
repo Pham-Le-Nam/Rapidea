@@ -48,6 +48,10 @@ export class AdminService {
         return this.adminRepo.findInstructorApplications();
     }
 
+    async getInstructorApplicationHistory() {
+        return this.adminRepo.findInstructorApplicationHistory();
+    }
+
     async getInstructorApplicationDocument(applicationId: string) {
         const application = await this.adminRepo.findInstructorApplicationById(applicationId);
         if (!application) throw new NotFoundException('Instructor application not found');

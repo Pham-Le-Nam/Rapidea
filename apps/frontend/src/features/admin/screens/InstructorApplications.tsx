@@ -2,6 +2,7 @@ import {
     approveInstructorApplicationApi,
     disapproveInstructorApplicationApi,
     getAdminInstructorApplicationsApi,
+    getAdminInstructorApplicationHistoryApi,
     getAdminInstructorDocumentApi,
     getMeApi,
 } from "@/features/admin/api";
@@ -10,10 +11,13 @@ import { CheckCircleIcon, ExternalLinkIcon, InboxIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
+import ApplicationHistory from "../components/ApplicationHistory";
+import type { ApplicationHistoryEntry } from "../components/historyTable";
 
 export default function InstructorApplications() {
     const navigate = useNavigate();
     const [applications, setApplications] = useState<any[]>([]);
+    const [history, setHistory] = useState<ApplicationHistoryEntry[]>([]);
     const [workingId, setWorkingId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -23,7 +27,12 @@ export default function InstructorApplications() {
             navigate("/");
             return;
         }
-        setApplications(await getAdminInstructorApplicationsApi());
+        const [pending, reviewed] = await Promise.all([
+            getAdminInstructorApplicationsApi(),
+            getAdminInstructorApplicationHistoryApi(),
+        ]);
+        setApplications(pending);
+        setHistory(reviewed);
     };
 
     useEffect(() => {
@@ -33,14 +42,20 @@ export default function InstructorApplications() {
     }, []);
 
     const viewDocument = async (application: any) => {
+        const openedWindow = window.open("", "_blank");
+        if (!openedWindow) {
+            toast.error("Allow pop-ups to view the identity document");
+            return;
+        }
+        openedWindow.opener = null;
         try {
             setWorkingId(application.id);
             const blob = await getAdminInstructorDocumentApi(application.id);
             const url = URL.createObjectURL(blob);
-            const openedWindow = window.open(url, "_blank", "noopener,noreferrer");
-            if (!openedWindow) toast.error("Allow pop-ups to view the identity document");
+            openedWindow.location.replace(url);
             window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
         } catch {
+            openedWindow.close();
             toast.error("Couldn't open identity document");
         } finally {
             setWorkingId(null);
@@ -58,6 +73,7 @@ export default function InstructorApplications() {
             await reviewApi(application.id);
             setApplications((current) => current.filter((item) => item.id !== application.id));
             toast.success(decision === "approve" ? "Instructor access approved" : "Instructor application disapproved");
+            await load().catch(() => toast.error("Decision saved, but history couldn't be refreshed. Reload the page to try again."));
         } catch (error: any) {
             toast.error(error.response?.data?.message ?? `Couldn't ${decision} this application`);
             await load().catch(() => toast.error("Couldn't refresh applications"));
@@ -67,7 +83,7 @@ export default function InstructorApplications() {
     };
 
     return (
-        <div className="mx-auto w-full max-w-5xl space-y-5">
+        <div className="mx-auto w-full min-w-0 max-w-7xl space-y-5">
             <div className="rounded-md border p-5 shadow-sm">
                 <div className="flex items-center gap-3">
                     <InboxIcon className="size-6 text-main" />
@@ -114,6 +130,7 @@ export default function InstructorApplications() {
                     </article>
                 ))}
             </section>
+            <ApplicationHistory entries={history} loading={loading} busy={workingId !== null} onViewDocument={viewDocument} />
         </div>
     );
 }

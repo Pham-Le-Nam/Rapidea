@@ -19,6 +19,7 @@ type Application = {
     idDocumentName: string;
     submittedAt: string;
     reviewedAt?: string | null;
+    reapplyAt?: string | null;
 };
 
 export default function Settings() {
@@ -29,6 +30,14 @@ export default function Settings() {
     const [idDocument, setIdDocument] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [now, setNow] = useState(Date.now());
+
+    useEffect(() => {
+        if (!application?.reapplyAt) return;
+        setNow(Date.now());
+        const timer = window.setInterval(() => setNow(Date.now()), 1000);
+        return () => window.clearInterval(timer);
+    }, [application?.reapplyAt]);
 
     const load = async () => {
         const [me, applicationResponse] = await Promise.all([
@@ -70,6 +79,8 @@ export default function Settings() {
     if (loading) return <div className="p-6 text-sm text-gray-500">Loading settings...</div>;
 
     const isCreator = profile?.role === "INSTRUCTOR" || profile?.role === "ADMIN";
+    const remainingSeconds = application?.reapplyAt ? Math.max(0, Math.ceil((new Date(application.reapplyAt).getTime() - now) / 1000)) : 0;
+    const canReapply = application?.status === "DISAPPROVED" && !!application.reapplyAt && remainingSeconds === 0;
 
     return (
         <div className="flex w-full max-w-5xl flex-col gap-5 px-2">
@@ -102,6 +113,13 @@ export default function Settings() {
                             <div className="mt-1">Document: {application.idDocumentName}</div>
                             {application.reviewedAt && <div>Reviewed: {new Date(application.reviewedAt).toLocaleString()}</div>}
                             <p className="mt-2">Your instructor application was disapproved. Your account remains a learner.</p>
+                            {application.reapplyAt && (
+                                <p className="mt-2">
+                                    {remainingSeconds > 0
+                                        ? `You can apply again in ${Math.floor(remainingSeconds / 60)}:${String(remainingSeconds % 60).padStart(2, "0")} (at ${new Date(application.reapplyAt).toLocaleTimeString()}).`
+                                        : "You can now apply again with a new identity document."}
+                                </p>
+                            )}
                         </div>
                     ) : application ? (
                         <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
@@ -110,7 +128,8 @@ export default function Settings() {
                             <div>Submitted: {new Date(application.submittedAt).toLocaleString()}</div>
                             <p className="mt-2">You will receive a notification when an administrator reviews your application.</p>
                         </div>
-                    ) : (
+                    ) : null}
+                    {(!application || canReapply) && (
                         <div className="mt-5 space-y-3">
                             <Input
                                 type="file"
@@ -119,7 +138,7 @@ export default function Settings() {
                             />
                             <p className="text-xs text-gray-500">PDF, JPG, PNG, or WebP. Maximum size 10 MB.</p>
                             <Button className="bg-main hover:bg-main-hover" disabled={submitting} onClick={submit}>
-                                {submitting ? "Submitting..." : "Apply to become an instructor"}
+                                {submitting ? "Submitting..." : canReapply ? "Apply again" : "Apply to become an instructor"}
                             </Button>
                         </div>
                     )}

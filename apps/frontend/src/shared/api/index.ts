@@ -484,6 +484,10 @@ export async function getAdminInstructorApplicationsApi() {
     return (await API.get("api/admin/instructor-applications")).data;
 }
 
+export async function getAdminInstructorApplicationHistoryApi() {
+    return (await API.get("api/admin/instructor-applications/history")).data;
+}
+
 export async function getAdminInstructorDocumentApi(applicationId: string) {
     return (await API.get(`api/admin/instructor-applications/${applicationId}/document`, {
         responseType: "blob",

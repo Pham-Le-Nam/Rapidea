@@ -1,4 +1,5 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { assertInstructorApplicationAllowed } from '../../../domain/users/instructor-application-policy';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 import { UsersRepository } from '../../../domain/users/repositories/users.repository';
 
@@ -215,8 +216,9 @@ export class PrismaUsersRepository implements UsersRepository {
     }
 
     async findInstructorApplicationByUserId(userId: string): Promise<any | null> {
-        return this.prisma.instructorApplication.findUnique({
+        return this.prisma.instructorApplication.findFirst({
             where: { userId },
+            orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
             select: {
                 id: true,
                 status: true,
@@ -231,20 +233,30 @@ export class PrismaUsersRepository implements UsersRepository {
         userId: string,
         document: { key: string; name: string; mimeType: string },
     ): Promise<any> {
-        return this.prisma.instructorApplication.create({
-            data: {
-                userId,
-                idDocumentKey: document.key,
-                idDocumentName: document.name,
-                idDocumentMimeType: document.mimeType,
-            },
-            select: {
-                id: true,
-                status: true,
-                idDocumentName: true,
-                submittedAt: true,
-                reviewedAt: true,
-            },
+        return this.prisma.$transaction(async (tx) => {
+            // Serialize submissions for this learner before checking their latest decision.
+            const users = await tx.$queryRaw<Array<{ role: string }>>`SELECT role FROM users WHERE id = ${userId} FOR UPDATE`;
+            if (users[0]?.role !== 'LEARNER') throw new ConflictException('Learner access is required to apply');
+            const latest = await tx.instructorApplication.findFirst({
+                where: { userId },
+                orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
+            });
+            assertInstructorApplicationAllowed(latest);
+            return tx.instructorApplication.create({
+                data: {
+                    userId,
+                    idDocumentKey: document.key,
+                    idDocumentName: document.name,
+                    idDocumentMimeType: document.mimeType,
+                },
+                select: {
+                    id: true,
+                    status: true,
+                    idDocumentName: true,
+                    submittedAt: true,
+                    reviewedAt: true,
+                },
+            });
         });
     }
 

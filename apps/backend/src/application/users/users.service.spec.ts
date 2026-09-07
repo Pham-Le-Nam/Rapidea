@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { UsersService } from './users.service';
 
 describe('UsersService instructor access', () => {
@@ -13,7 +13,24 @@ describe('UsersService instructor access', () => {
     const storage = { writeFile: jest.fn(), deleteFile: jest.fn() } as any;
     const service = new UsersService(usersRepo, folderService, notifications, storage);
 
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => jest.resetAllMocks());
+
+    it('rejects early reapplication before uploading a document', async () => {
+        usersRepo.findById.mockResolvedValue({ id: 'learner-1', role: 'LEARNER' });
+        usersRepo.findInstructorApplicationByUserId.mockResolvedValue({ status: 'DISAPPROVED', reviewedAt: new Date() });
+        await expect(service.submitInstructorApplication('learner-1')).rejects.toBeInstanceOf(ConflictException);
+        expect(storage.writeFile).not.toHaveBeenCalled();
+        expect(usersRepo.createInstructorApplication).not.toHaveBeenCalled();
+    });
+
+    it('creates a fresh application after the wait instead of replacing history', async () => {
+        usersRepo.findById.mockResolvedValue({ id: 'learner-1', username: 'learner', role: 'LEARNER' });
+        usersRepo.findInstructorApplicationByUserId.mockResolvedValue({ id: 'old-application', status: 'DISAPPROVED', reviewedAt: new Date(Date.now() - 300001) });
+        usersRepo.createInstructorApplication.mockResolvedValue({ id: 'new-application', status: 'PENDING' });
+        const document = { originalname: 'new.pdf', mimetype: 'application/pdf', size: 12, buffer: Buffer.from('%PDF-1.7 test') } as Express.Multer.File;
+        await expect(service.submitInstructorApplication('learner-1', document)).resolves.toMatchObject({ id: 'new-application', status: 'PENDING' });
+        expect(notifications.notifyAdminsOfInstructorApplication).toHaveBeenCalledWith('learner-1', 'new-application', 'learner');
+    });
 
     it('submits a valid learner application and notifies administrators', async () => {
         usersRepo.findById.mockResolvedValue({ id: 'learner-1', username: 'new.learner', role: 'LEARNER' });

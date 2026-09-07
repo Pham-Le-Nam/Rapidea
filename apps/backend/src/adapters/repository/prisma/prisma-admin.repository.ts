@@ -57,6 +57,37 @@ export class PrismaAdminRepository implements AdminRepository {
         });
     }
 
+    async findInstructorApplicationHistory() {
+        const applications = await this.prisma.instructorApplication.findMany({
+            where: { status: { in: ['APPROVED', 'DISAPPROVED'] } },
+            select: {
+                id: true,
+                status: true,
+                submittedAt: true,
+                reviewedAt: true,
+                reviewedById: true,
+                idDocumentName: true,
+                user: { select: { email: true } },
+            },
+            orderBy: [{ reviewedAt: 'desc' }, { id: 'asc' }],
+        });
+        const reviewerIds = [...new Set(applications.flatMap((item) => item.reviewedById ? [item.reviewedById] : []))];
+        const reviewers = await this.prisma.users.findMany({
+            where: { id: { in: reviewerIds } },
+            select: { id: true, email: true },
+        });
+        const reviewerEmails = new Map(reviewers.map((user) => [user.id, user.email]));
+        return applications.map((item) => ({
+            id: item.id,
+            status: item.status,
+            applicantEmail: item.user.email,
+            reviewerEmail: item.reviewedById ? reviewerEmails.get(item.reviewedById) ?? null : null,
+            submittedAt: item.submittedAt,
+            reviewedAt: item.reviewedAt,
+            idDocumentName: item.idDocumentName,
+        }));
+    }
+
     findInstructorApplicationById(applicationId: string) {
         return this.prisma.instructorApplication.findUnique({
             where: { id: applicationId },

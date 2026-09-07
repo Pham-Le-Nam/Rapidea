@@ -9,7 +9,7 @@ import { JwtAuthGuard } from '../../guards/auth/jwt.guard';
 
 describe('Instructor application disapproval', () => {
     let app: INestApplication;
-    const repository = { disapproveInstructorApplication: jest.fn() };
+    const repository = { disapproveInstructorApplication: jest.fn(), findInstructorApplicationHistory: jest.fn() };
     const notifications = { createNotification: jest.fn() };
     const endpoint = '/api/admin/instructor-applications/application-1/disapprove';
 
@@ -41,6 +41,23 @@ describe('Instructor application disapproval', () => {
     it('requires authentication', async () => {
         await request(app.getHttpServer()).post(endpoint).expect(401);
         expect(repository.disapproveInstructorApplication).not.toHaveBeenCalled();
+    });
+
+    it('requires authentication to read history', async () => {
+        await request(app.getHttpServer()).get('/api/admin/instructor-applications/history').expect(401);
+        expect(repository.findInstructorApplicationHistory).not.toHaveBeenCalled();
+    });
+
+    it.each(['LEARNER', 'INSTRUCTOR'])('denies %s access to history', async (role) => {
+        await request(app.getHttpServer()).get('/api/admin/instructor-applications/history').set('x-test-role', role).expect(403);
+        expect(repository.findInstructorApplicationHistory).not.toHaveBeenCalled();
+    });
+
+    it('returns reviewed applications to administrators', async () => {
+        const history = [{ id: 'application-1', applicantEmail: 'learner@example.com', reviewerEmail: 'admin@example.com', status: 'DISAPPROVED', submittedAt: '2026-09-01T00:00:00.000Z', reviewedAt: '2026-09-07T00:00:00.000Z', idDocumentName: 'identity.pdf' }];
+        repository.findInstructorApplicationHistory.mockResolvedValue(history);
+        const response = await request(app.getHttpServer()).get('/api/admin/instructor-applications/history').set('x-test-role', 'ADMIN').expect(200);
+        expect(response.body).toEqual(history);
     });
 
     it.each(['LEARNER', 'INSTRUCTOR'])('denies %s access', async (role) => {
