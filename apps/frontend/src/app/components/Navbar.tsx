@@ -10,7 +10,7 @@ import {
 import { Input } from "@/shared/components/ui/input";
 import { useAuth } from "@/providers";
 import { buildMediaUrl, DEFAULT_AVATAR_URL } from "@/shared/lib/media";
-import { BellIcon, CreditCardIcon, LogOutIcon, SearchIcon, SettingsIcon, UserIcon } from "lucide-react";
+import { BellIcon, InboxIcon, LogOutIcon, SearchIcon, SettingsIcon, UserIcon } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import rapideiLogo from "/rapidea.png";
@@ -291,24 +291,26 @@ function Navbar() {
                             )}
 
                             <DropdownMenuItem asChild>
-                                <Link to="/settings/payout" className="w-full">
-                                    <CreditCardIcon className="size-4" />
-                                    Payout Settings
-                                </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                                <Link to="/settings/creator-ai" className="w-full">
+                                <Link to="/settings" className="w-full">
                                     <SettingsIcon className="size-4" />
-                                    Creator AI Settings
+                                    Settings
                                 </Link>
                             </DropdownMenuItem>
                             {profile?.role === "ADMIN" && (
-                                <DropdownMenuItem asChild>
-                                    <Link to="/admin/moderation" className="w-full text-red-700">
-                                        <SettingsIcon className="size-4" />
-                                        Admin Moderation
-                                    </Link>
-                                </DropdownMenuItem>
+                                <>
+                                    <DropdownMenuItem asChild>
+                                        <Link to="/admin/instructor-applications" className="w-full">
+                                            <InboxIcon className="size-4" />
+                                            Admin Inbox
+                                        </Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <Link to="/admin/moderation" className="w-full text-red-700">
+                                            <SettingsIcon className="size-4" />
+                                            Admin Moderation
+                                        </Link>
+                                    </DropdownMenuItem>
+                                </>
                             )}
 
                             <DropdownMenuItem onClick={handleLogout}>

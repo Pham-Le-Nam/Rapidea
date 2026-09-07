@@ -90,6 +90,18 @@ export class NotificationService {
         })));
     }
 
+    async notifyAdminsOfInstructorApplication(actorId: string, applicationId: string, username: string) {
+        const admins = await this.notificationRepo.findAdminIds();
+        return this.createManyNotifications(admins.map((admin) => ({
+            userId: admin.id,
+            actorId,
+            type: NotificationType.INSTRUCTOR_APPLICATION,
+            title: 'Instructor application received',
+            message: `${username} submitted an identity document for verification.`,
+            link: `/admin/instructor-applications?application=${encodeURIComponent(applicationId)}`,
+        })));
+    }
+
     async getNotifications(userId: string, limit = 20, offset = 0) {
         return this.notificationRepo.findFeed(userId, limit, offset);
     }

@@ -4,11 +4,13 @@ import { UsersController } from '../../../adapters/http/controllers/users/users.
 import { PrismaModule } from '../../database/prisma/prisma.module';
 import { PrismaUsersRepository } from '../../../adapters/repository/prisma/prisma-users.repository';
 import { FolderModule } from './folder.module';
+import { StorageModule } from './storage.module';
 
 @Module({
     imports: [
         PrismaModule,
-        FolderModule
+        FolderModule,
+        StorageModule,
     ],
     controllers: [
         UsersController

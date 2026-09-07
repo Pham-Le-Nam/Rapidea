@@ -4,7 +4,7 @@ import { UsersService } from "../../../../application/users/users.service";
 import { AddCourseDto } from "../../dto/course/add-course.dto";
 import { UpdateCourseDto } from "../../dto/course/update-course.dto";
 import { CourseService } from "../../../../application/course/course.service";
-import { Controller, Post, Get, Param, Request, NotFoundException, Body, InternalServerErrorException, UseGuards, Query } from "@nestjs/common";
+import { Controller, Post, Get, Param, Request, NotFoundException, Body, InternalServerErrorException, UseGuards, Query, ForbiddenException } from "@nestjs/common";
 
 
 @Controller('api/course')
@@ -43,6 +43,7 @@ export class CourseController {
             course: course.slice(0, pagination.limit),
             hasMore: course.length > pagination.limit,
             isOwner: viewer?.userId === owner.id,
+            canCreate: this.canCreate(viewer),
         };
     }
 
@@ -76,6 +77,9 @@ export class CourseController {
         @Body() addCourseDto: AddCourseDto,
     ) {
         const user = req.user;
+        if (!this.canCreate(user)) {
+            throw new ForbiddenException('Instructor access is required to create courses');
+        }
 
         const course = await this.courseService.createCourse(
             user.userId,
@@ -140,5 +144,9 @@ export class CourseController {
             offset: Number.isInteger(parsedOffset) && parsedOffset > 0 ? parsedOffset : 0,
             limit: Number.isInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50) : 5,
         };
+    }
+
+    private canCreate(user?: { role?: string }) {
+        return !!user && ['INSTRUCTOR', 'ADMIN'].includes(user.role ?? '');
     }
 }

@@ -10,6 +10,8 @@ export const NotificationType = {
     SUBSCRIBED_CREATOR_NEW_POST: "SUBSCRIBED_CREATOR_NEW_POST",
     MODERATION_ALERT: "MODERATION_ALERT",
     ADMIN_WARNING: "ADMIN_WARNING",
+    INSTRUCTOR_APPLICATION: "INSTRUCTOR_APPLICATION",
+    INSTRUCTOR_APPROVED: "INSTRUCTOR_APPROVED",
 } as const;
 
 export type NotificationType = typeof NotificationType[keyof typeof NotificationType];

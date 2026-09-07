@@ -33,4 +33,62 @@ export class PrismaAdminRepository implements AdminRepository {
     deletePost(postId: string) { return this.prisma.post.delete({ where: { id: postId } }); }
     deleteCourse(courseId: string) { return this.prisma.course.delete({ where: { id: courseId } }); }
     deleteFile(fileId: string) { return this.prisma.file.delete({ where: { id: fileId } }); }
+
+    findInstructorApplications() {
+        return this.prisma.instructorApplication.findMany({
+            where: { status: 'PENDING' },
+            select: {
+                id: true,
+                status: true,
+                idDocumentName: true,
+                idDocumentMimeType: true,
+                submittedAt: true,
+                user: {
+                    select: {
+                        id: true,
+                        username: true,
+                        email: true,
+                        firstname: true,
+                        lastname: true,
+                    },
+                },
+            },
+            orderBy: { submittedAt: 'asc' },
+        });
+    }
+
+    findInstructorApplicationById(applicationId: string) {
+        return this.prisma.instructorApplication.findUnique({
+            where: { id: applicationId },
+            include: { user: true },
+        });
+    }
+
+    async approveInstructorApplication(applicationId: string, adminId: string) {
+        return this.prisma.$transaction(async (tx) => {
+            const approval = await tx.instructorApplication.updateMany({
+                where: { id: applicationId, status: 'PENDING' },
+                data: {
+                    status: 'APPROVED',
+                    reviewedAt: new Date(),
+                    reviewedById: adminId,
+                },
+            });
+            if (approval.count !== 1) return null;
+
+            const application = await tx.instructorApplication.findUnique({
+                where: { id: applicationId },
+            });
+            if (!application) return null;
+
+            await tx.users.update({
+                where: { id: application.userId },
+                data: { role: 'INSTRUCTOR' },
+            });
+            return tx.instructorApplication.findUnique({
+                where: { id: applicationId },
+                include: { user: { select: { id: true, username: true, email: true } } },
+            });
+        });
+    }
 }

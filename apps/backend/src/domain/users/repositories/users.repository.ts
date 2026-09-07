@@ -12,4 +12,6 @@ export interface UsersRepository {
     updateCreatorPrompt(userId: string, creatorPrompt: string): Promise<string | null>;
     findPayoutAccountByUserId(userId: string): Promise<any | null>;
     upsertPayoutAccount(userId: string, data: any): Promise<any>;
+    findInstructorApplicationByUserId(userId: string): Promise<any | null>;
+    createInstructorApplication(userId: string, document: { key: string; name: string; mimeType: string }): Promise<any>;
 }

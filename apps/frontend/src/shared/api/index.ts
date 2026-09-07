@@ -174,6 +174,16 @@ export async function updatePayoutAccountApi(data: {
     return response.data;
 }
 
+export async function getInstructorApplicationApi() {
+    return (await API.get("api/users/me/instructor-application")).data;
+}
+
+export async function submitInstructorApplicationApi(idDocument: File) {
+    const formData = new FormData();
+    formData.append("idDocument", idDocument);
+    return (await API.post("api/users/me/instructor-application", formData)).data;
+}
+
 export async function getSocialLinkApi(username: string) {
     const response = await API.get(`api/social-link/${username}`);
 
@@ -468,6 +478,20 @@ export async function banUserAdminApi(userId: string, reason: string) {
 export async function deleteAdminEntityApi(type: "posts" | "courses" | "files", id: string) {
     const token = authTokenStorage.get();
     return (await API.delete(`api/admin/${type}/${id}`, { headers: { Authorization: `Bearer ${token}` } })).data;
+}
+
+export async function getAdminInstructorApplicationsApi() {
+    return (await API.get("api/admin/instructor-applications")).data;
+}
+
+export async function getAdminInstructorDocumentApi(applicationId: string) {
+    return (await API.get(`api/admin/instructor-applications/${applicationId}/document`, {
+        responseType: "blob",
+    })).data as Blob;
+}
+
+export async function approveInstructorApplicationApi(applicationId: string) {
+    return (await API.post(`api/admin/instructor-applications/${applicationId}/approve`)).data;
 }
 
 export async function getChatConversationApi(otherUserId: string, limit: number = 10, before?: string) {

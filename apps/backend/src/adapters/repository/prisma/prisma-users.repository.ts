@@ -214,6 +214,40 @@ export class PrismaUsersRepository implements UsersRepository {
         });
     }
 
+    async findInstructorApplicationByUserId(userId: string): Promise<any | null> {
+        return this.prisma.instructorApplication.findUnique({
+            where: { userId },
+            select: {
+                id: true,
+                status: true,
+                idDocumentName: true,
+                submittedAt: true,
+                reviewedAt: true,
+            },
+        });
+    }
+
+    async createInstructorApplication(
+        userId: string,
+        document: { key: string; name: string; mimeType: string },
+    ): Promise<any> {
+        return this.prisma.instructorApplication.create({
+            data: {
+                userId,
+                idDocumentKey: document.key,
+                idDocumentName: document.name,
+                idDocumentMimeType: document.mimeType,
+            },
+            select: {
+                id: true,
+                status: true,
+                idDocumentName: true,
+                submittedAt: true,
+                reviewedAt: true,
+            },
+        });
+    }
+
     private async generateUsername(firstname: string, middlename: string | undefined | null, lastname: string, excludedUserId?: string): Promise<string> {
         const base = [firstname, middlename, lastname]
             .filter((part) => !!part?.trim())

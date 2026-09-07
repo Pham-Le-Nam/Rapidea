@@ -18,6 +18,7 @@ function UserPosts() {
     const { logout, isLoggedIn } = useAuth();
     const [posts, setPosts] = useState<any[]>([]);
     const [isOwner, setIsOwner] = useState(false);
+    const [canCreate, setCanCreate] = useState(false);
     const [freeFolder, setFreeFolder] = useState<any>();
     const [hasMore, setHasMore] = useState(true);
     const [isLoading, setIsLoading] = useState(true);
@@ -104,6 +105,7 @@ function UserPosts() {
             nextOffsetRef.current = offset + nextPosts.length;
             setHasMore(!!response.hasMore);
             setIsOwner(response.isOwner);
+            setCanCreate(!!response.canCreate);
 
             if (reset) {
                 const [folderResponse, coursesResponse] = await Promise.all([
@@ -158,7 +160,7 @@ function UserPosts() {
                 </h1>
             </div>
 
-            {isOwner && (
+            {isOwner && canCreate && (
                 <UpsertPost
                     className="w-full h-full text-3xl"
                     courseOptions={courseOptions}

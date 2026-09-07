@@ -3,8 +3,10 @@ import { AdminController } from '../../../adapters/http/controllers/admin/admin.
 import { AdminGuard } from '../../../adapters/http/guards/admin/admin.guard';
 import { AdminService } from '../../../application/admin/admin.service';
 import { PrismaAdminRepository } from '../../../adapters/repository/prisma/prisma-admin.repository';
+import { StorageModule } from './storage.module';
 
 @Module({
+    imports: [StorageModule],
     controllers: [AdminController],
     providers: [AdminService, AdminGuard, { provide: 'ADMIN_REPOSITORY', useClass: PrismaAdminRepository }],
 })

@@ -36,7 +36,7 @@ model Users {
     rating                  Float                   @default(0)
 
     sessionVersion          Int                     @default(0)
-    role                    AccountRole             @default(USER)
+    role                    AccountRole             @default(LEARNER)
     isBanned                Boolean                 @default(false)
     bannedAt                DateTime?
     banReason               String?
@@ -71,6 +71,7 @@ model Users {
     uploadedPhotos          Photo[]                 @relation("UploadedPhoto")
     socialLinks             SocialLink[]
     payoutAccount           PayoutAccount?
+    instructorApplication   InstructorApplication?
     FilesInCourses         FileInCourse[]
     FilesInPosts           FileInPost[]
     
@@ -174,11 +175,36 @@ enum NotificationType {
     SUBSCRIBED_CREATOR_NEW_POST
     MODERATION_ALERT
     ADMIN_WARNING
+    INSTRUCTOR_APPLICATION
+    INSTRUCTOR_APPROVED
 }
 
 enum AccountRole {
-    USER
+    LEARNER
+    INSTRUCTOR
     ADMIN
+}
+
+enum InstructorApplicationStatus {
+    PENDING
+    APPROVED
+}
+
+model InstructorApplication {
+    id                  String                      @id @default(uuid())
+    userId              String                      @unique
+    status              InstructorApplicationStatus @default(PENDING)
+    idDocumentKey       String
+    idDocumentName      String
+    idDocumentMimeType  String
+    submittedAt         DateTime                    @default(now())
+    reviewedAt          DateTime?
+    reviewedById        String?
+
+    user                Users                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([status, submittedAt])
+    @@map("instructor_application")
 }
 
 enum ModerationStatus {

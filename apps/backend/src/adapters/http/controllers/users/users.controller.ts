@@ -1,4 +1,5 @@
-import { Controller, Get, Param, UseGuards, Request, NotFoundException, Post, Body, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, Request, NotFoundException, Post, Body, UnauthorizedException, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from '../../../../application/users/users.service';
 import { OptionalJwtAuthGuard } from '../../guards/auth/optional-jwt.guard';
 import { JwtAuthGuard } from '../../guards/auth/jwt.guard';
@@ -25,6 +26,26 @@ export class UsersController {
 
         return {
             profile,
+        };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('me/instructor-application')
+    async getInstructorApplication(@Request() req: any) {
+        return {
+            application: await this.usersService.getInstructorApplication(req.user.userId),
+        };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('me/instructor-application')
+    @UseInterceptors(FileInterceptor('idDocument', { limits: { fileSize: 10 * 1024 * 1024 } }))
+    async submitInstructorApplication(
+        @Request() req: any,
+        @UploadedFile() idDocument?: Express.Multer.File,
+    ) {
+        return {
+            application: await this.usersService.submitInstructorApplication(req.user.userId, idDocument),
         };
     }
 

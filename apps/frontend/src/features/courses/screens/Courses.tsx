@@ -31,6 +31,7 @@ function Courses() {
     const navigate = useNavigate();
     const [courses, setCourses] = useState<any[]>([]);
     const [isOwner, setIsOwner] = useState(false);
+    const [canCreate, setCanCreate] = useState(false);
     const [hasMore, setHasMore] = useState(true);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -55,6 +56,7 @@ function Courses() {
             setCourses((currentCourses) => reset ? response.course : [...currentCourses, ...response.course]);
             setHasMore(!!response.hasMore);
             setIsOwner(response.isOwner);
+            setCanCreate(!!response.canCreate);
         } catch (error: any) {
             if (error.response?.status === 401) {
                 console.error("Token Expired");
@@ -100,7 +102,7 @@ function Courses() {
                 </h1>
             </div>
 
-            {isOwner && (
+            {isOwner && canCreate && (
                 <CreateCourse
                     reloadCourses={loadCourses}
                     className="w-full h-full text-3xl"

@@ -51,6 +51,7 @@ function Posts({
     const { logout } = useAuth();
     const navigate = useNavigate();
     const [isOwner, setIsOwner] = useState(false);
+    const [canCreate, setCanCreate] = useState(false);
     const [canViewAllPosts, setCanViewAllPosts] = useState(false);
     const [previewOnly, setPreviewOnly] = useState(false);
     const [orderMode, setOrderMode] = useState<"newest" | "oldest" | "highestRated" | "lowestRated">("newest");
@@ -98,6 +99,7 @@ function Posts({
                 limit: POSTS_PAGE_SIZE,
             });
             setIsOwner(postsResponse.isOwner);
+            setCanCreate(!!postsResponse.canCreate);
             setCanViewAllPosts(postsResponse.canViewAllPosts);
             setHasMore(!!postsResponse.hasMore);
             setPosts((currentPosts) => {
@@ -197,7 +199,7 @@ function Posts({
                 </div>
             )}
 
-            {isOwner &&
+            {isOwner && canCreate &&
                 <UpsertPost className="w-full h-full text-3xl" course={course} courseOptions={course ? [course] : []} reloadPost={reloadCoursePosts}/>
             }
 

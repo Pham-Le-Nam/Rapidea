@@ -7,7 +7,8 @@ import {
     Get,
     Param, 
     NotFoundException,
-    Query
+    Query,
+    ForbiddenException,
 } from '@nestjs/common';
 import { PostService } from '../../../../application/post/post.service';
 import { AddPostDto } from '../../dto/post/add-post.dto';
@@ -50,6 +51,7 @@ export class PostController {
         @Body() addPostDto: AddPostDto,
     ) {
         const user = req.user;
+        this.assertCanCreate(user);
         const post = await this.postService.createPost(
             user.userId,
             addPostDto.title,
@@ -109,6 +111,7 @@ export class PostController {
             posts: posts.slice(0, pagination.limit),
             hasMore: posts.length > pagination.limit,
             isOwner: viewer ? viewer.userId === user.id : false,
+            canCreate: this.canCreate(viewer),
         };
     }
 
@@ -136,6 +139,7 @@ export class PostController {
             fileIds?: string[];
         },
     ) {
+        this.assertCanCreate(req.user);
         if (data.target !== 'title' && data.target !== 'details') {
             throw new NotFoundException('Unknown post field');
         }
@@ -175,6 +179,7 @@ export class PostController {
             posts: posts.slice(0, pagination.limit),
             hasMore: posts.length > pagination.limit,
             isOwner: user ? course.userId === user.userId : false,
+            canCreate: this.canCreate(user),
             canViewAllPosts,
         };
     }
@@ -219,5 +224,15 @@ export class PostController {
             offset: Number.isInteger(parsedOffset) && parsedOffset > 0 ? parsedOffset : 0,
             limit: Number.isInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50) : 5,
         };
+    }
+
+    private canCreate(user?: { role?: string }) {
+        return !!user && ['INSTRUCTOR', 'ADMIN'].includes(user.role ?? '');
+    }
+
+    private assertCanCreate(user?: { role?: string }) {
+        if (!this.canCreate(user)) {
+            throw new ForbiddenException('Instructor access is required to create posts');
+        }
     }
 }

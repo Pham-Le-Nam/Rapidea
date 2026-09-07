@@ -1,5 +1,5 @@
 import { Route, Routes } from "react-router-dom";
-import { AdminModeration } from "@/features/admin";
+import { AdminModeration, InstructorApplications } from "@/features/admin";
 import {
     AuthCallback,
     EmailVerify,
@@ -15,7 +15,8 @@ import { Homepage } from "@/features/home";
 import { NotificationsPage } from "@/features/notifications";
 import { Post, UserPosts } from "@/features/posts";
 import { Profile } from "@/features/profile";
-import { CreatorAiSettings, PayoutSettings } from "@/features/settings";
+import { Settings } from "@/features/settings";
+import { Navigate } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import SidebarsLayout from "../layouts/SidebarsLayout";
 
@@ -37,10 +38,12 @@ export function AppRoutes() {
                     <Route path="/courses/:username" element={<Courses />} />
                     <Route path="/posts/:username" element={<UserPosts />} />
                     <Route path="/files/:username" element={<UserFiles />} />
-                    <Route path="/settings/payout" element={<PayoutSettings />} />
-                    <Route path="/settings/creator-ai" element={<CreatorAiSettings />} />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route path="/settings/payout" element={<Navigate to="/settings" replace />} />
+                    <Route path="/settings/creator-ai" element={<Navigate to="/settings" replace />} />
                     <Route path="/notifications" element={<NotificationsPage />} />
                     <Route path="/admin/moderation" element={<AdminModeration />} />
+                    <Route path="/admin/instructor-applications" element={<InstructorApplications />} />
                     <Route path="/course/:id" element={<Course />} />
                     <Route path="/post/:id" element={<Post />} />
                 </Route>
