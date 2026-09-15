@@ -1,5 +1,56 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { AiMediaFile, AiService } from '../../application/ports/ai.service';
+import {
+    AiModelEnvironmentVariable,
+    requiredAiModel,
+} from './ai-model-config';
+
+const TIPTAP_DOCUMENT_FORMAT = {
+    type: 'json_schema',
+    name: 'tiptap_document',
+    strict: true,
+    schema: {
+        type: 'object',
+        properties: {
+            type: { type: 'string', enum: ['doc'] },
+            content: {
+                type: 'array',
+                items: {
+                    type: 'object',
+                    properties: {
+                        type: { type: 'string', enum: ['paragraph'] },
+                        content: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    type: { type: 'string', enum: ['text'] },
+                                    text: { type: 'string' },
+                                },
+                                required: ['type', 'text'],
+                                additionalProperties: false,
+                            },
+                        },
+                    },
+                    required: ['type', 'content'],
+                    additionalProperties: false,
+                },
+            },
+        },
+        required: ['type', 'content'],
+        additionalProperties: false,
+    },
+} as const;
+
+type OpenAiResponse = {
+    output?: Array<{
+        type?: string;
+        content?: Array<{
+            type?: string;
+            text?: string;
+        }>;
+    }>;
+};
 
 @Injectable()
 export class OpenAiService implements AiService {
@@ -8,34 +59,43 @@ export class OpenAiService implements AiService {
         systemPrompt: string;
         context: string;
     }) {
+        const model = requiredAiModel(AiModelEnvironmentVariable.RESPONSE);
         const apiKey = this.requiredApiKey();
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        const response = await fetch('https://api.openai.com/v1/responses', {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${apiKey}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                model: process.env.CONTENT_GENERATION_MODEL || 'gpt-4.1-mini',
-                messages: [
-                    { role: 'system', content: input.systemPrompt },
-                    { role: 'user', content: input.context },
-                ],
-                response_format: input.target === 'details' ? { type: 'json_object' } : undefined,
-                temperature: 0.4,
+                model,
+                instructions: input.systemPrompt,
+                input: input.context,
+                store: false,
+                text: input.target === 'details'
+                    ? { format: TIPTAP_DOCUMENT_FORMAT }
+                    : undefined,
             }),
         });
         if (!response.ok) {
             throw new InternalServerErrorException(`Post generation failed (${response.status})`);
         }
 
-        const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-        const value = data.choices?.[0]?.message?.content?.trim();
+        const data = await response.json() as OpenAiResponse;
+        const value = data.output
+            ?.flatMap((item) => item.type === 'message' ? item.content ?? [] : [])
+            .filter((content) => content.type === 'output_text')
+            .map((content) => content.text ?? '')
+            .join('')
+            .trim();
         if (!value) throw new InternalServerErrorException('Post generation returned no content');
         return value;
     }
 
     async createEmbeddings(input: string[]) {
+        const model = requiredAiModel(
+            AiModelEnvironmentVariable.TEXT_EMBEDDING,
+        );
         const apiKey = process.env.OPENAI_API_KEY;
         if (!apiKey) return null;
 
@@ -47,7 +107,7 @@ export class OpenAiService implements AiService {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    model: process.env.TEXT_EMBEDDING_MODEL || 'text-embedding-3-small',
+                    model,
                     input,
                 }),
             });
@@ -61,9 +121,12 @@ export class OpenAiService implements AiService {
     }
 
     async transcribeMedia(file: AiMediaFile) {
+        const model = requiredAiModel(
+            AiModelEnvironmentVariable.VIDEO_TRANSCRIPTION,
+        );
         const apiKey = this.requiredApiKey();
         const formData = new FormData();
-        formData.append('model', process.env.VIDEO_TRANSCRIPTION_MODEL || 'gpt-4o-mini-transcribe');
+        formData.append('model', model);
         formData.append(
             'file',
             new Blob([new Uint8Array(file.buffer)], { type: file.mimetype }),

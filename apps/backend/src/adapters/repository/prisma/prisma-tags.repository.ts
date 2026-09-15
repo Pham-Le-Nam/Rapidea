@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { TagsRepository } from '../../../domain/tags/repositories/tags.repository';
+import {
+    AiModelEnvironmentVariable,
+    requiredAiModel,
+} from '../../../infrastructure/ai/ai-model-config';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 
 @Injectable()
@@ -76,7 +80,9 @@ export class PrismaTagsRepository implements TagsRepository {
     }
 
     createTranscript(fileId: string) {
-        const model = process.env.VIDEO_TRANSCRIPTION_MODEL || 'gpt-4o-mini-transcribe';
+        const model = requiredAiModel(
+            AiModelEnvironmentVariable.VIDEO_TRANSCRIPTION,
+        );
 
         return this.prisma.fileTranscript.upsert({
             where: { fileId },

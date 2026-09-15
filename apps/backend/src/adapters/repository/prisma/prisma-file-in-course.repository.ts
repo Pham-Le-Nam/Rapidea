@@ -33,27 +33,49 @@ export class PrismaFileInCourseRepository implements FileInCourseRepository {
             throw new InternalServerErrorException("Course not found");
         }
 
-        const fileInCourse = await this.prisma.fileInCourse.create({
-            data: {
-                fileId,
-                courseId,
-                userId,
-            },
-        });
+        const [fileInCourse] = await this.prisma.$transaction([
+            this.prisma.fileInCourse.create({
+                data: {
+                    fileId,
+                    courseId,
+                    userId,
+                },
+            }),
+            this.prisma.file.update({
+                where: { id: fileId },
+                data: {
+                    aiStatus: 'PENDING',
+                    aiError: null,
+                    aiProcessedAt: null,
+                },
+            }),
+        ]);
 
         return fileInCourse;
     }
 
     async delete(fileId: string, courseId: string, userId: string): Promise<any> {
-        return this.prisma.fileInCourse.delete({
-            where: {
-                fileId_courseId: {
-                    fileId,
-                    courseId,
+        const [deleted] = await this.prisma.$transaction([
+            this.prisma.fileInCourse.delete({
+                where: {
+                    fileId_courseId: {
+                        fileId,
+                        courseId,
+                    },
+                    userId,
                 },
-                userId,
-            },
-        });
+            }),
+            this.prisma.file.update({
+                where: { id: fileId },
+                data: {
+                    aiStatus: 'PENDING',
+                    aiError: null,
+                    aiProcessedAt: null,
+                },
+            }),
+        ]);
+
+        return deleted;
     }
 
     async getCourses(fileId: string): Promise<any> {

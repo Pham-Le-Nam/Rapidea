@@ -196,6 +196,17 @@ export class PrismaPostRepository implements PostRepository {
                     isPreview,
                     courseId,
                     lastUpdated: new Date(),
+                    ...(
+                        title !== undefined ||
+                        content !== undefined ||
+                        courseId !== undefined
+                            ? {
+                                aiStatus: 'PENDING' as const,
+                                aiError: null,
+                                aiProcessedAt: null,
+                            }
+                            : {}
+                    ),
                 },
                 include: {
                     tags: {

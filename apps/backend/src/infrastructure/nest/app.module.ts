@@ -32,6 +32,7 @@ import { TagsModule } from './modules/tags.module';
 import { ChatModule } from './modules/chat.module';
 import { NotificationModule } from './modules/notification.module';
 import { AdminModule } from './modules/admin.module';
+import { ContentProcessingModule } from './modules/content-processing.module';
 
 @Module({
     imports: [
@@ -81,6 +82,7 @@ import { AdminModule } from './modules/admin.module';
         ChatModule,
         NotificationModule,
         AdminModule,
+        ContentProcessingModule,
     ],
     controllers: [AppController],
     providers: [AppService],

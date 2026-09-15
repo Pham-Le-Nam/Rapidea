@@ -21,9 +21,37 @@ export class PrismaSubscribeRepository implements SubscribeRepository {
         ]);
         return { course, user };
     }
-    findByPaymentSession(sessionId: string) { return this.prisma.subscribe.findUnique({ where: { paymentSessionId: sessionId } }); }
-    attachPaymentSession(subscriptionId: string, sessionId: string) { return this.prisma.subscribe.update({ where: { id: subscriptionId }, data: { paymentSessionId: sessionId } }); }
-    findCourseSummary(courseId: string) { return this.prisma.course.findUnique({ where: { id: courseId }, select: { title: true, userId: true } }); }
+
+    findByPaymentSession(sessionId: string) { 
+        return this.prisma.subscribe.findUnique({ 
+            where: { 
+                paymentSessionId: sessionId 
+            } 
+        }); 
+    }
+
+    attachPaymentSession(subscriptionId: string, sessionId: string) { 
+        return this.prisma.subscribe.update({ 
+            where: { 
+                id: subscriptionId 
+            }, 
+            data: { 
+                paymentSessionId: sessionId 
+            } 
+        }); 
+    }
+
+    findCourseSummary(courseId: string) { 
+        return this.prisma.course.findUnique({ 
+            where: { 
+                id: courseId 
+            }, 
+            select: { 
+                title: true, 
+                userId: true 
+            } 
+        }); 
+    }
 
     async create(courseId: string, userId: string): Promise<any> {
         const course = await this.prisma.course.findUnique({
@@ -229,6 +257,9 @@ export class PrismaSubscribeRepository implements SubscribeRepository {
                 data: {
                     review,
                     rating,
+                    aiStatus: 'PENDING',
+                    aiError: null,
+                    aiProcessedAt: null,
                 },
             });
 

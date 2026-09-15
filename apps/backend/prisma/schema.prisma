@@ -163,6 +163,26 @@ enum TranscriptStatus {
     FAILED
 }
 
+enum AiProcessingStatus {
+    PENDING
+    PROCESSING
+    READY
+    FAILED
+}
+
+enum ContentSourceType {
+    FILE
+    POST
+    DISCUSSION
+    REVIEW
+}
+
+enum Difficulty {
+    BEGINNER
+    INTERMEDIATE
+    ADVANCED
+}
+
 enum NotificationType {
     FOLLOW
     COURSE_SUBSCRIBE
@@ -308,6 +328,9 @@ model Course {
     currency            String      @default("AUD")
     thumbnailId         Int?        @unique
     folderId            String      @unique
+    aiStatus            AiProcessingStatus @default(PENDING)
+    aiError             String?
+    aiProcessedAt       DateTime?
 
     subscribersCount    Int         @default(0)
     postsCount          Int         @default(0)
@@ -328,11 +351,69 @@ model Course {
     files               FileInCourse[]
     posts               Post[]
     tags                CourseTag[]
+    contentChunks       ContentChunk[]
+    aiProfile           CourseAIProfile?
+    skills              CourseSkill[]
 
 
     @@unique([userId, title])   // Prevent 2 courses having the same name
     @@index([userId])
     @@map("course")
+}
+
+model CourseAIProfile {
+    id              Int         @id @default(autoincrement())
+    courseId        String      @unique
+    summary         String
+    difficulty      Difficulty
+    profileText     String
+    embedding       Unsupported("vector")?
+    embeddingModel  String?
+    profileVersion  Int         @default(1)
+    generatedAt     DateTime    @default(now())
+    sourceHash      String?
+
+    course          Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+    @@map("course_ai_profile")
+}
+
+model Skill {
+    id              Int         @id @default(autoincrement())
+    name            String      @unique
+    description     String?
+
+    embedding       Unsupported("vector")?
+    embeddingModel  String?
+
+    courses         CourseSkill[]
+    aliases         SkillAlias[]
+
+    @@map("skill")
+}
+
+model SkillAlias {
+  id      Int    @id @default(autoincrement())
+
+  skillId Int
+  alias   String @unique
+
+  skill   Skill  @relation(fields: [skillId], references: [id])
+
+  @@map("skill_alias")
+}
+
+model CourseSkill {
+    courseId        String
+    skillId         Int
+    outcome         String
+    importance      Float       @default(1)
+
+    course          Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+    skill           Skill       @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+    @@id([courseId, skillId])
+    @@index([skillId])
+    @@map("course_skill")
 }
 
 model Subscribe {
@@ -345,6 +426,9 @@ model Subscribe {
     price           Float       @default(0)
     currency        String      @default("AUD")
     paymentSessionId String?    @unique
+    aiStatus        AiProcessingStatus?
+    aiError         String?
+    aiProcessedAt   DateTime?
 
     createdAt       DateTime    @default(now())
 
@@ -353,6 +437,7 @@ model Subscribe {
 
     @@unique([courseId, userId])
     @@index([courseId])
+    @@index([aiStatus, createdAt])
     @@map("subscribe")
 }
 
@@ -360,9 +445,13 @@ model Post {
     id              String      @id @default(uuid())
     title           String?
     content         Json?
+    summary         String?
     userId          String
     courseId        String?
     isPreview       Boolean     @default(false)
+    aiStatus        AiProcessingStatus @default(PENDING)
+    aiError         String?
+    aiProcessedAt   DateTime?
 
     // rating = ratingTotal / ratingCount
     ratingCount     Int         @default(0)
@@ -381,6 +470,7 @@ model Post {
     tags            PostTag[]
 
     @@index([userId])
+    @@index([aiStatus, createdAt])
     @@map("post")
 }
 
@@ -437,6 +527,9 @@ model Discussion {
     userId              String
     parentId            String?
     repliedId           String?
+    aiStatus            AiProcessingStatus @default(PENDING)
+    aiError             String?
+    aiProcessedAt       DateTime?
 
     createdAt           DateTime            @default(now())
 
@@ -450,6 +543,7 @@ model Discussion {
     replyingDiscussions Discussion[]        @relation("replying")
 
     @@index([postId])
+    @@index([aiStatus, createdAt])
     @@map("discussion")
 }
 
@@ -605,8 +699,12 @@ model File {
     name            String
     mimeType        String
     size            Int
+    summary         String?
     userId          String
     folderId        String
+    aiStatus        AiProcessingStatus @default(PENDING)
+    aiError         String?
+    aiProcessedAt   DateTime?
 
     createdAt       DateTime        @default(now())
     moderationStatus ModerationStatus @default(PASSED)
@@ -625,6 +723,7 @@ model File {
 
     @@unique([folderId, name])
     @@index([folderId])
+    @@index([aiStatus, createdAt])
     @@map("file")
 }
 
@@ -651,10 +750,32 @@ model FileTranscript {
     @@map("file_transcript")
 }
 
+model ContentChunk {
+    id              String              @id @default(uuid())
+    sourceType      ContentSourceType
+    sourceId        String
+    courseId        String
+    sequence        Int
+    content         String
+    tokenCount      Int
+    embedding       Json?
+    embeddingModel  String?
+    metadata        Json?
+    createdAt       DateTime            @default(now())
+
+    course          Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+    @@unique([sourceType, sourceId, courseId, sequence])
+    @@index([courseId])
+    @@index([sourceType, sourceId])
+    @@map("content_chunk")
+}
+
 model Tag {
     id              String              @id @default(uuid())
     name            String              @unique
     embedding       Json?
+    embeddingModel  String?
     createdAt       DateTime            @default(now())
 
     courses         CourseTag[]

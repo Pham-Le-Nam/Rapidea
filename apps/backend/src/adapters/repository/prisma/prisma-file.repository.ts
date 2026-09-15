@@ -129,6 +129,9 @@ export class PrismaFileRepository implements FileRepository {
                 data: {
                     folderId,
                     name,
+                    aiStatus: 'PENDING',
+                    aiError: null,
+                    aiProcessedAt: null,
                 },
             });
 

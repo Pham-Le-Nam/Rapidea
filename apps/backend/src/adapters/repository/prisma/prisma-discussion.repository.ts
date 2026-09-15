@@ -26,6 +26,9 @@ export class PrismaDiscussionRepository implements DiscussionRepository {
             },
             data: {
                 discussion,
+                aiStatus: 'PENDING',
+                aiError: null,
+                aiProcessedAt: null,
             }
         });
     }
