@@ -11,9 +11,9 @@ describe('ContentProcessingQueueService', () => {
         };
         const prisma: any = {
             file: {
-                findMany: jest.fn().mockResolvedValue([
-                    { id: 'file-1', createdAt },
-                ]),
+                findMany: jest
+                    .fn()
+                    .mockResolvedValue([{ id: 'file-1', createdAt }]),
                 findUnique: jest.fn().mockResolvedValue({
                     name: 'lesson.pdf',
                     mimeType: 'application/pdf',
@@ -25,18 +25,35 @@ describe('ContentProcessingQueueService', () => {
             },
             post: {
                 findMany: jest.fn().mockResolvedValue([
-                    { id: 'post-1', createdAt: new Date(createdAt.getTime() + 1) },
+                    {
+                        id: 'post-1',
+                        createdAt: new Date(createdAt.getTime() + 1),
+                    },
                 ]),
                 findUnique: jest.fn().mockResolvedValue({
                     title: 'Post title',
                     content: {
                         type: 'doc',
-                        content: [{
-                            type: 'paragraph',
-                            content: [{ type: 'text', text: 'Post body' }],
-                        }],
+                        content: [
+                            {
+                                type: 'paragraph',
+                                content: [{ type: 'text', text: 'Post body' }],
+                            },
+                        ],
                     },
                     courseId: 'course-2',
+                    files: [
+                        {
+                            file: {
+                                id: 'attached-file-1',
+                                name: 'attachment.pdf',
+                                mimeType: 'application/pdf',
+                                summary: 'Attached file summary',
+                                aiStatus: 'READY',
+                                aiError: null,
+                            },
+                        },
+                    ],
                 }),
                 updateMany: jest.fn().mockResolvedValue({ count: 1 }),
             },
@@ -70,7 +87,16 @@ describe('ContentProcessingQueueService', () => {
                 }),
                 updateMany: jest.fn().mockResolvedValue({ count: 1 }),
             },
+            course: {
+                findMany: jest.fn().mockResolvedValue([]),
+                findUnique: jest.fn(),
+                updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+            },
             contentChunk,
+            postSkill: {
+                deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+                createMany: jest.fn().mockResolvedValue({ count: 1 }),
+            },
         };
         prisma.$transaction = jest.fn(async (callback) => callback(prisma));
 
@@ -91,20 +117,69 @@ describe('ContentProcessingQueueService', () => {
         let activeJobs = 0;
         let maximumActiveJobs = 0;
         const chunkingEmbedding = {
-            chunkAndEmbed: jest.fn().mockImplementation(async (text, options) => {
-                activeJobs += 1;
-                maximumActiveJobs = Math.max(maximumActiveJobs, activeJobs);
-                await Promise.resolve();
-                activeJobs -= 1;
-                return [{
-                    sequence: 0,
-                    content: text,
-                    tokenCount: 4,
-                    embedding: [0.1, 0.2],
-                    embeddingModel: 'test-embedding-model',
-                    metadata: options.metadata,
-                }];
+            chunkAndEmbed: jest
+                .fn()
+                .mockImplementation(async (text, options) => {
+                    activeJobs += 1;
+                    maximumActiveJobs = Math.max(maximumActiveJobs, activeJobs);
+                    await Promise.resolve();
+                    activeJobs -= 1;
+                    return [
+                        {
+                            sequence: 0,
+                            content: text,
+                            tokenCount: 4,
+                            embedding: [0.1, 0.2],
+                            embeddingModel: 'test-embedding-model',
+                            metadata: options.metadata,
+                        },
+                    ];
+                }),
+        };
+        const fileSummary = {
+            generate: jest
+                .fn()
+                .mockResolvedValue(
+                    '## Overview\n\nLearner-friendly file summary.',
+                ),
+        };
+        const postSummary = {
+            generate: jest.fn().mockResolvedValue({
+                summary: '## Overview\n\nLearner-friendly post summary.',
+                skills: [
+                    {
+                        name: 'TypeScript',
+                        description:
+                            'Use TypeScript to create typed applications.',
+                        outcome: 'Apply TypeScript types to application code.',
+                        importance: 0.9,
+                        confidence: 0.95,
+                    },
+                ],
             }),
+        };
+        const postSkills = {
+            replace: jest.fn().mockResolvedValue(undefined),
+        };
+        const courseSummary = {
+            generate: jest.fn().mockResolvedValue({
+                summary: '## Overview\n\nCourse summary.',
+                difficulty: 'INTERMEDIATE',
+                profileText: 'Course profile text',
+                skills: [
+                    {
+                        skillId: 7,
+                        outcome: 'Apply TypeScript.',
+                        importance: 0.9,
+                    },
+                ],
+                embedding: [0.1, 0.2],
+                embeddingModel: 'test-embedding-model',
+                sourceHash: 'source-hash',
+            }),
+        };
+        const courseProfiles = {
+            replace: jest.fn().mockResolvedValue(undefined),
         };
 
         const service = new ContentProcessingQueueService(
@@ -113,6 +188,11 @@ describe('ContentProcessingQueueService', () => {
             storage as any,
             textExtraction as any,
             chunkingEmbedding as any,
+            fileSummary as any,
+            postSummary as any,
+            postSkills as any,
+            courseSummary as any,
+            courseProfiles as any,
         );
 
         return {
@@ -122,6 +202,11 @@ describe('ContentProcessingQueueService', () => {
             storage,
             textExtraction,
             chunkingEmbedding,
+            fileSummary,
+            postSummary,
+            postSkills,
+            courseSummary,
+            courseProfiles,
             maximumActiveJobs: () => maximumActiveJobs,
         };
     }
@@ -132,7 +217,9 @@ describe('ContentProcessingQueueService', () => {
         await fixture.service.scanAndProcessPending();
 
         expect(fixture.maximumActiveJobs()).toBe(1);
-        expect(fixture.chunkingEmbedding.chunkAndEmbed).toHaveBeenCalledTimes(4);
+        expect(fixture.chunkingEmbedding.chunkAndEmbed).toHaveBeenCalledTimes(
+            4,
+        );
         expect(fixture.storage.readFile).toHaveBeenCalledWith(
             'courses/lesson/lesson.pdf',
         );
@@ -140,6 +227,46 @@ describe('ContentProcessingQueueService', () => {
             originalname: 'lesson.pdf',
             mimetype: 'application/pdf',
             buffer: Buffer.from('file bytes'),
+        });
+        expect(fixture.fileSummary.generate).toHaveBeenCalledTimes(1);
+        expect(fixture.fileSummary.generate).toHaveBeenCalledWith({
+            fileName: 'lesson.pdf',
+            mimeType: 'application/pdf',
+            text: 'Extracted file text',
+        });
+        expect(fixture.postSummary.generate).toHaveBeenCalledWith({
+            title: 'Post title',
+            description: 'Post body',
+            files: [
+                {
+                    id: 'attached-file-1',
+                    name: 'attachment.pdf',
+                    mimeType: 'application/pdf',
+                    summary: 'Attached file summary',
+                },
+            ],
+        });
+        expect(fixture.postSkills.replace).toHaveBeenCalledWith(
+            fixture.prisma,
+            'post-1',
+            [
+                {
+                    name: 'TypeScript',
+                    description: 'Use TypeScript to create typed applications.',
+                    outcome: 'Apply TypeScript types to application code.',
+                    importance: 0.9,
+                    confidence: 0.95,
+                },
+            ],
+        );
+        expect(fixture.prisma.file.updateMany).toHaveBeenLastCalledWith({
+            where: { id: 'file-1', aiStatus: 'PROCESSING' },
+            data: {
+                aiStatus: 'READY',
+                aiError: null,
+                aiProcessedAt: expect.any(Date),
+                summary: '## Overview\n\nLearner-friendly file summary.',
+            },
         });
 
         const sourceTypes = fixture.contentChunk.createMany.mock.calls.map(
@@ -181,5 +308,162 @@ describe('ContentProcessingQueueService', () => {
             },
         });
         expect(fixture.contentChunk.createMany).not.toHaveBeenCalled();
+    });
+
+    it('defers a post while an attached file is still processing', async () => {
+        const fixture = createFixture();
+        fixture.prisma.file.findMany.mockResolvedValue([]);
+        fixture.prisma.discussion.findMany.mockResolvedValue([]);
+        fixture.prisma.subscribe.findMany.mockResolvedValue([]);
+        fixture.prisma.post.findUnique.mockResolvedValue({
+            title: 'Post title',
+            content: 'Post body',
+            courseId: 'course-2',
+            files: [
+                {
+                    file: {
+                        id: 'file-2',
+                        name: 'pending.pdf',
+                        mimeType: 'application/pdf',
+                        summary: null,
+                        aiStatus: 'PROCESSING',
+                        aiError: null,
+                    },
+                },
+            ],
+        });
+        (fixture.service as any).logger.debug = jest.fn();
+
+        await fixture.service.scanAndProcessPending();
+
+        expect(fixture.postSummary.generate).not.toHaveBeenCalled();
+        expect(fixture.chunkingEmbedding.chunkAndEmbed).not.toHaveBeenCalled();
+        expect(fixture.prisma.post.updateMany).toHaveBeenLastCalledWith({
+            where: { id: 'post-1', aiStatus: 'PROCESSING' },
+            data: {
+                aiStatus: 'PENDING',
+                aiError: null,
+                aiProcessedAt: null,
+            },
+        });
+        expect(fixture.postSkills.replace).not.toHaveBeenCalled();
+    });
+
+    it('generates a course profile from ready post summaries and skills', async () => {
+        const fixture = createFixture();
+        fixture.prisma.file.findMany.mockResolvedValue([]);
+        fixture.prisma.post.findMany.mockResolvedValue([]);
+        fixture.prisma.discussion.findMany.mockResolvedValue([]);
+        fixture.prisma.subscribe.findMany.mockResolvedValue([]);
+        fixture.prisma.course.findMany.mockResolvedValue([
+            {
+                id: 'course-1',
+                createdAt: new Date('2026-01-01T00:00:00.000Z'),
+            },
+        ]);
+        fixture.prisma.course.findUnique.mockResolvedValue({
+            title: 'TypeScript course',
+            description: 'Build typed applications.',
+            posts: [
+                {
+                    id: 'post-1',
+                    title: 'Type narrowing',
+                    summary: 'Learn type narrowing.',
+                    aiStatus: 'READY',
+                    aiError: null,
+                    skills: [
+                        {
+                            outcome: 'Apply type narrowing.',
+                            importance: 0.9,
+                            confidence: 0.95,
+                            skill: {
+                                id: 7,
+                                name: 'TypeScript',
+                                description: 'Develop typed applications.',
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+
+        await fixture.service.scanAndProcessPending();
+
+        expect(fixture.courseSummary.generate).toHaveBeenCalledWith({
+            title: 'TypeScript course',
+            description: 'Build typed applications.',
+            posts: [
+                {
+                    id: 'post-1',
+                    title: 'Type narrowing',
+                    summary: 'Learn type narrowing.',
+                    skills: [
+                        {
+                            id: 7,
+                            name: 'TypeScript',
+                            description: 'Develop typed applications.',
+                            outcome: 'Apply type narrowing.',
+                            importance: 0.9,
+                            confidence: 0.95,
+                        },
+                    ],
+                },
+            ],
+        });
+        expect(fixture.courseProfiles.replace).toHaveBeenCalledWith(
+            fixture.prisma,
+            'course-1',
+            expect.objectContaining({ sourceHash: 'source-hash' }),
+        );
+        expect(fixture.prisma.course.updateMany).toHaveBeenLastCalledWith({
+            where: { id: 'course-1', aiStatus: 'PROCESSING' },
+            data: {
+                aiStatus: 'READY',
+                aiError: null,
+                aiProcessedAt: expect.any(Date),
+            },
+        });
+    });
+
+    it('defers a course while one of its posts is pending', async () => {
+        const fixture = createFixture();
+        fixture.prisma.file.findMany.mockResolvedValue([]);
+        fixture.prisma.post.findMany.mockResolvedValue([]);
+        fixture.prisma.discussion.findMany.mockResolvedValue([]);
+        fixture.prisma.subscribe.findMany.mockResolvedValue([]);
+        fixture.prisma.course.findMany.mockResolvedValue([
+            {
+                id: 'course-1',
+                createdAt: new Date('2026-01-01T00:00:00.000Z'),
+            },
+        ]);
+        fixture.prisma.course.findUnique.mockResolvedValue({
+            title: 'TypeScript course',
+            description: null,
+            posts: [
+                {
+                    id: 'post-1',
+                    title: 'Pending post',
+                    summary: null,
+                    aiStatus: 'PENDING',
+                    aiError: null,
+                    skills: [],
+                },
+            ],
+        });
+        (fixture.service as any).logger.debug = jest.fn();
+
+        await fixture.service.scanAndProcessPending();
+
+        expect(fixture.courseSummary.generate).not.toHaveBeenCalled();
+        expect(fixture.courseProfiles.replace).not.toHaveBeenCalled();
+        expect(fixture.prisma.course.updateMany).toHaveBeenLastCalledWith({
+            where: { id: 'course-1', aiStatus: 'PROCESSING' },
+            data: {
+                aiStatus: 'PENDING',
+                aiError: null,
+                aiProcessedAt: null,
+            },
+        });
     });
 });

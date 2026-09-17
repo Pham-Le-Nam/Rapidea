@@ -8,7 +8,10 @@ export class PrismaPostRepository implements PostRepository {
 
     async findGenerationContext(userId: string, fileIds: string[]) {
         const [user, files] = await Promise.all([
-            this.prisma.users.findUnique({ where: { id: userId }, select: { creatorPrompt: true } }),
+            this.prisma.users.findUnique({
+                where: { id: userId },
+                select: { creatorPrompt: true },
+            }),
             this.prisma.file.findMany({
                 where: { id: { in: fileIds }, userId },
                 include: { transcript: true, tags: { include: { tag: true } } },
@@ -17,7 +20,13 @@ export class PrismaPostRepository implements PostRepository {
         return { user, files };
     }
 
-    async create (userId: string, title?: string, content?: any, courseId?: string, isPreview: boolean = false): Promise<any> {
+    async create(
+        userId: string,
+        title?: string,
+        content?: any,
+        courseId?: string,
+        isPreview: boolean = false,
+    ): Promise<any> {
         const user = await this.prisma.users.findUnique({
             where: {
                 id: userId,
@@ -26,7 +35,7 @@ export class PrismaPostRepository implements PostRepository {
 
         // Check if userId is valid
         if (!user) {
-            throw new InternalServerErrorException("User not found");
+            throw new InternalServerErrorException('User not found');
         }
 
         if (courseId) {
@@ -38,57 +47,60 @@ export class PrismaPostRepository implements PostRepository {
             });
 
             if (!course) {
-                throw new InternalServerErrorException("Course not found");
+                throw new InternalServerErrorException('Course not found');
             }
         }
 
-        const [post, updatedUser, updatedCourse] = await this.prisma.$transaction([
-            this.prisma.post.create({
-                data: {
-                    title,
-                    content,
-                    userId,
-                    courseId,
-                    isPreview,
-                },
-                include: {
-                    tags: {
-                        include: {
-                            tag: true,
+        const [post, updatedUser, updatedCourse] =
+            await this.prisma.$transaction([
+                this.prisma.post.create({
+                    data: {
+                        title,
+                        content,
+                        userId,
+                        courseId,
+                        isPreview,
+                    },
+                    include: {
+                        tags: {
+                            include: {
+                                tag: true,
+                            },
                         },
                     },
-                },
-            }),
-            this.prisma.users.update({
-                where: {
-                    id: userId,
-                },
-                data: {
-                    postsCount: { increment: 1 },
-                },
-                select: {
-                    postsCount: true,
-                },
-            }),
-            ...(courseId
-                ? [
-                    this.prisma.course.update({
-                        where: {
-                            id: courseId,
-                        },
-                        data: {
-                            postsCount: { increment: 1 },
-                            lastUpdated: new Date(),
-                        },
-                        select: {
-                            postsCount: true,
-                            lastUpdated: true,
-                        },
-                    }),
-                ]
-                : []
-            ),
-        ]);
+                }),
+                this.prisma.users.update({
+                    where: {
+                        id: userId,
+                    },
+                    data: {
+                        postsCount: { increment: 1 },
+                    },
+                    select: {
+                        postsCount: true,
+                    },
+                }),
+                ...(courseId
+                    ? [
+                          this.prisma.course.update({
+                              where: {
+                                  id: courseId,
+                              },
+                              data: {
+                                  postsCount: { increment: 1 },
+                                  lastUpdated: new Date(),
+                                  aiStatus: 'PENDING' as const,
+                                  aiError: null,
+                                  aiProcessedAt: null,
+                              },
+                              select: {
+                                  postsCount: true,
+                                  lastUpdated: true,
+                              },
+                          }),
+                      ]
+                    : []),
+            ]);
 
         if (!post) {
             throw new InternalServerErrorException("Couldn't create the post");
@@ -102,7 +114,7 @@ export class PrismaPostRepository implements PostRepository {
         };
     }
 
-    async deleteById (id: string, userId: string): Promise<any> {
+    async deleteById(id: string, userId: string): Promise<any> {
         const post = await this.prisma.post.findUnique({
             where: {
                 id,
@@ -114,7 +126,7 @@ export class PrismaPostRepository implements PostRepository {
         });
 
         if (!post) {
-            throw new InternalServerErrorException("Post not found");
+            throw new InternalServerErrorException('Post not found');
         }
 
         const [deletedPost] = await this.prisma.$transaction([
@@ -134,27 +146,37 @@ export class PrismaPostRepository implements PostRepository {
             }),
             ...(post.courseId
                 ? [
-                    this.prisma.course.update({
-                        where: {
-                            id: post.courseId,
-                        },
-                        data: {
-                            postsCount: { decrement: 1 },
-                        },
-                    }),
-                ]
-                : []
-            ),
+                      this.prisma.course.update({
+                          where: {
+                              id: post.courseId,
+                          },
+                          data: {
+                              postsCount: { decrement: 1 },
+                              lastUpdated: new Date(),
+                              aiStatus: 'PENDING' as const,
+                              aiError: null,
+                              aiProcessedAt: null,
+                          },
+                      }),
+                  ]
+                : []),
         ]);
 
         if (!deletedPost) {
             throw new InternalServerErrorException("Couldn't delete the post");
         }
 
-        return  deletedPost;
+        return deletedPost;
     }
 
-    async updateById (id: string, userId: string, title?: string, content?: any, isPreview?: boolean, courseId?: string | null): Promise<any> {
+    async updateById(
+        id: string,
+        userId: string,
+        title?: string,
+        content?: any,
+        isPreview?: boolean,
+        courseId?: string | null,
+    ): Promise<any> {
         const post = await this.prisma.post.findUnique({
             where: {
                 id,
@@ -166,7 +188,7 @@ export class PrismaPostRepository implements PostRepository {
         });
 
         if (!post) {
-            throw new InternalServerErrorException("Post not found");
+            throw new InternalServerErrorException('Post not found');
         }
 
         if (courseId) {
@@ -178,11 +200,16 @@ export class PrismaPostRepository implements PostRepository {
             });
 
             if (!course) {
-                throw new InternalServerErrorException("Course not found");
+                throw new InternalServerErrorException('Course not found');
             }
         }
 
-        const isMovingCourse = courseId !== undefined && courseId !== post.courseId;
+        const isMovingCourse =
+            courseId !== undefined && courseId !== post.courseId;
+        const shouldInvalidateAi =
+            title !== undefined ||
+            content !== undefined ||
+            courseId !== undefined;
 
         const [updatedPost] = await this.prisma.$transaction([
             this.prisma.post.update({
@@ -196,17 +223,14 @@ export class PrismaPostRepository implements PostRepository {
                     isPreview,
                     courseId,
                     lastUpdated: new Date(),
-                    ...(
-                        title !== undefined ||
-                        content !== undefined ||
-                        courseId !== undefined
-                            ? {
-                                aiStatus: 'PENDING' as const,
-                                aiError: null,
-                                aiProcessedAt: null,
-                            }
-                            : {}
-                    ),
+                    ...(shouldInvalidateAi
+                        ? {
+                              aiStatus: 'PENDING' as const,
+                              aiError: null,
+                              aiProcessedAt: null,
+                              summary: null,
+                          }
+                        : {}),
                 },
                 include: {
                     tags: {
@@ -216,47 +240,56 @@ export class PrismaPostRepository implements PostRepository {
                     },
                 },
             }),
-            ...(post.courseId
+            ...(post.courseId && !isMovingCourse && shouldInvalidateAi
                 ? [
-                    this.prisma.course.update({
-                        where: {
-                            id: post.courseId,
-                        },
-                        data: {
-                            lastUpdated: new Date(),
-                        },
-                    }),
-                ]
-                : []
-            ),
+                      this.prisma.course.update({
+                          where: {
+                              id: post.courseId,
+                          },
+                          data: {
+                              lastUpdated: new Date(),
+                              aiStatus: 'PENDING' as const,
+                              aiError: null,
+                              aiProcessedAt: null,
+                          },
+                      }),
+                  ]
+                : []),
             ...(isMovingCourse && post.courseId
                 ? [
-                    this.prisma.course.update({
-                        where: {
-                            id: post.courseId,
-                        },
-                        data: {
-                            postsCount: { decrement: 1 },
-                            lastUpdated: new Date(),
-                        },
-                    }),
-                ]
-                : []
-            ),
+                      this.prisma.course.update({
+                          where: {
+                              id: post.courseId,
+                          },
+                          data: {
+                              postsCount: { decrement: 1 },
+                              lastUpdated: new Date(),
+                              aiStatus: 'PENDING' as const,
+                              aiError: null,
+                              aiProcessedAt: null,
+                          },
+                      }),
+                  ]
+                : []),
             ...(isMovingCourse && courseId
                 ? [
-                    this.prisma.course.update({
-                        where: {
-                            id: courseId,
-                        },
-                        data: {
-                            postsCount: { increment: 1 },
-                            lastUpdated: new Date(),
-                        },
-                    }),
-                ]
-                : []
-            ),
+                      this.prisma.course.update({
+                          where: {
+                              id: courseId,
+                          },
+                          data: {
+                              postsCount: { increment: 1 },
+                              lastUpdated: new Date(),
+                              aiStatus: 'PENDING' as const,
+                              aiError: null,
+                              aiProcessedAt: null,
+                          },
+                      }),
+                  ]
+                : []),
+            ...(shouldInvalidateAi
+                ? [this.prisma.postSkill.deleteMany({ where: { postId: id } })]
+                : []),
         ]);
 
         return updatedPost;
@@ -280,7 +313,10 @@ export class PrismaPostRepository implements PostRepository {
         });
     }
 
-    async canViewAllCoursePosts(courseId: string, viewerId?: string): Promise<boolean> {
+    async canViewAllCoursePosts(
+        courseId: string,
+        viewerId?: string,
+    ): Promise<boolean> {
         if (!viewerId) return false;
 
         const course = await this.prisma.course.findUnique({
@@ -294,10 +330,13 @@ export class PrismaPostRepository implements PostRepository {
             },
         });
 
-        return !!course && (course.userId === viewerId || course.subscribers.length > 0);
+        return (
+            !!course &&
+            (course.userId === viewerId || course.subscribers.length > 0)
+        );
     }
 
-    async findById (id: string): Promise<any> {
+    async findById(id: string): Promise<any> {
         return this.prisma.post.findUnique({
             where: {
                 id,
@@ -323,7 +362,7 @@ export class PrismaPostRepository implements PostRepository {
         });
     }
 
-    async findByCourseId (
+    async findByCourseId(
         courseId: string,
         viewerId?: string,
         options: {
@@ -335,7 +374,8 @@ export class PrismaPostRepository implements PostRepository {
         } = {},
     ): Promise<any> {
         const shouldShowPreviewOnly = !!options.previewOnly;
-        const orderByField = options.orderBy === 'rating' ? 'rating' : 'createdAt';
+        const orderByField =
+            options.orderBy === 'rating' ? 'rating' : 'createdAt';
         const order = options.order === 'asc' ? 'asc' : 'desc';
 
         return this.prisma.post.findMany({
@@ -350,25 +390,26 @@ export class PrismaPostRepository implements PostRepository {
                     },
                 },
             },
-            orderBy: [
-                { [orderByField]: order },
-                { id: 'asc' },
-            ],
+            orderBy: [{ [orderByField]: order }, { id: 'asc' }],
             skip: options.offset,
             take: options.limit,
         });
     }
 
-    async findByUserId (userId: string, options: {
-        offset?: number;
-        limit?: number;
-        courseId?: string;
-        nonCourseOnly?: boolean;
-        previewMode?: 'all' | 'preview' | 'nonPreview';
-        orderBy?: 'rating' | 'createdAt';
-        order?: 'asc' | 'desc';
-    } = {}): Promise<any> {
-        const orderByField = options.orderBy === 'rating' ? 'rating' : 'createdAt';
+    async findByUserId(
+        userId: string,
+        options: {
+            offset?: number;
+            limit?: number;
+            courseId?: string;
+            nonCourseOnly?: boolean;
+            previewMode?: 'all' | 'preview' | 'nonPreview';
+            orderBy?: 'rating' | 'createdAt';
+            order?: 'asc' | 'desc';
+        } = {},
+    ): Promise<any> {
+        const orderByField =
+            options.orderBy === 'rating' ? 'rating' : 'createdAt';
         const order = options.order === 'asc' ? 'asc' : 'desc';
 
         return this.prisma.post.findMany({
@@ -377,15 +418,13 @@ export class PrismaPostRepository implements PostRepository {
                 ...(options.nonCourseOnly
                     ? { courseId: null }
                     : options.courseId
-                        ? { courseId: options.courseId }
-                        : {}
-                ),
+                      ? { courseId: options.courseId }
+                      : {}),
                 ...(options.previewMode === 'preview'
                     ? { isPreview: true }
                     : options.previewMode === 'nonPreview'
-                        ? { isPreview: false }
-                        : {}
-                ),
+                      ? { isPreview: false }
+                      : {}),
             },
             include: {
                 tags: {
@@ -394,26 +433,36 @@ export class PrismaPostRepository implements PostRepository {
                     },
                 },
             },
-            orderBy: [
-                { [orderByField]: order },
-                { id: 'asc' },
-            ],
+            orderBy: [{ [orderByField]: order }, { id: 'asc' }],
             skip: options.offset,
             take: options.limit,
         });
     }
 
-    async findRecommendedFeed(viewerId?: string, options: {
-        offset?: number;
-        limit?: number;
-    } = {}): Promise<any> {
+    async findRecommendedFeed(
+        viewerId?: string,
+        options: {
+            offset?: number;
+            limit?: number;
+        } = {},
+    ): Promise<any> {
         const offset = options.offset ?? 0;
         const limit = options.limit ?? 10;
         const candidateLimit = Math.max(250, offset + limit * 8);
 
-        const [interestProfile, followedAuthorIds, viewedPostIds, authorInteraction] = viewerId
+        const [
+            interestProfile,
+            followedAuthorIds,
+            viewedPostIds,
+            authorInteraction,
+        ] = viewerId
             ? await this.getViewerRecommendationContext(viewerId)
-            : [{}, new Set<string>(), new Set<string>(), new Map<string, number>()] as const;
+            : ([
+                  {},
+                  new Set<string>(),
+                  new Set<string>(),
+                  new Map<string, number>(),
+              ] as const);
 
         const posts = await this.prisma.post.findMany({
             include: {
@@ -429,11 +478,7 @@ export class PrismaPostRepository implements PostRepository {
                     },
                 },
             },
-            orderBy: [
-                { createdAt: 'desc' },
-                { rating: 'desc' },
-                { id: 'asc' },
-            ],
+            orderBy: [{ createdAt: 'desc' }, { rating: 'desc' }, { id: 'asc' }],
             take: candidateLimit,
         });
 
@@ -456,10 +501,10 @@ export class PrismaPostRepository implements PostRepository {
                 authorInteraction,
             );
             const recommendationScore = this.clampScore(
-                similarityScore * 0.45
-                + recencyScore * 0.30
-                + engagementScore * 0.20
-                + authorScore * 0.05,
+                similarityScore * 0.45 +
+                    recencyScore * 0.3 +
+                    engagementScore * 0.2 +
+                    authorScore * 0.05,
             );
             const hasBeenViewed = viewedPostIds.has(post.id);
             const isOwnPost = !!viewerId && post.userId === viewerId;
@@ -478,93 +523,91 @@ export class PrismaPostRepository implements PostRepository {
             };
         });
 
-        return this.diversifyPosts(scoredPosts, interestProfile).slice(offset, offset + limit);
+        return this.diversifyPosts(scoredPosts, interestProfile).slice(
+            offset,
+            offset + limit,
+        );
     }
 
     private async getViewerRecommendationContext(viewerId: string) {
-        const [
-            createdPosts,
-            ratedPosts,
-            commentedPosts,
-            viewedPosts,
-            follows,
-        ] = await Promise.all([
-            this.prisma.post.findMany({
-                where: { userId: viewerId },
-                select: {
-                    tags: {
-                        include: {
-                            tag: true,
+        const [createdPosts, ratedPosts, commentedPosts, viewedPosts, follows] =
+            await Promise.all([
+                this.prisma.post.findMany({
+                    where: { userId: viewerId },
+                    select: {
+                        tags: {
+                            include: {
+                                tag: true,
+                            },
                         },
                     },
-                },
-                take: 100,
-                orderBy: { createdAt: 'desc' },
-            }),
-            this.prisma.ratePost.findMany({
-                where: {
-                    userId: viewerId,
-                    rating: {
-                        gte: 4,
+                    take: 100,
+                    orderBy: { createdAt: 'desc' },
+                }),
+                this.prisma.ratePost.findMany({
+                    where: {
+                        userId: viewerId,
+                        rating: {
+                            gte: 4,
+                        },
                     },
-                },
-                include: {
-                    post: {
-                        select: {
-                            userId: true,
-                            tags: {
-                                include: {
-                                    tag: true,
+                    include: {
+                        post: {
+                            select: {
+                                userId: true,
+                                tags: {
+                                    include: {
+                                        tag: true,
+                                    },
                                 },
                             },
                         },
                     },
-                },
-                take: 100,
-                orderBy: { createdAt: 'desc' },
-            }),
-            this.prisma.discussion.findMany({
-                where: { userId: viewerId },
-                distinct: ['postId'],
-                include: {
-                    post: {
-                        select: {
-                            userId: true,
-                            tags: {
-                                include: {
-                                    tag: true,
+                    take: 100,
+                    orderBy: { createdAt: 'desc' },
+                }),
+                this.prisma.discussion.findMany({
+                    where: { userId: viewerId },
+                    distinct: ['postId'],
+                    include: {
+                        post: {
+                            select: {
+                                userId: true,
+                                tags: {
+                                    include: {
+                                        tag: true,
+                                    },
                                 },
                             },
                         },
                     },
-                },
-                take: 100,
-                orderBy: { createdAt: 'desc' },
-            }),
-            this.prisma.recentPostView.findMany({
-                where: { userId: viewerId },
-                include: {
-                    post: {
-                        select: {
-                            userId: true,
-                            tags: {
-                                include: {
-                                    tag: true,
+                    take: 100,
+                    orderBy: { createdAt: 'desc' },
+                }),
+                this.prisma.recentPostView.findMany({
+                    where: { userId: viewerId },
+                    include: {
+                        post: {
+                            select: {
+                                userId: true,
+                                tags: {
+                                    include: {
+                                        tag: true,
+                                    },
                                 },
                             },
                         },
                     },
-                },
-                take: 150,
-                orderBy: { viewedAt: 'desc' },
-            }),
-            this.prisma.follow.findMany({
-                where: { followerId: viewerId },
-                select: {
-                    followingId: true,
-                },
-            }),
-        ]);
+                    take: 150,
+                    orderBy: { viewedAt: 'desc' },
+                }),
+                this.prisma.follow.findMany({
+                    where: { followerId: viewerId },
+                    select: {
+                        followingId: true,
+                    },
+                }),
+            ]);
 
         const interests: Record<string, number> = {};
         const authorInteraction = new Map<string, number>();
@@ -574,10 +617,16 @@ export class PrismaPostRepository implements PostRepository {
                 interests[tag] = (interests[tag] ?? 0) + weight;
             });
         };
-        const addAuthorInteraction = (authorId?: string, weight: number = 1) => {
+        const addAuthorInteraction = (
+            authorId?: string,
+            weight: number = 1,
+        ) => {
             if (!authorId || authorId === viewerId) return;
 
-            authorInteraction.set(authorId, (authorInteraction.get(authorId) ?? 0) + weight);
+            authorInteraction.set(
+                authorId,
+                (authorInteraction.get(authorId) ?? 0) + weight,
+            );
         };
 
         createdPosts.forEach((post) => addTags(post.tags, 5));
@@ -603,15 +652,22 @@ export class PrismaPostRepository implements PostRepository {
     }
 
     private getTagNames(entity: any): string[] {
-        return entity?.tags
-            ?.map((tagEntry: any) => tagEntry.tag?.name ?? tagEntry.name)
-            .filter(Boolean)
-            .map((tag: string) => tag.trim().toLowerCase())
-            ?? [];
+        return (
+            entity?.tags
+                ?.map((tagEntry: any) => tagEntry.tag?.name ?? tagEntry.name)
+                .filter(Boolean)
+                .map((tag: string) => tag.trim().toLowerCase()) ?? []
+        );
     }
 
-    private calculateSimilarityScore(postTags: string[], userInterests: Record<string, number>): number {
-        const maxPossibleScore = Object.values(userInterests).reduce((total, weight) => total + weight, 0);
+    private calculateSimilarityScore(
+        postTags: string[],
+        userInterests: Record<string, number>,
+    ): number {
+        const maxPossibleScore = Object.values(userInterests).reduce(
+            (total, weight) => total + weight,
+            0,
+        );
 
         if (maxPossibleScore === 0) {
             return 0;
@@ -625,7 +681,8 @@ export class PrismaPostRepository implements PostRepository {
     }
 
     private calculateRecencyScore(createdAt: Date): number {
-        const ageInHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+        const ageInHours =
+            (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
 
         return this.clampScore(Math.exp(-ageInHours / 72));
     }
@@ -638,13 +695,15 @@ export class PrismaPostRepository implements PostRepository {
         viewCount: number;
     }): number {
         const weightedEngagement =
-            post.rating * 2
-            + post.ratingCount * 1.5
-            + post.commentCount * 2
-            + post.saveCount * 3
-            + post.viewCount * 0.2;
+            post.rating * 2 +
+            post.ratingCount * 1.5 +
+            post.commentCount * 2 +
+            post.saveCount * 3 +
+            post.viewCount * 0.2;
 
-        return this.clampScore(Math.log1p(Math.max(0, weightedEngagement)) / 10);
+        return this.clampScore(
+            Math.log1p(Math.max(0, weightedEngagement)) / 10,
+        );
     }
 
     private calculateAuthorScore(
@@ -665,7 +724,10 @@ export class PrismaPostRepository implements PostRepository {
         return interactionWeight > 0 ? 0.3 : 0;
     }
 
-    private diversifyPosts(posts: any[], userInterests: Record<string, number>) {
+    private diversifyPosts(
+        posts: any[],
+        userInterests: Record<string, number>,
+    ) {
         const otherPosts = posts.filter((post) => !post.isOwnPost);
         const ownPosts = posts.filter((post) => post.isOwnPost);
         const unviewedPosts = otherPosts.filter((post) => !post.hasBeenViewed);
@@ -678,8 +740,14 @@ export class PrismaPostRepository implements PostRepository {
         ];
     }
 
-    private diversifyPostGroup(posts: any[], userInterests: Record<string, number>, viewedPenalty: number) {
-        const remaining = [...posts].sort((a, b) => b.recommendationScore - a.recommendationScore);
+    private diversifyPostGroup(
+        posts: any[],
+        userInterests: Record<string, number>,
+        viewedPenalty: number,
+    ) {
+        const remaining = [...posts].sort(
+            (a, b) => b.recommendationScore - a.recommendationScore,
+        );
         const selected: any[] = [];
         const selectedTagCounts = new Map<string, number>();
 
@@ -689,9 +757,13 @@ export class PrismaPostRepository implements PostRepository {
 
             remaining.forEach((post, index) => {
                 const primaryTag = this.getPrimaryTag(post, userInterests);
-                const tagCount = primaryTag ? selectedTagCounts.get(primaryTag) ?? 0 : 0;
+                const tagCount = primaryTag
+                    ? (selectedTagCounts.get(primaryTag) ?? 0)
+                    : 0;
                 const diversityPenalty = Math.min(0.35, tagCount * 0.12);
-                const adjustedScore = (post.recommendationScore - viewedPenalty) * (1 - diversityPenalty);
+                const adjustedScore =
+                    (post.recommendationScore - viewedPenalty) *
+                    (1 - diversityPenalty);
 
                 if (adjustedScore > bestAdjustedScore) {
                     bestAdjustedScore = adjustedScore;
@@ -703,7 +775,10 @@ export class PrismaPostRepository implements PostRepository {
             const primaryTag = this.getPrimaryTag(post, userInterests);
 
             if (primaryTag) {
-                selectedTagCounts.set(primaryTag, (selectedTagCounts.get(primaryTag) ?? 0) + 1);
+                selectedTagCounts.set(
+                    primaryTag,
+                    (selectedTagCounts.get(primaryTag) ?? 0) + 1,
+                );
             }
 
             selected.push(post);
@@ -719,7 +794,9 @@ export class PrismaPostRepository implements PostRepository {
             return undefined;
         }
 
-        return tags.sort((a, b) => (userInterests[b] ?? 0) - (userInterests[a] ?? 0))[0];
+        return tags.sort(
+            (a, b) => (userInterests[b] ?? 0) - (userInterests[a] ?? 0),
+        )[0];
     }
 
     private clampScore(score: number) {

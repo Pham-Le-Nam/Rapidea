@@ -386,6 +386,7 @@ model Skill {
     embeddingModel  String?
 
     courses         CourseSkill[]
+    posts           PostSkill[]
     aliases         SkillAlias[]
 
     @@map("skill")
@@ -414,6 +415,21 @@ model CourseSkill {
     @@id([courseId, skillId])
     @@index([skillId])
     @@map("course_skill")
+}
+
+model PostSkill {
+    postId          String
+    skillId         Int
+    outcome         String
+    importance      Float       @default(1)
+    confidence      Float?
+
+    post            Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+    skill           Skill       @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+    @@id([postId, skillId])
+    @@index([skillId])
+    @@map("post_skill")
 }
 
 model Subscribe {
@@ -468,6 +484,7 @@ model Post {
     files           FileInPost[]
     recentViews     RecentPostView[]
     tags            PostTag[]
+    skills          PostSkill[]
 
     @@index([userId])
     @@index([aiStatus, createdAt])

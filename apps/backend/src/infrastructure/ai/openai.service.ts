@@ -1,9 +1,6 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { AiMediaFile, AiService } from '../../application/ports/ai.service';
-import {
-    AiModelEnvironmentVariable,
-    requiredAiModel,
-} from './ai-model-config';
+import { OpenAiClientService } from './openai-client.service';
 
 const TIPTAP_DOCUMENT_FORMAT = {
     type: 'json_schema',
@@ -42,111 +39,29 @@ const TIPTAP_DOCUMENT_FORMAT = {
     },
 } as const;
 
-type OpenAiResponse = {
-    output?: Array<{
-        type?: string;
-        content?: Array<{
-            type?: string;
-            text?: string;
-        }>;
-    }>;
-};
-
 @Injectable()
 export class OpenAiService implements AiService {
-    async generatePostContent(input: {
+    constructor(private readonly openAiClient: OpenAiClientService) {}
+
+    generatePostContent(input: {
         target: 'title' | 'details';
         systemPrompt: string;
         context: string;
-    }) {
-        const model = requiredAiModel(AiModelEnvironmentVariable.RESPONSE);
-        const apiKey = this.requiredApiKey();
-        const response = await fetch('https://api.openai.com/v1/responses', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model,
-                instructions: input.systemPrompt,
-                input: input.context,
-                store: false,
-                text: input.target === 'details'
-                    ? { format: TIPTAP_DOCUMENT_FORMAT }
-                    : undefined,
-            }),
+    }): Promise<string> {
+        return this.openAiClient.createTextResponse({
+            instructions: input.systemPrompt,
+            input: input.context,
+            failureLabel: 'Post generation',
+            textFormat:
+                input.target === 'details' ? TIPTAP_DOCUMENT_FORMAT : undefined,
         });
-        if (!response.ok) {
-            throw new InternalServerErrorException(`Post generation failed (${response.status})`);
-        }
-
-        const data = await response.json() as OpenAiResponse;
-        const value = data.output
-            ?.flatMap((item) => item.type === 'message' ? item.content ?? [] : [])
-            .filter((content) => content.type === 'output_text')
-            .map((content) => content.text ?? '')
-            .join('')
-            .trim();
-        if (!value) throw new InternalServerErrorException('Post generation returned no content');
-        return value;
     }
 
-    async createEmbeddings(input: string[]) {
-        const model = requiredAiModel(
-            AiModelEnvironmentVariable.TEXT_EMBEDDING,
-        );
-        const apiKey = process.env.OPENAI_API_KEY;
-        if (!apiKey) return null;
-
-        try {
-            const response = await fetch('https://api.openai.com/v1/embeddings', {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    model,
-                    input,
-                }),
-            });
-            if (!response.ok) return null;
-
-            const data = await response.json() as { data?: { embedding: number[] }[] };
-            return data.data?.map((item) => item.embedding) ?? null;
-        } catch {
-            return null;
-        }
+    createEmbeddings(input: string[]): Promise<number[][] | null> {
+        return this.openAiClient.createEmbeddings(input);
     }
 
-    async transcribeMedia(file: AiMediaFile) {
-        const model = requiredAiModel(
-            AiModelEnvironmentVariable.VIDEO_TRANSCRIPTION,
-        );
-        const apiKey = this.requiredApiKey();
-        const formData = new FormData();
-        formData.append('model', model);
-        formData.append(
-            'file',
-            new Blob([new Uint8Array(file.buffer)], { type: file.mimetype }),
-            file.originalname,
-        );
-
-        const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${apiKey}` },
-            body: formData,
-        });
-        if (!response.ok) throw new Error(`Transcription failed with status ${response.status}`);
-
-        const data = await response.json() as { text?: string };
-        return data.text ?? '';
-    }
-
-    private requiredApiKey() {
-        const apiKey = process.env.OPENAI_API_KEY;
-        if (!apiKey) throw new InternalServerErrorException('OPENAI_API_KEY is not configured');
-        return apiKey;
+    transcribeMedia(file: AiMediaFile): Promise<string> {
+        return this.openAiClient.transcribeMedia(file);
     }
 }

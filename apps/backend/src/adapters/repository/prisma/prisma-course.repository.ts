@@ -6,15 +6,22 @@ import { CourseRepository } from '../../../domain/course/repositories/course.rep
 export class PrismaCourseRepository implements CourseRepository {
     constructor(private prisma: PrismaService) {}
 
-    async create(userId: string, title: string, folderId: string, description?: string, price?: number, currency?: string) {
+    async create(
+        userId: string,
+        title: string,
+        folderId: string,
+        description?: string,
+        price?: number,
+        currency?: string,
+    ) {
         const user = await this.prisma.users.findUnique({
             where: {
                 id: userId,
             },
         });
 
-        if(!user) {
-            throw new InternalServerErrorException("User not found");
+        if (!user) {
+            throw new InternalServerErrorException('User not found');
         }
 
         const course = await this.prisma.course.create({
@@ -37,7 +44,9 @@ export class PrismaCourseRepository implements CourseRepository {
         });
 
         if (!course) {
-            throw new InternalServerErrorException("Couldn't create the course")
+            throw new InternalServerErrorException(
+                "Couldn't create the course",
+            );
         }
 
         // Update user courses count
@@ -53,9 +62,17 @@ export class PrismaCourseRepository implements CourseRepository {
         return course;
     }
 
-    async updateById(id: string, userId: string, title?: string, description?: string, price?: number, currency?: string, thumbnailId?: number) {
+    async updateById(
+        id: string,
+        userId: string,
+        title?: string,
+        description?: string,
+        price?: number,
+        currency?: string,
+        thumbnailId?: number,
+    ) {
         return this.prisma.course.update({
-            where: { 
+            where: {
                 id,
                 userId,
             },
@@ -65,6 +82,13 @@ export class PrismaCourseRepository implements CourseRepository {
                 price,
                 currency,
                 thumbnailId,
+                ...(title !== undefined || description !== undefined
+                    ? {
+                          aiStatus: 'PENDING' as const,
+                          aiError: null,
+                          aiProcessedAt: null,
+                      }
+                    : {}),
             },
             include: {
                 thumbnail: true,
@@ -116,7 +140,13 @@ export class PrismaCourseRepository implements CourseRepository {
         });
     }
 
-    async findByUserId(userId: string, orderByField: string = 'createdAt', order: 'asc' | 'desc' = 'desc', amount?: number, offset?: number) {
+    async findByUserId(
+        userId: string,
+        orderByField: string = 'createdAt',
+        order: 'asc' | 'desc' = 'desc',
+        amount?: number,
+        offset?: number,
+    ) {
         const allowedFields = [
             'createdAt',
             'price',
@@ -142,11 +172,11 @@ export class PrismaCourseRepository implements CourseRepository {
                     },
                 },
             },
-            orderBy: { 
+            orderBy: {
                 [orderByField]: order,
             },
             skip: offset,
-            take: amount
+            take: amount,
         });
     }
 
@@ -163,7 +193,7 @@ export class PrismaCourseRepository implements CourseRepository {
         });
 
         if (!course) {
-            throw new InternalServerErrorException("Course not found")
+            throw new InternalServerErrorException('Course not found');
         }
 
         const [deletedCourse] = await this.prisma.$transaction([

@@ -19,10 +19,21 @@ import {
 import { PrismaService } from '../database/prisma/prisma.service';
 import { FolderService } from '../../application/folder/folder.service';
 import { ChunkingEmbeddingService } from './chunking-embedding.service';
+import { CourseProfileService } from './course-profile.service';
+import {
+    CourseSummaryInput,
+    CourseSummaryService,
+} from './course-summary.service';
+import { FileSummaryService } from './file-summary.service';
+import { PostSkillService } from './post-skill.service';
+import { PostSummaryInput, PostSummaryService } from './post-summary.service';
 import { TextExtractionService } from './text-extraction.service';
 
+const COURSE_SOURCE_TYPE = 'COURSE' as const;
+type ProcessingSourceType = ContentSourceType | typeof COURSE_SOURCE_TYPE;
+
 type ContentProcessingJob = {
-    sourceType: ContentSourceType;
+    sourceType: ProcessingSourceType;
     sourceId: string;
     createdAt: Date;
 };
@@ -31,13 +42,21 @@ type ProcessingSource = {
     text: string;
     courseIds: string[];
     metadata: Record<string, unknown>;
+    fileSummaryInput?: {
+        fileName: string;
+        mimeType: string;
+    };
+    postSummaryInput?: PostSummaryInput;
 };
 
 const DEFAULT_SCAN_INTERVAL_MS = 5_000;
 
+class PendingContentDependencyError extends Error {}
+
 @Injectable()
 export class ContentProcessingQueueService
-implements OnApplicationBootstrap, OnModuleDestroy {
+    implements OnApplicationBootstrap, OnModuleDestroy
+{
     private readonly logger = new Logger(ContentProcessingQueueService.name);
     private readonly queue: ContentProcessingJob[] = [];
     private readonly queuedKeys = new Set<string>();
@@ -51,6 +70,11 @@ implements OnApplicationBootstrap, OnModuleDestroy {
         private readonly storage: StorageService,
         private readonly textExtraction: TextExtractionService,
         private readonly chunkingEmbedding: ChunkingEmbeddingService,
+        private readonly fileSummary: FileSummaryService,
+        private readonly postSummary: PostSummaryService,
+        private readonly postSkills: PostSkillService,
+        private readonly courseSummary: CourseSummaryService,
+        private readonly courseProfiles: CourseProfileService,
     ) {}
 
     onApplicationBootstrap(): void {
@@ -77,27 +101,33 @@ implements OnApplicationBootstrap, OnModuleDestroy {
     }
 
     private async findPendingJobs(): Promise<ContentProcessingJob[]> {
-        const [files, posts, discussions, reviews] = await Promise.all([
-            this.prisma.file.findMany({
-                where: { aiStatus: AiProcessingStatus.PENDING },
-                select: { id: true, createdAt: true },
-            }),
-            this.prisma.post.findMany({
-                where: { aiStatus: AiProcessingStatus.PENDING },
-                select: { id: true, createdAt: true },
-            }),
-            this.prisma.discussion.findMany({
-                where: { aiStatus: AiProcessingStatus.PENDING },
-                select: { id: true, createdAt: true },
-            }),
-            this.prisma.subscribe.findMany({
-                where: {
-                    aiStatus: AiProcessingStatus.PENDING,
-                    review: { not: null },
-                },
-                select: { id: true, createdAt: true },
-            }),
-        ]);
+        const [files, posts, discussions, reviews, courses] = await Promise.all(
+            [
+                this.prisma.file.findMany({
+                    where: { aiStatus: AiProcessingStatus.PENDING },
+                    select: { id: true, createdAt: true },
+                }),
+                this.prisma.post.findMany({
+                    where: { aiStatus: AiProcessingStatus.PENDING },
+                    select: { id: true, createdAt: true },
+                }),
+                this.prisma.discussion.findMany({
+                    where: { aiStatus: AiProcessingStatus.PENDING },
+                    select: { id: true, createdAt: true },
+                }),
+                this.prisma.subscribe.findMany({
+                    where: {
+                        aiStatus: AiProcessingStatus.PENDING,
+                        review: { not: null },
+                    },
+                    select: { id: true, createdAt: true },
+                }),
+                this.prisma.course.findMany({
+                    where: { aiStatus: AiProcessingStatus.PENDING },
+                    select: { id: true, createdAt: true },
+                }),
+            ],
+        );
 
         return [
             ...files.map((item) => ({
@@ -120,7 +150,15 @@ implements OnApplicationBootstrap, OnModuleDestroy {
                 sourceId: item.id,
                 createdAt: item.createdAt,
             })),
-        ].sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
+            ...courses.map((item) => ({
+                sourceType: COURSE_SOURCE_TYPE,
+                sourceId: item.id,
+                createdAt: item.createdAt,
+            })),
+        ].sort(
+            (left, right) =>
+                left.createdAt.getTime() - right.createdAt.getTime(),
+        );
     }
 
     private enqueue(job: ContentProcessingJob): void {
@@ -161,21 +199,52 @@ implements OnApplicationBootstrap, OnModuleDestroy {
     }
 
     private async process(job: ContentProcessingJob): Promise<void> {
-        if (!await this.claim(job)) return;
+        if (!(await this.claim(job))) return;
 
         try {
-            const source = await this.loadSource(job);
-            if (source.courseIds.length === 0) {
-                throw new Error('Content source is not associated with a course');
+            if (job.sourceType === COURSE_SOURCE_TYPE) {
+                await this.processCourse(job.sourceId);
+                return;
             }
 
-            const chunks = await this.chunkingEmbedding.chunkAndEmbed(
-                source.text,
-                { metadata: source.metadata },
+            const contentSourceType = job.sourceType as ContentSourceType;
+            const source = await this.loadSource(
+                contentSourceType,
+                job.sourceId,
             );
-            if (chunks.length === 0) {
+            if (
+                source.courseIds.length === 0 &&
+                job.sourceType !== ContentSourceType.FILE &&
+                job.sourceType !== ContentSourceType.POST
+            ) {
+                throw new Error(
+                    'Content source is not associated with a course',
+                );
+            }
+
+            const shouldCreateChunks =
+                source.courseIds.length > 0 && Boolean(source.text.trim());
+            const [chunks, fileSummary, postProfile] = await Promise.all([
+                shouldCreateChunks
+                    ? this.chunkingEmbedding.chunkAndEmbed(source.text, {
+                          metadata: source.metadata,
+                      })
+                    : Promise.resolve([]),
+                source.fileSummaryInput
+                    ? this.fileSummary.generate({
+                          ...source.fileSummaryInput,
+                          text: source.text,
+                      })
+                    : Promise.resolve(undefined),
+                source.postSummaryInput
+                    ? this.postSummary.generate(source.postSummaryInput)
+                    : Promise.resolve(undefined),
+            ]);
+            if (shouldCreateChunks && chunks.length === 0) {
                 throw new Error('Content source has no extractable text');
             }
+
+            const generatedSummary = fileSummary ?? postProfile?.summary;
 
             await this.prisma.$transaction(async (transaction) => {
                 const completed = await this.statusDelegate(
@@ -190,6 +259,9 @@ implements OnApplicationBootstrap, OnModuleDestroy {
                         aiStatus: AiProcessingStatus.READY,
                         aiError: null,
                         aiProcessedAt: new Date(),
+                        ...(generatedSummary === undefined
+                            ? {}
+                            : { summary: generatedSummary }),
                     },
                 });
 
@@ -197,27 +269,108 @@ implements OnApplicationBootstrap, OnModuleDestroy {
 
                 await transaction.contentChunk.deleteMany({
                     where: {
-                        sourceType: job.sourceType,
+                        sourceType: contentSourceType,
                         sourceId: job.sourceId,
                     },
                 });
-                await transaction.contentChunk.createMany({
-                    data: source.courseIds.flatMap((courseId) =>
-                        chunks.map((chunk) => ({
-                            sourceType: job.sourceType,
-                            sourceId: job.sourceId,
-                            courseId,
-                            sequence: chunk.sequence,
-                            content: chunk.content,
-                            tokenCount: chunk.tokenCount,
-                            embedding: chunk.embedding,
-                            embeddingModel: chunk.embeddingModel,
-                            metadata: chunk.metadata as Prisma.InputJsonObject,
-                        })),
-                    ),
-                });
+                const chunkData = source.courseIds.flatMap((courseId) =>
+                    chunks.map((chunk) => ({
+                        sourceType: contentSourceType,
+                        sourceId: job.sourceId,
+                        courseId,
+                        sequence: chunk.sequence,
+                        content: chunk.content,
+                        tokenCount: chunk.tokenCount,
+                        embedding: chunk.embedding,
+                        embeddingModel: chunk.embeddingModel,
+                        metadata: chunk.metadata as Prisma.InputJsonObject,
+                    })),
+                );
+                if (chunkData.length > 0) {
+                    await transaction.contentChunk.createMany({
+                        data: chunkData,
+                    });
+                }
+
+                if (postProfile) {
+                    await this.postSkills.replace(
+                        transaction,
+                        job.sourceId,
+                        postProfile.skills,
+                    );
+                }
+
+                if (
+                    job.sourceType === ContentSourceType.POST &&
+                    source.courseIds.length > 0
+                ) {
+                    await transaction.course.updateMany({
+                        where: { id: { in: source.courseIds } },
+                        data: {
+                            aiStatus: AiProcessingStatus.PENDING,
+                            aiError: null,
+                            aiProcessedAt: null,
+                        },
+                    });
+                }
+
+                if (job.sourceType === ContentSourceType.FILE && fileSummary) {
+                    await transaction.postSkill.deleteMany({
+                        where: {
+                            post: {
+                                files: { some: { fileId: job.sourceId } },
+                            },
+                        },
+                    });
+                    await transaction.post.updateMany({
+                        where: {
+                            files: { some: { fileId: job.sourceId } },
+                        },
+                        data: {
+                            aiStatus: AiProcessingStatus.PENDING,
+                            aiError: null,
+                            aiProcessedAt: null,
+                            summary: null,
+                        },
+                    });
+                    await transaction.course.updateMany({
+                        where: {
+                            posts: {
+                                some: {
+                                    files: {
+                                        some: { fileId: job.sourceId },
+                                    },
+                                },
+                            },
+                        },
+                        data: {
+                            aiStatus: AiProcessingStatus.PENDING,
+                            aiError: null,
+                            aiProcessedAt: null,
+                        },
+                    });
+                }
             });
         } catch (error) {
+            if (error instanceof PendingContentDependencyError) {
+                await this.statusDelegate(
+                    this.prisma,
+                    job.sourceType,
+                ).updateMany({
+                    where: {
+                        id: job.sourceId,
+                        aiStatus: AiProcessingStatus.PROCESSING,
+                    },
+                    data: {
+                        aiStatus: AiProcessingStatus.PENDING,
+                        aiError: null,
+                        aiProcessedAt: null,
+                    },
+                });
+                this.logger.debug(error.message);
+                return;
+            }
+
             const message = this.errorMessage(error);
             await this.statusDelegate(this.prisma, job.sourceType).updateMany({
                 where: {
@@ -255,17 +408,113 @@ implements OnApplicationBootstrap, OnModuleDestroy {
         return result.count === 1;
     }
 
-    private async loadSource(job: ContentProcessingJob): Promise<ProcessingSource> {
-        switch (job.sourceType) {
+    private async loadSource(
+        sourceType: ContentSourceType,
+        sourceId: string,
+    ): Promise<ProcessingSource> {
+        switch (sourceType) {
             case ContentSourceType.FILE:
-                return this.loadFile(job.sourceId);
+                return this.loadFile(sourceId);
             case ContentSourceType.POST:
-                return this.loadPost(job.sourceId);
+                return this.loadPost(sourceId);
             case ContentSourceType.DISCUSSION:
-                return this.loadDiscussion(job.sourceId);
+                return this.loadDiscussion(sourceId);
             case ContentSourceType.REVIEW:
-                return this.loadReview(job.sourceId);
+                return this.loadReview(sourceId);
         }
+    }
+
+    private async processCourse(courseId: string): Promise<void> {
+        const input = await this.loadCourse(courseId);
+        const profile = await this.courseSummary.generate(input);
+
+        await this.prisma.$transaction(async (transaction) => {
+            const completed = await transaction.course.updateMany({
+                where: {
+                    id: courseId,
+                    aiStatus: AiProcessingStatus.PROCESSING,
+                },
+                data: {
+                    aiStatus: AiProcessingStatus.READY,
+                    aiError: null,
+                    aiProcessedAt: new Date(),
+                },
+            });
+            if (completed.count !== 1) return;
+
+            await this.courseProfiles.replace(transaction, courseId, profile);
+        });
+    }
+
+    private async loadCourse(courseId: string): Promise<CourseSummaryInput> {
+        const course = await this.prisma.course.findUnique({
+            where: { id: courseId },
+            select: {
+                title: true,
+                description: true,
+                posts: {
+                    orderBy: { createdAt: 'asc' },
+                    select: {
+                        id: true,
+                        title: true,
+                        summary: true,
+                        aiStatus: true,
+                        aiError: true,
+                        skills: {
+                            select: {
+                                outcome: true,
+                                importance: true,
+                                confidence: true,
+                                skill: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        description: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        if (!course) throw new Error('Course no longer exists');
+
+        const failedPost = course.posts.find(
+            (post) => post.aiStatus === AiProcessingStatus.FAILED,
+        );
+        if (failedPost) {
+            throw new Error(
+                `Post ${failedPost.title ?? failedPost.id} failed AI processing: ${failedPost.aiError ?? 'unknown error'}`,
+            );
+        }
+        const pendingPost = course.posts.find(
+            (post) =>
+                post.aiStatus !== AiProcessingStatus.READY || !post.summary,
+        );
+        if (pendingPost) {
+            throw new PendingContentDependencyError(
+                `Course ${courseId} is waiting for post ${pendingPost.title ?? pendingPost.id}`,
+            );
+        }
+
+        return {
+            title: course.title,
+            description: course.description ?? '',
+            posts: course.posts.map((post) => ({
+                id: post.id,
+                title: post.title ?? '',
+                summary: post.summary as string,
+                skills: post.skills.map((postSkill) => ({
+                    id: postSkill.skill.id,
+                    name: postSkill.skill.name,
+                    description: postSkill.skill.description,
+                    outcome: postSkill.outcome,
+                    importance: postSkill.importance,
+                    confidence: postSkill.confidence,
+                })),
+            })),
+        };
     }
 
     private async loadFile(sourceId: string): Promise<ProcessingSource> {
@@ -311,22 +560,77 @@ implements OnApplicationBootstrap, OnModuleDestroy {
                     ? { transcriptionModel: extracted.model }
                     : {}),
             },
+            fileSummaryInput: {
+                fileName: file.name,
+                mimeType: file.mimeType,
+            },
         };
     }
 
     private async loadPost(sourceId: string): Promise<ProcessingSource> {
         const post = await this.prisma.post.findUnique({
             where: { id: sourceId },
-            select: { title: true, content: true, courseId: true },
+            select: {
+                title: true,
+                content: true,
+                courseId: true,
+                files: {
+                    orderBy: { createdAt: 'asc' },
+                    select: {
+                        file: {
+                            select: {
+                                id: true,
+                                name: true,
+                                mimeType: true,
+                                summary: true,
+                                aiStatus: true,
+                                aiError: true,
+                            },
+                        },
+                    },
+                },
+            },
         });
         if (!post) throw new Error('Post no longer exists');
 
+        const failedFile = post.files.find(
+            ({ file }) => file.aiStatus === AiProcessingStatus.FAILED,
+        );
+        if (failedFile) {
+            throw new Error(
+                `Attached file ${failedFile.file.name} failed AI processing: ${failedFile.file.aiError ?? 'unknown error'}`,
+            );
+        }
+
+        const pendingFile = post.files.find(
+            ({ file }) =>
+                file.aiStatus !== AiProcessingStatus.READY || !file.summary,
+        );
+        if (pendingFile) {
+            throw new PendingContentDependencyError(
+                `Post ${sourceId} is waiting for attached file ${pendingFile.file.name}`,
+            );
+        }
+
+        const description = this.jsonText(post.content);
+
         return {
-            text: [post.title, this.jsonText(post.content)]
-                .filter(Boolean)
-                .join('\n\n'),
+            text: [post.title, description].filter(Boolean).join('\n\n'),
             courseIds: this.uniqueCourseIds([post.courseId]),
-            metadata: { sourceType: ContentSourceType.POST },
+            metadata: {
+                sourceType: ContentSourceType.POST,
+                attachedFileCount: post.files.length,
+            },
+            postSummaryInput: {
+                title: post.title ?? '',
+                description,
+                files: post.files.map(({ file }) => ({
+                    id: file.id,
+                    name: file.name,
+                    mimeType: file.mimeType,
+                    summary: file.summary as string,
+                })),
+            },
         };
     }
 
@@ -364,8 +668,10 @@ implements OnApplicationBootstrap, OnModuleDestroy {
         };
     }
 
-    private statusDelegate(client: any, sourceType: ContentSourceType): any {
+    private statusDelegate(client: any, sourceType: ProcessingSourceType): any {
         switch (sourceType) {
+            case COURSE_SOURCE_TYPE:
+                return client.course;
             case ContentSourceType.FILE:
                 return client.file;
             case ContentSourceType.POST:
@@ -388,7 +694,10 @@ implements OnApplicationBootstrap, OnModuleDestroy {
     private jsonText(value: unknown): string {
         if (typeof value === 'string') return value.trim();
         if (Array.isArray(value)) {
-            return value.map((item) => this.jsonText(item)).filter(Boolean).join('\n');
+            return value
+                .map((item) => this.jsonText(item))
+                .filter(Boolean)
+                .join('\n');
         }
         if (!value || typeof value !== 'object') return '';
 
@@ -403,7 +712,9 @@ implements OnApplicationBootstrap, OnModuleDestroy {
     }
 
     private uniqueCourseIds(courseIds: Array<string | null>): string[] {
-        return [...new Set(courseIds.filter((id): id is string => Boolean(id)))];
+        return [
+            ...new Set(courseIds.filter((id): id is string => Boolean(id))),
+        ];
     }
 
     private jobKey(job: ContentProcessingJob): string {
@@ -411,16 +722,19 @@ implements OnApplicationBootstrap, OnModuleDestroy {
     }
 
     private scanIntervalMs(): number {
-        const configured = Number(process.env.CONTENT_PROCESSING_SCAN_INTERVAL_MS);
+        const configured = Number(
+            process.env.CONTENT_PROCESSING_SCAN_INTERVAL_MS,
+        );
         return Number.isInteger(configured) && configured >= 1_000
             ? configured
             : DEFAULT_SCAN_INTERVAL_MS;
     }
 
     private errorMessage(error: unknown): string {
-        const message = error instanceof Error
-            ? error.message
-            : 'Unknown content-processing error';
+        const message =
+            error instanceof Error
+                ? error.message
+                : 'Unknown content-processing error';
         return message.slice(0, 2_000);
     }
 }
