@@ -63,6 +63,6 @@ describe('CourseProfileService', () => {
                 },
             ],
         });
-        expect(transaction.$executeRaw).toHaveBeenCalledTimes(1);
+        expect(transaction.$executeRaw).toHaveBeenCalledTimes(2);
     });
 });

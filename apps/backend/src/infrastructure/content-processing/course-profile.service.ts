@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { GeneratedCourseProfile } from './course-summary.service';
+import { grantSubscriptionSkills } from './subscription-skills';
 
 @Injectable()
 export class CourseProfileService {
@@ -41,6 +42,8 @@ export class CourseProfileService {
                 })),
             });
         }
+
+        await grantSubscriptionSkills(transaction, courseId);
 
         const vector = `[${profile.embedding.join(',')}]`;
         await transaction.$executeRaw`

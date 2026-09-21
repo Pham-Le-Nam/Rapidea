@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { GeneratedPostSkill } from './post-summary.service';
+import { SkillResolverService } from './skill-resolver.service';
 
 @Injectable()
 export class PostSkillService {
+    constructor(private readonly skillResolver: SkillResolverService) {}
+
     async replace(
         transaction: Prisma.TransactionClient,
         postId: string,
@@ -13,36 +16,10 @@ export class PostSkillService {
 
         const skillsById = new Map<number, GeneratedPostSkill>();
         for (const generated of generatedSkills) {
-            const name = generated.name.replace(/\s+/g, ' ').trim();
-            const existing = await transaction.skill.findFirst({
-                where: {
-                    OR: [
-                        { name: { equals: name, mode: 'insensitive' } },
-                        {
-                            aliases: {
-                                some: {
-                                    alias: {
-                                        equals: name,
-                                        mode: 'insensitive',
-                                    },
-                                },
-                            },
-                        },
-                    ],
-                },
-                select: { id: true },
-            });
-            const skill =
-                existing ??
-                (await transaction.skill.upsert({
-                    where: { name },
-                    update: {},
-                    create: {
-                        name,
-                        description: generated.description,
-                    },
-                    select: { id: true },
-                }));
+            const skill = await this.skillResolver.resolve(
+                transaction,
+                generated,
+            );
             const current = skillsById.get(skill.id);
             if (
                 !current ||

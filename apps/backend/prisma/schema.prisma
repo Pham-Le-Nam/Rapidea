@@ -58,6 +58,8 @@ model Users {
     conversationsAsUserA    ChatConversation[]      @relation("ConversationUserA")
     conversationsAsUserB    ChatConversation[]      @relation("ConversationUserB")
     sentChatMessages        ChatMessage[]           @relation("SentChatMessages")
+    aiChatConversations     AiChatConversation[]
+    learningProfile         UserLearningProfile?
     notifications           Notification[]          @relation("UserNotifications")
     triggeredNotifications  Notification[]          @relation("ActorNotifications")
     discussions             Discussion[]
@@ -74,6 +76,7 @@ model Users {
     instructorApplications  InstructorApplication[]
     FilesInCourses         FileInCourse[]
     FilesInPosts           FileInPost[]
+    skills                  UserSkill[]
     
     @@map("users")
 }
@@ -175,6 +178,11 @@ enum ContentSourceType {
     POST
     DISCUSSION
     REVIEW
+}
+
+enum AiChatMessageRole {
+    USER
+    ASSISTANT
 }
 
 enum Difficulty {
@@ -319,6 +327,108 @@ model ChatMessage {
     @@map("chat_message")
 }
 
+model AiChatConversation {
+    id              String                     @id @default(uuid())
+    userId          String
+    title           String?
+    lastMessageAt   DateTime                   @default(now())
+    createdAt       DateTime                   @default(now())
+    updatedAt       DateTime                   @updatedAt
+
+    user            Users                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    messages        AiChatMessage[]
+    summary         AiChatConversationSummary?
+    trustedSources  AiChatTrustedSource[]
+
+    @@index([userId, lastMessageAt])
+    @@map("ai_chat_conversation")
+}
+
+model AiChatMessage {
+    id              String             @id @default(uuid())
+    conversationId  String
+    role            AiChatMessageRole
+    content         String
+    model           String?
+    tokenCount      Int?
+    citations       Json?
+    metadata        Json?
+    createdAt       DateTime           @default(now())
+
+    conversation    AiChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+    @@index([conversationId, createdAt])
+    @@map("ai_chat_message")
+}
+
+model AiChatConversationSummary {
+    id                   Int                @id @default(autoincrement())
+    conversationId       String             @unique
+    summary              String
+    topics               Json?
+    decisions            Json?
+    openQuestions        Json?
+    nextSteps            Json?
+    salientFacts         Json?
+    summarizedThroughAt  DateTime?
+    sourceMessageCount   Int                @default(0)
+    summaryVersion       Int                @default(1)
+    generatedAt          DateTime           @default(now())
+    updatedAt            DateTime           @updatedAt
+
+    conversation         AiChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+    @@map("ai_chat_conversation_summary")
+}
+
+model AiChatTrustedSource {
+    id              String             @id @default(uuid())
+    conversationId  String
+    courseId        String?
+    postId          String?
+    fileId          String?
+    createdAt       DateTime           @default(now())
+
+    conversation    AiChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+    course          Course?            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+    post            Post?              @relation(fields: [postId], references: [id], onDelete: Cascade)
+    file            File?              @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+    @@unique([conversationId, courseId])
+    @@unique([conversationId, postId])
+    @@unique([conversationId, fileId])
+    @@index([conversationId, createdAt])
+    @@index([courseId])
+    @@index([postId])
+    @@index([fileId])
+    @@map("ai_chat_trusted_source")
+}
+
+model UserLearningProfile {
+    id                    Int      @id @default(autoincrement())
+    userId                String   @unique
+    summary               String
+    currentLearningPath   Json?
+    interests             Json?
+    learningGoals         Json?
+    knownSkills           Json?
+    targetSkills          Json?
+    knowledgeGaps         Json?
+    learningPreferences   Json?
+    constraints           Json?
+    progress              Json?
+    recommendedNextSteps  Json?
+    evidence              Json?
+    sourceHash            String?
+    profileVersion        Int      @default(1)
+    generatedAt           DateTime @default(now())
+    updatedAt             DateTime @updatedAt
+
+    user                  Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("user_learning_profile")
+}
+
 model Course {
     id                  String      @id @default(uuid())
     title               String
@@ -354,7 +464,7 @@ model Course {
     contentChunks       ContentChunk[]
     aiProfile           CourseAIProfile?
     skills              CourseSkill[]
-
+    aiChatTrustedSources AiChatTrustedSource[]
 
     @@unique([userId, title])   // Prevent 2 courses having the same name
     @@index([userId])
@@ -387,6 +497,7 @@ model Skill {
 
     courses         CourseSkill[]
     posts           PostSkill[]
+    users           UserSkill[]
     aliases         SkillAlias[]
 
     @@map("skill")
@@ -398,8 +509,9 @@ model SkillAlias {
   skillId Int
   alias   String @unique
 
-  skill   Skill  @relation(fields: [skillId], references: [id])
+  skill   Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
 
+  @@index([skillId])
   @@map("skill_alias")
 }
 
@@ -430,6 +542,32 @@ model PostSkill {
     @@id([postId, skillId])
     @@index([skillId])
     @@map("post_skill")
+}
+
+enum UserSkillSource {
+    SELF_REPORTED
+    COURSE_SUBSCRIPTION
+    ASSESSMENT
+}
+
+enum UserSkillStatus {
+    ASSUMED
+    DEMONSTRATED
+}
+
+model UserSkill {
+    userId     String
+    skillId    Int
+    source     UserSkillSource @default(SELF_REPORTED)
+    status     UserSkillStatus @default(ASSUMED)
+    createdAt  DateTime        @default(now())
+
+    user       Users           @relation(fields: [userId], references: [id], onDelete: Cascade)
+    skill      Skill           @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+    @@id([userId, skillId])
+    @@index([skillId])
+    @@map("user_skill")
 }
 
 model Subscribe {
@@ -485,6 +623,7 @@ model Post {
     recentViews     RecentPostView[]
     tags            PostTag[]
     skills          PostSkill[]
+    aiChatTrustedSources AiChatTrustedSource[]
 
     @@index([userId])
     @@index([aiStatus, createdAt])
@@ -737,6 +876,7 @@ model File {
     inCourses       FileInCourse[]
     inPosts         FileInPost[]
     tags            FileTag[]
+    aiChatTrustedSources AiChatTrustedSource[]
 
     @@unique([folderId, name])
     @@index([folderId])

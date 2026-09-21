@@ -1,20 +1,18 @@
 import { PostSkillService } from './post-skill.service';
 
 describe('PostSkillService', () => {
-    const service = new PostSkillService();
-
     it('resolves shared skills and replaces post links', async () => {
+        const skillResolver = {
+            resolve: jest
+                .fn()
+                .mockResolvedValueOnce({ id: 10 })
+                .mockResolvedValueOnce({ id: 20 }),
+        };
+        const service = new PostSkillService(skillResolver as any);
         const transaction: any = {
             postSkill: {
                 deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
                 createMany: jest.fn().mockResolvedValue({ count: 1 }),
-            },
-            skill: {
-                findFirst: jest
-                    .fn()
-                    .mockResolvedValueOnce({ id: 10 })
-                    .mockResolvedValueOnce(null),
-                upsert: jest.fn().mockResolvedValue({ id: 20 }),
             },
         };
 
@@ -38,38 +36,12 @@ describe('PostSkillService', () => {
         expect(transaction.postSkill.deleteMany).toHaveBeenCalledWith({
             where: { postId: 'post-1' },
         });
-        expect(transaction.skill.findFirst).toHaveBeenCalledWith({
-            where: {
-                OR: [
-                    {
-                        name: {
-                            equals: 'TypeScript',
-                            mode: 'insensitive',
-                        },
-                    },
-                    {
-                        aliases: {
-                            some: {
-                                alias: {
-                                    equals: 'TypeScript',
-                                    mode: 'insensitive',
-                                },
-                            },
-                        },
-                    },
-                ],
-            },
-            select: { id: true },
-        });
-        expect(transaction.skill.upsert).toHaveBeenCalledWith({
-            where: { name: 'Testing' },
-            update: {},
-            create: {
-                name: 'Testing',
-                description: 'Verification of application behavior.',
-            },
-            select: { id: true },
-        });
+        expect(skillResolver.resolve).toHaveBeenCalledTimes(2);
+        expect(skillResolver.resolve).toHaveBeenNthCalledWith(
+            1,
+            transaction,
+            expect.objectContaining({ name: 'TypeScript' }),
+        );
         expect(transaction.postSkill.createMany).toHaveBeenCalledWith({
             data: [
                 {
@@ -91,14 +63,12 @@ describe('PostSkillService', () => {
     });
 
     it('removes stale links when no skills are generated', async () => {
+        const skillResolver = { resolve: jest.fn() };
+        const service = new PostSkillService(skillResolver as any);
         const transaction: any = {
             postSkill: {
                 deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
                 createMany: jest.fn(),
-            },
-            skill: {
-                findFirst: jest.fn(),
-                upsert: jest.fn(),
             },
         };
 
@@ -108,5 +78,6 @@ describe('PostSkillService', () => {
             where: { postId: 'post-1' },
         });
         expect(transaction.postSkill.createMany).not.toHaveBeenCalled();
+        expect(skillResolver.resolve).not.toHaveBeenCalled();
     });
 });

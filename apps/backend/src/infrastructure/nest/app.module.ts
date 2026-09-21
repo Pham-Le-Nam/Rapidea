@@ -33,6 +33,7 @@ import { ChatModule } from './modules/chat.module';
 import { NotificationModule } from './modules/notification.module';
 import { AdminModule } from './modules/admin.module';
 import { ContentProcessingModule } from './modules/content-processing.module';
+import { AiChatModule } from './modules/ai-chat.module';
 
 @Module({
     imports: [
@@ -83,6 +84,7 @@ import { ContentProcessingModule } from './modules/content-processing.module';
         NotificationModule,
         AdminModule,
         ContentProcessingModule,
+        AiChatModule,
     ],
     controllers: [AppController],
     providers: [AppService],

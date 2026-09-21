@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 import { SubscribeRepository } from '../../../domain/subscribe/repositories/subscribe.repository';
+import { grantSubscriptionSkills } from '../../../infrastructure/content-processing/subscription-skills';
 
 @Injectable()
 export class PrismaSubscribeRepository implements SubscribeRepository {
@@ -90,6 +91,8 @@ export class PrismaSubscribeRepository implements SubscribeRepository {
                         currency: course.currency,
                     },
                 });
+
+                await grantSubscriptionSkills(tx, courseId, userId);
 
                 const updatedCourse = await tx.course.update({
                     where: { id: courseId },
