@@ -1,15 +1,5 @@
-import {
-    Body,
-    Controller,
-    Delete,
-    Get,
-    Param,
-    Post,
-    Request,
-    UseGuards,
-} from '@nestjs/common';
+import { Controller, Delete, Get, Param, Request, UseGuards } from '@nestjs/common';
 import { AiChatTrustedSourceService } from '../../../../infrastructure/ai/ai-chat-trusted-source.service';
-import { AddTrustedSourceDto } from '../../dto/ai-chat/add-trusted-source.dto';
 import { JwtAuthGuard } from '../../guards/auth/jwt.guard';
 
 @UseGuards(JwtAuthGuard)
@@ -18,21 +8,6 @@ export class AiChatTrustedSourceController {
     constructor(
         private readonly trustedSources: AiChatTrustedSourceService,
     ) {}
-
-    @Post()
-    async add(
-        @Request() request: any,
-        @Param('conversationId') conversationId: string,
-        @Body() input: AddTrustedSourceDto,
-    ) {
-        return {
-            trustedSource: await this.trustedSources.add(
-                request.user.userId,
-                conversationId,
-                input,
-            ),
-        };
-    }
 
     @Get()
     async list(

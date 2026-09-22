@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
-    AddAiChatTrustedSource,
+    AiChatTrustedSourceCreateData,
+    AiChatTrustedSourceInput,
     AiChatTrustedSourceType,
 } from '../../application/ai-chat/ai-chat-trusted-source.types';
 import { PrismaService } from '../database/prisma/prisma.service';
@@ -38,37 +39,24 @@ const trustedSourceSelect = {
 export class AiChatTrustedSourceService {
     constructor(private readonly prisma: PrismaService) {}
 
-    async add(
+    async validateSources(
         userId: string,
-        conversationId: string,
-        input: AddAiChatTrustedSource,
-    ) {
-        await this.assertConversationOwner(userId, conversationId);
-        await this.assertSourceAccessible(userId, input);
-
-        const sourceField = this.sourceField(input);
-        const existing = await this.prisma.aiChatTrustedSource.findFirst({
-            where: { conversationId, ...sourceField },
-            select: trustedSourceSelect,
-        });
-        if (existing) return this.toApiSource(existing);
-
-        try {
-            const created = await this.prisma.aiChatTrustedSource.create({
-                data: { conversationId, ...sourceField },
-                select: trustedSourceSelect,
-            });
-            return this.toApiSource(created);
-        } catch (error) {
-            // A concurrent request may have inserted the same source.
-            if ((error as { code?: string })?.code !== 'P2002') throw error;
-            const concurrent = await this.prisma.aiChatTrustedSource.findFirst({
-                where: { conversationId, ...sourceField },
-                select: trustedSourceSelect,
-            });
-            if (!concurrent) throw error;
-            return this.toApiSource(concurrent);
-        }
+        inputs: readonly AiChatTrustedSourceInput[],
+    ): Promise<AiChatTrustedSourceCreateData[]> {
+        const uniqueInputs = Array.from(
+            new Map(
+                inputs.map((input) => [
+                    `${input.sourceType}:${input.sourceId}`,
+                    input,
+                ]),
+            ).values(),
+        );
+        await Promise.all(
+            uniqueInputs.map((input) =>
+                this.assertSourceAccessible(userId, input),
+            ),
+        );
+        return uniqueInputs.map((input) => this.sourceField(input));
     }
 
     async list(userId: string, conversationId: string) {
@@ -116,7 +104,7 @@ export class AiChatTrustedSourceService {
 
     private async assertSourceAccessible(
         userId: string,
-        input: AddAiChatTrustedSource,
+        input: AiChatTrustedSourceInput,
     ): Promise<void> {
         let source: { id: string } | null;
         switch (input.sourceType) {
@@ -154,7 +142,9 @@ export class AiChatTrustedSourceService {
         }
     }
 
-    private sourceField(input: AddAiChatTrustedSource) {
+    private sourceField(
+        input: AiChatTrustedSourceInput,
+    ): AiChatTrustedSourceCreateData {
         switch (input.sourceType) {
             case AiChatTrustedSourceType.COURSE:
                 return { courseId: input.sourceId };

@@ -4,7 +4,12 @@ export enum AiChatTrustedSourceType {
     FILE = 'FILE',
 }
 
-export type AddAiChatTrustedSource = {
+export type AiChatTrustedSourceInput = {
     sourceType: AiChatTrustedSourceType;
     sourceId: string;
 };
+
+export type AiChatTrustedSourceCreateData =
+    | { courseId: string }
+    | { postId: string }
+    | { fileId: string };

@@ -347,6 +347,7 @@ model AiChatConversation {
 model AiChatMessage {
     id              String             @id @default(uuid())
     conversationId  String
+    clientRequestId String?            @unique
     role            AiChatMessageRole
     content         String
     model           String?
