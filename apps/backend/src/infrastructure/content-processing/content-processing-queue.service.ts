@@ -212,18 +212,8 @@ export class ContentProcessingQueueService
                 contentSourceType,
                 job.sourceId,
             );
-            if (
-                source.courseIds.length === 0 &&
-                job.sourceType !== ContentSourceType.FILE &&
-                job.sourceType !== ContentSourceType.POST
-            ) {
-                throw new Error(
-                    'Content source is not associated with a course',
-                );
-            }
 
-            const shouldCreateChunks =
-                source.courseIds.length > 0 && Boolean(source.text.trim());
+            const shouldCreateChunks = Boolean(source.text.trim());
             const [chunks, fileSummary, postProfile] = await Promise.all([
                 shouldCreateChunks
                     ? this.chunkingEmbedding.chunkAndEmbed(source.text, {
@@ -273,7 +263,9 @@ export class ContentProcessingQueueService
                         sourceId: job.sourceId,
                     },
                 });
-                const chunkData = source.courseIds.flatMap((courseId) =>
+                const chunkCourseIds: Array<string | null> =
+                    source.courseIds.length > 0 ? source.courseIds : [null];
+                const chunkData = chunkCourseIds.flatMap((courseId) =>
                     chunks.map((chunk) => ({
                         sourceType: contentSourceType,
                         sourceId: job.sourceId,

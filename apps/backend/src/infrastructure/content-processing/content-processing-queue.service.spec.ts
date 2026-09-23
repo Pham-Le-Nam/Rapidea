@@ -287,6 +287,51 @@ describe('ContentProcessingQueueService', () => {
         });
     });
 
+    it('creates course-independent chunks for standalone content', async () => {
+        const fixture = createFixture();
+        fixture.prisma.subscribe.findMany.mockResolvedValue([]);
+        fixture.prisma.file.findUnique.mockResolvedValue({
+            name: 'public.pdf',
+            mimeType: 'application/pdf',
+            folderId: 'public-folder',
+            inCourses: [],
+            inPosts: [],
+        });
+        fixture.prisma.post.findUnique.mockResolvedValue({
+            title: 'Standalone post',
+            content: 'Standalone post body',
+            courseId: null,
+            files: [],
+        });
+        fixture.prisma.discussion.findUnique.mockResolvedValue({
+            discussion: 'Standalone discussion',
+            post: { courseId: null },
+        });
+
+        await fixture.service.scanAndProcessPending();
+
+        expect(fixture.chunkingEmbedding.chunkAndEmbed).toHaveBeenCalledTimes(
+            3,
+        );
+        const createdChunks = fixture.contentChunk.createMany.mock.calls.map(
+            ([request]) => request.data[0],
+        );
+        expect(createdChunks).toEqual([
+            expect.objectContaining({
+                sourceType: ContentSourceType.FILE,
+                courseId: null,
+            }),
+            expect.objectContaining({
+                sourceType: ContentSourceType.POST,
+                courseId: null,
+            }),
+            expect.objectContaining({
+                sourceType: ContentSourceType.DISCUSSION,
+                courseId: null,
+            }),
+        ]);
+    });
+
     it('marks a source failed when the pipeline fails', async () => {
         const fixture = createFixture();
         fixture.prisma.file.findMany.mockResolvedValue([]);

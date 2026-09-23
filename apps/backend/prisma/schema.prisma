@@ -914,7 +914,7 @@ model ContentChunk {
     id              String              @id @default(uuid())
     sourceType      ContentSourceType
     sourceId        String
-    courseId        String
+    courseId        String?
     sequence        Int
     content         String
     tokenCount      Int
@@ -923,7 +923,7 @@ model ContentChunk {
     metadata        Json?
     createdAt       DateTime            @default(now())
 
-    course          Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+    course          Course?             @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
     @@unique([sourceType, sourceId, courseId, sequence])
     @@index([courseId])
