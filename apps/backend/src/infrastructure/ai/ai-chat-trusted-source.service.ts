@@ -4,8 +4,13 @@ import {
     AiChatTrustedSourceInput,
     AiChatTrustedSourceType,
 } from '../../application/ai-chat/ai-chat-trusted-source.types';
+import {
+    AiContentAccessMode,
+    AiContentResourceType,
+} from '../../application/ai-chat/ai-content-authorization.types';
 import { LearnerQueryTrustedContext } from '../../application/ai-chat/learner-query.types';
 import { PrismaService } from '../database/prisma/prisma.service';
+import { AiContentAuthorizationService } from './ai-content-authorization.service';
 
 const trustedSourceSelect = {
     id: true,
@@ -71,7 +76,10 @@ type TrustedSourceView =
 
 @Injectable()
 export class AiChatTrustedSourceService {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly authorization: AiContentAuthorizationService,
+    ) {}
 
     async validateSources(
         userId: string,
@@ -101,8 +109,8 @@ export class AiChatTrustedSourceService {
                 conversationId,
                 OR: [
                     { courseId: { not: null } },
-                    { post: { is: this.accessiblePostWhere(userId) } },
-                    { file: { is: this.accessibleFileWhere(userId) } },
+                    { post: { is: this.authorization.postWhere(userId) } },
+                    { file: { is: this.authorization.fileWhere(userId) } },
                 ],
             },
             select: trustedSourceSelect,
@@ -162,7 +170,9 @@ export class AiChatTrustedSourceService {
         });
         if (!source) throw new NotFoundException('Trusted source not found');
 
-        await this.prisma.aiChatTrustedSource.delete({ where: { id: source.id } });
+        await this.prisma.aiChatTrustedSource.delete({
+            where: { id: source.id },
+        });
         return { id: source.id };
     }
 
@@ -183,39 +193,34 @@ export class AiChatTrustedSourceService {
         userId: string,
         input: AiChatTrustedSourceInput,
     ): Promise<void> {
-        let source: { id: string } | null;
         switch (input.sourceType) {
             case AiChatTrustedSourceType.COURSE:
-                // Course metadata is public and can be selected for evaluation.
-                source = await this.prisma.course.findUnique({
-                    where: { id: input.sourceId },
-                    select: { id: true },
-                });
-                break;
+                return this.authorization.assertCanAccess(
+                    userId,
+                    {
+                        type: AiContentResourceType.COURSE,
+                        id: input.sourceId,
+                    },
+                    AiContentAccessMode.SUMMARY,
+                );
             case AiChatTrustedSourceType.POST:
-                source = await this.prisma.post.findFirst({
-                    where: {
+                return this.authorization.assertCanAccess(
+                    userId,
+                    {
+                        type: AiContentResourceType.POST,
                         id: input.sourceId,
-                        ...this.accessiblePostWhere(userId),
                     },
-                    select: { id: true },
-                });
-                break;
+                    AiContentAccessMode.DETAILS,
+                );
             case AiChatTrustedSourceType.FILE:
-                source = await this.prisma.file.findFirst({
-                    where: {
+                return this.authorization.assertCanAccess(
+                    userId,
+                    {
+                        type: AiContentResourceType.FILE,
                         id: input.sourceId,
-                        ...this.accessibleFileWhere(userId),
                     },
-                    select: { id: true },
-                });
-                break;
-        }
-
-        if (!source) {
-            throw new NotFoundException(
-                'Source not found or is not accessible to this learner',
-            );
+                    AiContentAccessMode.DETAILS,
+                );
         }
     }
 
@@ -232,47 +237,15 @@ export class AiChatTrustedSourceService {
         }
     }
 
-    private accessiblePostWhere(userId: string) {
-        return {
-            OR: [
-                { courseId: null },
-                { isPreview: true },
-                { userId },
-                { course: { is: { subscribers: { some: { userId } } } } },
-            ],
-        };
-    }
-
-    private accessibleFileWhere(userId: string) {
-        return {
-            OR: [
-                { userId },
-                {
-                    inPosts: {
-                        some: { post: this.accessiblePostWhere(userId) },
-                    },
-                },
-                {
-                    inCourses: {
-                        some: {
-                            course: {
-                                OR: [
-                                    { userId },
-                                    { subscribers: { some: { userId } } },
-                                ],
-                            },
-                        },
-                    },
-                },
-            ],
-        };
-    }
-
     private toApiSource(source: {
         id: string;
         conversationId: string;
         createdAt: Date;
-        course: { id: string; title: string; description: string | null } | null;
+        course: {
+            id: string;
+            title: string;
+            description: string | null;
+        } | null;
         post: {
             id: string;
             title: string | null;

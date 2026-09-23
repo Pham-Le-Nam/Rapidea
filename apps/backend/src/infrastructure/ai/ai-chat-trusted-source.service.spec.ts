@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { AiChatTrustedSourceType } from '../../application/ai-chat/ai-chat-trusted-source.types';
+import { AiContentAuthorizationService } from './ai-content-authorization.service';
 import { AiChatTrustedSourceService } from './ai-chat-trusted-source.service';
 
 function createPrismaMock() {
@@ -10,32 +11,42 @@ function createPrismaMock() {
             findMany: jest.fn(),
             delete: jest.fn(),
         },
-        course: { findUnique: jest.fn() },
+        course: { findFirst: jest.fn() },
         post: { findFirst: jest.fn() },
         file: { findFirst: jest.fn() },
+        discussion: { findFirst: jest.fn() },
+        subscribe: { findFirst: jest.fn() },
     };
+}
+
+function createService(prisma: ReturnType<typeof createPrismaMock>) {
+    return new AiChatTrustedSourceService(
+        prisma as any,
+        new AiContentAuthorizationService(prisma as any),
+    );
 }
 
 describe('AiChatTrustedSourceService', () => {
     it('validates and deduplicates sources before message creation', async () => {
         const prisma = createPrismaMock();
-        prisma.course.findUnique.mockResolvedValue({ id: 'course-1' });
+        prisma.course.findFirst.mockResolvedValue({ id: 'course-1' });
 
-        const result = await new AiChatTrustedSourceService(
-            prisma as any,
-        ).validateSources('learner-1', [
-            {
-                sourceType: AiChatTrustedSourceType.COURSE,
-                sourceId: 'course-1',
-            },
-            {
-                sourceType: AiChatTrustedSourceType.COURSE,
-                sourceId: 'course-1',
-            },
-        ]);
+        const result = await createService(prisma).validateSources(
+            'learner-1',
+            [
+                {
+                    sourceType: AiChatTrustedSourceType.COURSE,
+                    sourceId: 'course-1',
+                },
+                {
+                    sourceType: AiChatTrustedSourceType.COURSE,
+                    sourceId: 'course-1',
+                },
+            ],
+        );
 
         expect(result).toEqual([{ courseId: 'course-1' }]);
-        expect(prisma.course.findUnique).toHaveBeenCalledTimes(1);
+        expect(prisma.course.findFirst).toHaveBeenCalledTimes(1);
     });
 
     it('does not list sources from another learner conversation', async () => {
@@ -43,10 +54,7 @@ describe('AiChatTrustedSourceService', () => {
         prisma.aiChatConversation.findFirst.mockResolvedValue(null);
 
         await expect(
-            new AiChatTrustedSourceService(prisma as any).list(
-                'learner-1',
-                'someone-elses-chat',
-            ),
+            createService(prisma).list('learner-1', 'someone-elses-chat'),
         ).rejects.toBeInstanceOf(NotFoundException);
         expect(prisma.aiChatTrustedSource.findMany).not.toHaveBeenCalled();
     });
@@ -57,13 +65,12 @@ describe('AiChatTrustedSourceService', () => {
         prisma.post.findFirst.mockResolvedValue(null);
 
         await expect(
-            new AiChatTrustedSourceService(prisma as any).validateSources(
-                'learner-1',
-                [{
+            createService(prisma).validateSources('learner-1', [
+                {
                     sourceType: AiChatTrustedSourceType.POST,
                     sourceId: 'private-post',
-                }],
-            ),
+                },
+            ]),
         ).rejects.toBeInstanceOf(NotFoundException);
         expect(prisma.post.findFirst).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -94,14 +101,16 @@ describe('AiChatTrustedSourceService', () => {
             },
         ]);
 
-        const result = await new AiChatTrustedSourceService(
-            prisma as any,
-        ).getLearnerQueryContext('learner-1', 'chat-1', [
-            {
-                sourceType: AiChatTrustedSourceType.POST,
-                sourceId: 'post-1',
-            },
-        ]);
+        const result = await createService(prisma).getLearnerQueryContext(
+            'learner-1',
+            'chat-1',
+            [
+                {
+                    sourceType: AiChatTrustedSourceType.POST,
+                    sourceId: 'post-1',
+                },
+            ],
+        );
 
         expect(result).toEqual([
             {
