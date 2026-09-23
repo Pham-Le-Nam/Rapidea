@@ -44,10 +44,7 @@ export class AiContentAuthorizationService {
                 { userId },
                 {
                     folder: {
-                        is: {
-                            name: 'free',
-                            parentFolder: { is: { parentId: null } },
-                        },
+                        is: { isPublic: true },
                     },
                 },
                 {

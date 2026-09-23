@@ -11,8 +11,8 @@ export class FolderService {
         private readonly storage: StorageService,
     ) {}
 
-    async createFolder (userId: string, folderName: string, parentId?: string) {
-        const folder = await this.folderRepo.create(userId, folderName, parentId);
+    async createFolder (userId: string, folderName: string, parentId?: string, isPublic = false) {
+        const folder = await this.folderRepo.create(userId, folderName, parentId, isPublic);
 
         if (!folder) {
             throw new InternalServerErrorException("Couldn't create folder");

@@ -3,17 +3,48 @@ import { UsersService } from './users.service';
 
 describe('UsersService instructor access', () => {
     const usersRepo = {
+        create: jest.fn(),
         findById: jest.fn(),
         findInstructorApplicationByUserId: jest.fn(),
         createInstructorApplication: jest.fn(),
         updateCreatorPrompt: jest.fn(),
     } as any;
-    const folderService = {} as any;
+    const folderService = { createFolder: jest.fn() } as any;
     const notifications = { notifyAdminsOfInstructorApplication: jest.fn() } as any;
     const storage = { writeFile: jest.fn(), deleteFile: jest.fn() } as any;
     const service = new UsersService(usersRepo, folderService, notifications, storage);
 
     beforeEach(() => jest.resetAllMocks());
+
+    it('marks the account free folder as public during registration', async () => {
+        usersRepo.create.mockResolvedValue({
+            id: 'learner-1',
+            username: 'learner',
+        });
+        folderService.createFolder
+            .mockResolvedValueOnce({ id: 'root-folder' })
+            .mockResolvedValueOnce({ id: 'free-folder' });
+
+        await service.createUser(
+            'learner@example.com',
+            'password',
+            'First',
+            'Last',
+        );
+
+        expect(folderService.createFolder).toHaveBeenNthCalledWith(
+            1,
+            'learner-1',
+            'learner',
+        );
+        expect(folderService.createFolder).toHaveBeenNthCalledWith(
+            2,
+            'learner-1',
+            'free',
+            'root-folder',
+            true,
+        );
+    });
 
     it('rejects early reapplication before uploading a document', async () => {
         usersRepo.findById.mockResolvedValue({ id: 'learner-1', role: 'LEARNER' });

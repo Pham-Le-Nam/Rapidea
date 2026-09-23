@@ -69,10 +69,7 @@ describe('AiContentAuthorizationService', () => {
                 { userId: 'learner-1' },
                 {
                     folder: {
-                        is: {
-                            name: 'free',
-                            parentFolder: { is: { parentId: null } },
-                        },
+                        is: { isPublic: true },
                     },
                 },
             ]),

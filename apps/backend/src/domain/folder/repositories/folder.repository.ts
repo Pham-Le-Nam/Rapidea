@@ -1,5 +1,5 @@
 export interface FolderRepository {
-    create(userId: string, name: string, parentId?: string): Promise<any>;
+    create(userId: string, name: string, parentId?: string, isPublic?: boolean): Promise<any>;
     delete(id: string, userId: string): Promise<any>;
     rename(id: string, userId: string, name: string): Promise<any>;
     move(id: string, userId: string, parentId: string): Promise<any>;

@@ -821,6 +821,7 @@ model Folder {
     // url             String              @default("")
     name            String
     parentId        String?
+    isPublic        Boolean             @default(false)
 
     createdAt       DateTime            @default(now())
 
@@ -833,6 +834,7 @@ model Folder {
 
     @@unique([parentId, name])
     @@index([parentId])
+    @@index([isPublic])
     @@map("folder")
 }
 

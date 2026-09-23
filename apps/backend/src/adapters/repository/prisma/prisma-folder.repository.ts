@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../infrastructure/database/prisma/prisma.service';
 import { FolderRepository } from '../../../domain/folder/repositories/folder.repository';
 
@@ -6,7 +6,12 @@ import { FolderRepository } from '../../../domain/folder/repositories/folder.rep
 export class PrismaFolderRepository implements FolderRepository {
     constructor(private prisma: PrismaService) {}
 
-    async create(userId: string, name: string, parentId?: string): Promise<any> {
+    async create(
+        userId: string,
+        name: string,
+        parentId?: string,
+        isPublic = false,
+    ): Promise<any> {
         const user = await this.prisma.users.findUnique({
             where: {
                 id: userId,
@@ -17,11 +22,22 @@ export class PrismaFolderRepository implements FolderRepository {
             throw new InternalServerErrorException("User not found");
         }
 
+        const parent = parentId
+            ? await this.prisma.folder.findFirst({
+                where: { id: parentId, userId },
+                select: { isPublic: true },
+            })
+            : null;
+        if (parentId && !parent) {
+            throw new NotFoundException("Parent folder not found");
+        }
+
         return this.prisma.folder.create({
             data: {
                 userId,
                 parentId,
                 name,
+                isPublic: isPublic || parent?.isPublic === true,
             },
         });
     }
@@ -54,20 +70,72 @@ export class PrismaFolderRepository implements FolderRepository {
     }
 
     async move(id: string, userId: string, parentId: string): Promise<any> {
-        const folder = this.prisma.folder.update({
-            where: {
-                id,
-            },
-            data: {
-                parentId,
-            },
-        });
+        const [folder, parent, descendantIds] = await Promise.all([
+            this.prisma.folder.findFirst({
+                where: { id, userId },
+                select: { id: true },
+            }),
+            this.prisma.folder.findFirst({
+                where: { id: parentId, userId },
+                select: { id: true, isPublic: true },
+            }),
+            this.findDescendantIds(id),
+        ]);
 
-        if(!folder) {
-            throw new InternalServerErrorException("Couldn't update the folder");
+        if (!folder) {
+            throw new NotFoundException("Folder not found");
+        }
+        if (!parent) {
+            throw new NotFoundException("Parent folder not found");
+        }
+        if (id === parentId || descendantIds.includes(parentId)) {
+            throw new BadRequestException("A folder cannot be moved inside itself");
         }
 
-        return folder;
+        return this.prisma.$transaction(async (transaction) => {
+            const movedFolder = await transaction.folder.update({
+                where: { id, userId },
+                data: {
+                    parentId,
+                    isPublic: parent.isPublic,
+                },
+            });
+
+            if (descendantIds.length > 0) {
+                await transaction.folder.updateMany({
+                    where: {
+                        id: { in: descendantIds },
+                        userId,
+                    },
+                    data: { isPublic: parent.isPublic },
+                });
+            }
+
+            return movedFolder;
+        });
+    }
+
+    private async findDescendantIds(rootId: string): Promise<string[]> {
+        const descendantIds: string[] = [];
+        const visited = new Set([rootId]);
+        let parentIds = [rootId];
+
+        while (parentIds.length > 0) {
+            const children = await this.prisma.folder.findMany({
+                where: { parentId: { in: parentIds } },
+                select: { id: true },
+            });
+            parentIds = children
+                .map(({ id }) => id)
+                .filter((id) => {
+                    if (visited.has(id)) return false;
+                    visited.add(id);
+                    descendantIds.push(id);
+                    return true;
+                });
+        }
+
+        return descendantIds;
     }
 
     async getUrl(id: string): Promise<string> {
