@@ -1,9 +1,13 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { Prisma } from '../../../generated/prisma/client';
 import { AiChatMessageRole } from '../../../generated/prisma/enums';
 import { AiChatTrustedSourceInput } from '../../application/ai-chat/ai-chat-trusted-source.types';
+import { parseLearnerQuery } from '../../application/ai-chat/learner-query.parser';
+import { LearnerQuery } from '../../application/ai-chat/learner-query.types';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { AiChatTrustedSourceService } from './ai-chat-trusted-source.service';
+import { IntentClassificationService } from './intent-classification.service';
 
 type SendMessageInput = {
     clientRequestId: string;
@@ -28,11 +32,14 @@ export class AiChatConversationService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly trustedSources: AiChatTrustedSourceService,
+        private readonly intentClassification: IntentClassificationService,
     ) {}
 
     async sendMessage(userId: string, input: SendMessageInput) {
         const replay = await this.findReplay(userId, input.clientRequestId);
-        if (replay) return replay;
+        if (replay) {
+            return this.withLearnerQuery(userId, input, replay);
+        }
 
         const sourceData = await this.trustedSources.validateSources(
             userId,
@@ -110,14 +117,21 @@ export class AiChatConversationService {
                 };
             });
 
-            return this.responseWithSources(userId, result, false);
+            const response = await this.responseWithSources(
+                userId,
+                result,
+                false,
+            );
+            return this.withLearnerQuery(userId, input, response);
         } catch (error) {
             if ((error as { code?: string })?.code !== 'P2002') throw error;
             const concurrentReplay = await this.findReplay(
                 userId,
                 input.clientRequestId,
             );
-            if (concurrentReplay) return concurrentReplay;
+            if (concurrentReplay) {
+                return this.withLearnerQuery(userId, input, concurrentReplay);
+            }
             throw error;
         }
     }
@@ -271,6 +285,60 @@ export class AiChatConversationService {
             ),
             assistantMessage: null,
         };
+    }
+
+    private async withLearnerQuery<
+        T extends {
+            conversation: { id: string };
+            userMessage: {
+                id: string;
+                content: string;
+                metadata: unknown;
+            };
+        },
+    >(userId: string, input: SendMessageInput, response: T) {
+        const stored = this.storedLearnerQuery(response.userMessage.metadata);
+        if (stored) return { ...response, learnerQuery: stored };
+
+        const learnerQuery = await this.intentClassification.classify(
+            userId,
+            response.conversation.id,
+            response.userMessage.content,
+            input.trustedSourcesToAdd ?? [],
+        );
+        const existingMetadata =
+            response.userMessage.metadata &&
+            typeof response.userMessage.metadata === 'object' &&
+            !Array.isArray(response.userMessage.metadata)
+                ? response.userMessage.metadata
+                : {};
+        const metadata = {
+            ...existingMetadata,
+            learnerQuery: learnerQuery as unknown as Prisma.InputJsonObject,
+        } as Prisma.InputJsonObject;
+        await this.prisma.aiChatMessage.update({
+            where: { id: response.userMessage.id },
+            data: { metadata },
+        });
+
+        return {
+            ...response,
+            userMessage: { ...response.userMessage, metadata },
+            learnerQuery,
+        };
+    }
+
+    private storedLearnerQuery(metadata: unknown): LearnerQuery | null {
+        if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+            return null;
+        }
+        try {
+            return parseLearnerQuery(
+                (metadata as Record<string, unknown>).learnerQuery,
+            );
+        } catch {
+            return null;
+        }
     }
 
     private async assertConversationOwner(userId: string, id: string) {

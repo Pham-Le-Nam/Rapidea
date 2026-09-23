@@ -74,4 +74,44 @@ describe('AiChatTrustedSourceService', () => {
             }),
         );
     });
+
+    it('builds minimal classifier context from authorized database sources', async () => {
+        const prisma = createPrismaMock();
+        prisma.aiChatConversation.findFirst.mockResolvedValue({ id: 'chat-1' });
+        prisma.aiChatTrustedSource.findMany.mockResolvedValue([
+            {
+                id: 'trusted-1',
+                conversationId: 'chat-1',
+                createdAt: new Date('2026-09-22T00:00:00Z'),
+                course: null,
+                post: {
+                    id: 'post-1',
+                    title: 'Closures',
+                    summary: 'This must not be sent to the classifier.',
+                    courseId: 'course-1',
+                },
+                file: null,
+            },
+        ]);
+
+        const result = await new AiChatTrustedSourceService(
+            prisma as any,
+        ).getLearnerQueryContext('learner-1', 'chat-1', [
+            {
+                sourceType: AiChatTrustedSourceType.POST,
+                sourceId: 'post-1',
+            },
+        ]);
+
+        expect(result).toEqual([
+            {
+                type: 'POST',
+                id: 'post-1',
+                name: 'Closures',
+                courseScope: 'course-1',
+                current: true,
+            },
+        ]);
+        expect(JSON.stringify(result)).not.toContain('must not be sent');
+    });
 });

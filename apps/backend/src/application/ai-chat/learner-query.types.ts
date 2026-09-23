@@ -71,3 +71,11 @@ export interface LearnerQuery {
     explanationLevel: LearnerLevel | null;
     includeDiscussions: boolean;
 }
+
+export interface LearnerQueryTrustedContext {
+    type: LearnerResourceType;
+    id: string;
+    name: string | null;
+    courseScope: string | null;
+    current: boolean;
+}

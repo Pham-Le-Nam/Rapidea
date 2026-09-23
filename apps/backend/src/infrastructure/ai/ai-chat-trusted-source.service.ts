@@ -4,6 +4,7 @@ import {
     AiChatTrustedSourceInput,
     AiChatTrustedSourceType,
 } from '../../application/ai-chat/ai-chat-trusted-source.types';
+import { LearnerQueryTrustedContext } from '../../application/ai-chat/learner-query.types';
 import { PrismaService } from '../database/prisma/prisma.service';
 
 const trustedSourceSelect = {
@@ -34,6 +35,39 @@ const trustedSourceSelect = {
         },
     },
 } as const;
+
+type TrustedSourceView =
+    | {
+          id: string;
+          conversationId: string;
+          sourceType: AiChatTrustedSourceType.COURSE;
+          source: { id: string; title: string; description: string | null };
+          createdAt: Date;
+      }
+    | {
+          id: string;
+          conversationId: string;
+          sourceType: AiChatTrustedSourceType.POST;
+          source: {
+              id: string;
+              title: string | null;
+              summary: string | null;
+              courseId: string | null;
+          };
+          createdAt: Date;
+      }
+    | {
+          id: string;
+          conversationId: string;
+          sourceType: AiChatTrustedSourceType.FILE;
+          source: {
+              id: string;
+              name: string;
+              mimeType: string;
+              summary: string | null;
+          };
+          createdAt: Date;
+      };
 
 @Injectable()
 export class AiChatTrustedSourceService {
@@ -75,6 +109,49 @@ export class AiChatTrustedSourceService {
             orderBy: { createdAt: 'asc' },
         });
         return sources.map((source) => this.toApiSource(source));
+    }
+
+    async getLearnerQueryContext(
+        userId: string,
+        conversationId: string,
+        currentSources: readonly AiChatTrustedSourceInput[] = [],
+    ): Promise<LearnerQueryTrustedContext[]> {
+        const currentKeys = new Set(
+            currentSources.map(
+                (source) => `${source.sourceType}:${source.sourceId}`,
+            ),
+        );
+        const sources = await this.list(userId, conversationId);
+
+        return sources.map((source) => {
+            const key = `${source.sourceType}:${source.source.id}`;
+            switch (source.sourceType) {
+                case AiChatTrustedSourceType.COURSE:
+                    return {
+                        type: 'COURSE',
+                        id: source.source.id,
+                        name: source.source.title,
+                        courseScope: source.source.id,
+                        current: currentKeys.has(key),
+                    };
+                case AiChatTrustedSourceType.POST:
+                    return {
+                        type: 'POST',
+                        id: source.source.id,
+                        name: source.source.title,
+                        courseScope: source.source.courseId,
+                        current: currentKeys.has(key),
+                    };
+                case AiChatTrustedSourceType.FILE:
+                    return {
+                        type: 'FILE',
+                        id: source.source.id,
+                        name: source.source.name,
+                        courseScope: null,
+                        current: currentKeys.has(key),
+                    };
+            }
+        });
     }
 
     async remove(userId: string, conversationId: string, sourceId: string) {
@@ -208,7 +285,7 @@ export class AiChatTrustedSourceService {
             mimeType: string;
             summary: string | null;
         } | null;
-    }) {
+    }): TrustedSourceView {
         if (source.course) {
             return {
                 id: source.id,

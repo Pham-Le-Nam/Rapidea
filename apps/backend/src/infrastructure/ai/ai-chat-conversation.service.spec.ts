@@ -1,9 +1,24 @@
 import { AiChatMessageRole } from '../../../generated/prisma/enums';
+import { LearnerIntent, LearnerQuery } from '../../application/ai-chat/learner-query.types';
 import { AiChatConversationService } from './ai-chat-conversation.service';
 
 const createdAt = new Date('2026-09-21T00:00:00.000Z');
 
-function message(id = 'message-1') {
+const learnerQuery: LearnerQuery = {
+    intent: LearnerIntent.EXPLAIN_CONTENT,
+    targets: [],
+    courseScope: null,
+    desiredSkills: [],
+    existingSkills: [],
+    desiredOutcomes: [],
+    difficulty: null,
+    constraints: { maxDurationHours: null, language: null },
+    searchQuery: null,
+    explanationLevel: null,
+    includeDiscussions: false,
+};
+
+function message(id = 'message-1', metadata: unknown = null) {
     return {
         id,
         role: AiChatMessageRole.USER,
@@ -11,7 +26,7 @@ function message(id = 'message-1') {
         model: null,
         tokenCount: null,
         citations: null,
-        metadata: null,
+        metadata,
         createdAt,
     };
 }
@@ -41,6 +56,7 @@ function setup() {
             findUnique: jest.fn().mockResolvedValue(null),
             findFirst: jest.fn(),
             findMany: jest.fn(),
+            update: jest.fn(),
         },
         aiChatConversation: { findFirst: jest.fn(), findMany: jest.fn() },
         $transaction: jest.fn((callback) => callback(transaction)),
@@ -49,15 +65,19 @@ function setup() {
         validateSources: jest.fn().mockResolvedValue([{ postId: 'post-1' }]),
         list: jest.fn().mockResolvedValue([]),
     };
-    return { transaction, prisma, trustedSources };
+    const intentClassification = {
+        classify: jest.fn().mockResolvedValue(learnerQuery),
+    };
+    return { transaction, prisma, trustedSources, intentClassification };
 }
 
 describe('AiChatConversationService', () => {
     it('creates a conversation only when the first message is sent', async () => {
-        const { transaction, prisma, trustedSources } = setup();
+        const { transaction, prisma, trustedSources, intentClassification } = setup();
         const service = new AiChatConversationService(
             prisma as any,
             trustedSources as any,
+            intentClassification as any,
         );
 
         const result = await service.sendMessage('learner-1', {
@@ -68,6 +88,7 @@ describe('AiChatConversationService', () => {
 
         expect(result.conversationCreated).toBe(true);
         expect(result.assistantMessage).toBeNull();
+        expect(result.learnerQuery).toEqual(learnerQuery);
         expect(transaction.aiChatConversation.create).toHaveBeenCalledWith(
             expect.objectContaining({
                 data: expect.objectContaining({ userId: 'learner-1' }),
@@ -87,14 +108,15 @@ describe('AiChatConversationService', () => {
     });
 
     it('returns an idempotent replay without creating another conversation', async () => {
-        const { transaction, prisma, trustedSources } = setup();
+        const { transaction, prisma, trustedSources, intentClassification } = setup();
         prisma.aiChatMessage.findUnique.mockResolvedValue({
-            ...message(),
+            ...message('message-1', { learnerQuery }),
             conversation: { ...conversation(), userId: 'learner-1' },
         });
         const service = new AiChatConversationService(
             prisma as any,
             trustedSources as any,
+            intentClassification as any,
         );
 
         const result = await service.sendMessage('learner-1', {
@@ -105,10 +127,11 @@ describe('AiChatConversationService', () => {
         expect(result.idempotentReplay).toBe(true);
         expect(transaction.aiChatConversation.create).not.toHaveBeenCalled();
         expect(trustedSources.validateSources).not.toHaveBeenCalled();
+        expect(intentClassification.classify).not.toHaveBeenCalled();
     });
 
     it('returns the latest message page in chronological display order', async () => {
-        const { prisma, trustedSources } = setup();
+        const { prisma, trustedSources, intentClassification } = setup();
         prisma.aiChatConversation.findFirst.mockResolvedValue({ id: 'conversation-1' });
         prisma.aiChatMessage.findMany.mockResolvedValue([
             { ...message('message-3'), createdAt: new Date('2026-09-21T03:00:00Z') },
@@ -118,6 +141,7 @@ describe('AiChatConversationService', () => {
         const service = new AiChatConversationService(
             prisma as any,
             trustedSources as any,
+            intentClassification as any,
         );
 
         const result = await service.listMessages(
