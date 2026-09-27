@@ -1,4 +1,8 @@
 import { Module } from '@nestjs/common';
+import { IntentRetrievalRouterService } from '../../../application/ai-chat/intent-retrieval-router.service';
+import { CONTENT_RETRIEVAL_PORT } from '../../../application/ports/content-retrieval.port';
+import { COURSE_RETRIEVAL_PORT } from '../../../application/ports/course-retrieval.port';
+import { LEARNER_CONTEXT_PORT } from '../../../application/ports/learner-context.port';
 import { AiChatTrustedSourceController } from '../../../adapters/http/controllers/ai-chat/ai-chat-trusted-source.controller';
 import { AiChatController } from '../../../adapters/http/controllers/ai-chat/ai-chat.controller';
 import { AiChatConversationService } from '../../ai/ai-chat-conversation.service';
@@ -9,31 +13,46 @@ import { ContentRetrievalService } from '../../ai/content-retrieval.service';
 import { CourseRetrievalService } from '../../ai/course-retrieval.service';
 import { HybridContentSearchService } from '../../ai/hybrid-content-search.service';
 import { QueryEmbeddingService } from '../../ai/query-embedding.service';
+import { LearnerContextService } from '../../content-processing/learner-context.service';
 import { AiModule } from './ai.module';
 import { ContentProcessingModule } from './content-processing.module';
 
 @Module({
-    imports: [AiModule, ContentProcessingModule],
-    controllers: [AiChatController, AiChatTrustedSourceController],
-    providers: [
-        AiChatConversationService,
-        AiContentAuthorizationService,
-        AiChatTrustedSourceService,
-        ContentRetrievalService,
-        CourseRetrievalService,
-        HybridContentSearchService,
-        IntentClassificationService,
-        QueryEmbeddingService,
-    ],
-    exports: [
-        AiChatConversationService,
-        AiContentAuthorizationService,
-        AiChatTrustedSourceService,
-        ContentRetrievalService,
-        CourseRetrievalService,
-        HybridContentSearchService,
-        IntentClassificationService,
-        QueryEmbeddingService,
-    ],
+  imports: [AiModule, ContentProcessingModule],
+  controllers: [AiChatController, AiChatTrustedSourceController],
+  providers: [
+    AiChatConversationService,
+    AiContentAuthorizationService,
+    AiChatTrustedSourceService,
+    ContentRetrievalService,
+    CourseRetrievalService,
+    HybridContentSearchService,
+    IntentClassificationService,
+    QueryEmbeddingService,
+    IntentRetrievalRouterService,
+    {
+      provide: CONTENT_RETRIEVAL_PORT,
+      useExisting: ContentRetrievalService,
+    },
+    {
+      provide: COURSE_RETRIEVAL_PORT,
+      useExisting: CourseRetrievalService,
+    },
+    {
+      provide: LEARNER_CONTEXT_PORT,
+      useExisting: LearnerContextService,
+    },
+  ],
+  exports: [
+    AiChatConversationService,
+    AiContentAuthorizationService,
+    AiChatTrustedSourceService,
+    ContentRetrievalService,
+    CourseRetrievalService,
+    HybridContentSearchService,
+    IntentClassificationService,
+    QueryEmbeddingService,
+    IntentRetrievalRouterService,
+  ],
 })
 export class AiChatModule {}
