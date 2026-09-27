@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { IntentRetrievalRouterService } from '../../../application/ai-chat/intent-retrieval-router.service';
+import { RapideiaEvidenceService } from '../../../application/ai-chat/rapideia-evidence.service';
 import { CONTENT_RETRIEVAL_PORT } from '../../../application/ports/content-retrieval.port';
 import { COURSE_RETRIEVAL_PORT } from '../../../application/ports/course-retrieval.port';
 import { LEARNER_CONTEXT_PORT } from '../../../application/ports/learner-context.port';
+import { TOKEN_COUNTER_PORT } from '../../../application/ports/token-counter.port';
 import { AiChatTrustedSourceController } from '../../../adapters/http/controllers/ai-chat/ai-chat-trusted-source.controller';
 import { AiChatController } from '../../../adapters/http/controllers/ai-chat/ai-chat.controller';
 import { AiChatConversationService } from '../../ai/ai-chat-conversation.service';
@@ -13,6 +15,7 @@ import { ContentRetrievalService } from '../../ai/content-retrieval.service';
 import { CourseRetrievalService } from '../../ai/course-retrieval.service';
 import { HybridContentSearchService } from '../../ai/hybrid-content-search.service';
 import { QueryEmbeddingService } from '../../ai/query-embedding.service';
+import { TiktokenTokenCounterService } from '../../ai/tiktoken-token-counter.service';
 import { LearnerContextService } from '../../content-processing/learner-context.service';
 import { AiModule } from './ai.module';
 import { ContentProcessingModule } from './content-processing.module';
@@ -30,6 +33,8 @@ import { ContentProcessingModule } from './content-processing.module';
     IntentClassificationService,
     QueryEmbeddingService,
     IntentRetrievalRouterService,
+    RapideiaEvidenceService,
+    TiktokenTokenCounterService,
     {
       provide: CONTENT_RETRIEVAL_PORT,
       useExisting: ContentRetrievalService,
@@ -42,6 +47,10 @@ import { ContentProcessingModule } from './content-processing.module';
       provide: LEARNER_CONTEXT_PORT,
       useExisting: LearnerContextService,
     },
+    {
+      provide: TOKEN_COUNTER_PORT,
+      useExisting: TiktokenTokenCounterService,
+    },
   ],
   exports: [
     AiChatConversationService,
@@ -53,6 +62,7 @@ import { ContentProcessingModule } from './content-processing.module';
     IntentClassificationService,
     QueryEmbeddingService,
     IntentRetrievalRouterService,
+    RapideiaEvidenceService,
   ],
 })
 export class AiChatModule {}
