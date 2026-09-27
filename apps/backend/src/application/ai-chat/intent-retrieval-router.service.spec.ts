@@ -54,11 +54,24 @@ function createFixture() {
   const learnerContext = {
     getForUser: jest.fn().mockResolvedValue({ skills: [] }),
   };
+  const learningPaths = {
+    enrich: jest.fn().mockResolvedValue({
+      plan: null,
+      supplementalCourses: [],
+      warnings: [],
+    }),
+  };
   return {
     courses,
     content,
     learnerContext,
-    service: new IntentRetrievalRouterService(courses, content, learnerContext),
+    learningPaths,
+    service: new IntentRetrievalRouterService(
+      courses,
+      content,
+      learnerContext,
+      learningPaths as any,
+    ),
   };
 }
 
@@ -216,5 +229,54 @@ describe('IntentRetrievalRouterService', () => {
     );
 
     expect(result.warnings).toHaveLength(2);
+  });
+
+  it('adds a learning-path plan and supplemental course evidence after gap searches', async () => {
+    const fixture = createFixture();
+    const initialCourse = { id: 'course-1', title: 'Initial Course' };
+    const supplementalCourse = {
+      id: 'course-2',
+      title: 'Prerequisite Course',
+    };
+    const plan = {
+      steps: [
+        {
+          sequence: 1,
+          title: 'Prerequisite',
+          objective: 'Learn the prerequisite',
+          requiredSkills: ['Foundations'],
+          rationale: 'Required before the target topic.',
+          necessity: 'REQUIRED',
+          coverage: 'SUPPLEMENTAL_CANDIDATES',
+          courseTitles: ['Prerequisite Course'],
+          searchQuery: 'foundations',
+          supplementalSearchPerformed: true,
+        },
+      ],
+    };
+    fixture.courses.searchSummaries.mockResolvedValue([initialCourse]);
+    fixture.learningPaths.enrich.mockResolvedValue({
+      plan,
+      supplementalCourses: [supplementalCourse],
+      warnings: ['gap search warning'],
+    });
+
+    const result = await fixture.service.retrieve(
+      'learner-1',
+      query(LearnerIntent.CREATE_LEARNING_PATH),
+    );
+
+    expect(fixture.learningPaths.enrich).toHaveBeenCalledWith(
+      expect.objectContaining({ intent: LearnerIntent.CREATE_LEARNING_PATH }),
+      { skills: [] },
+      [initialCourse],
+    );
+    expect(result.learningPathPlan).toBe(plan);
+    expect(
+      result.evidence.filter(
+        (item) => item.kind === IntentEvidenceKind.COURSE_SEARCH_RESULTS,
+      ),
+    ).toHaveLength(2);
+    expect(result.warnings).toContain('gap search warning');
   });
 });

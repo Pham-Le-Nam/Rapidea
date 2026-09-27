@@ -1,4 +1,5 @@
 import { LearnerIntent, LearnerQuery } from './learner-query.types';
+import { LearningPathPlan } from './learning-path-plan.types';
 
 export enum IntentEvidenceKind {
   LEARNER_CONTEXT = 'LEARNER_CONTEXT',
@@ -29,4 +30,5 @@ export type IntentRetrievalResult = {
   query: LearnerQuery;
   evidence: IntentRetrievalEvidence[];
   warnings: string[];
+  learningPathPlan?: LearningPathPlan;
 };

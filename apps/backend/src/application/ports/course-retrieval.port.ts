@@ -1,9 +1,12 @@
-import { CourseSearchInput } from '../ai-chat/retrieval-primitives.types';
+import {
+  CourseSearchInput,
+  CourseSearchResult,
+} from '../ai-chat/retrieval-primitives.types';
 
 export const COURSE_RETRIEVAL_PORT = 'COURSE_RETRIEVAL_PORT';
 
 export interface CourseRetrievalPort {
-  searchSummaries(input: CourseSearchInput): Promise<readonly unknown[]>;
+  searchSummaries(input: CourseSearchInput): Promise<CourseSearchResult[]>;
   getSummary(userId: string, courseId: string): Promise<unknown>;
   getSummaries(
     userId: string,

@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { IntentRetrievalRouterService } from '../../../application/ai-chat/intent-retrieval-router.service';
+import { FinalAnswerGenerationService } from '../../../application/ai-chat/final-answer-generation.service';
 import { ConversationMemoryService } from '../../../application/ai-chat/conversation-memory.service';
+import { LearningPathRetrievalService } from '../../../application/ai-chat/learning-path-retrieval.service';
 import { RapideiaEvidenceService } from '../../../application/ai-chat/rapideia-evidence.service';
 import { CONTENT_RETRIEVAL_PORT } from '../../../application/ports/content-retrieval.port';
 import { COURSE_RETRIEVAL_PORT } from '../../../application/ports/course-retrieval.port';
@@ -38,7 +40,9 @@ import { ContentProcessingModule } from './content-processing.module';
     IntentClassificationService,
     QueryEmbeddingService,
     IntentRetrievalRouterService,
+    FinalAnswerGenerationService,
     ConversationMemoryService,
+    LearningPathRetrievalService,
     RapideiaEvidenceService,
     TiktokenTokenCounterService,
     PrismaConversationMemoryRepository,
@@ -77,7 +81,9 @@ import { ContentProcessingModule } from './content-processing.module';
     IntentClassificationService,
     QueryEmbeddingService,
     IntentRetrievalRouterService,
+    FinalAnswerGenerationService,
     ConversationMemoryService,
+    LearningPathRetrievalService,
     RapideiaEvidenceService,
   ],
 })

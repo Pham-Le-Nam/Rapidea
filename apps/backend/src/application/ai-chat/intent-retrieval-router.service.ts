@@ -23,6 +23,8 @@ import {
   LearnerQuery,
   LearnerQueryTarget,
 } from './learner-query.types';
+import { LearningPathRetrievalService } from './learning-path-retrieval.service';
+import { CourseSearchResult } from './retrieval-primitives.types';
 
 const PERSONALIZED_INTENTS = new Set<LearnerIntent>([
   LearnerIntent.FIND_COURSE,
@@ -41,6 +43,7 @@ export class IntentRetrievalRouterService {
     private readonly content: ContentRetrievalPort,
     @Inject(LEARNER_CONTEXT_PORT)
     private readonly learnerContext: LearnerContextPort,
+    private readonly learningPaths: LearningPathRetrievalService,
   ) {}
 
   async retrieve(
@@ -54,20 +57,39 @@ export class IntentRetrievalRouterService {
       warnings: this.constraintWarnings(query),
     };
 
+    let learnerContextData: unknown = null;
     if (PERSONALIZED_INTENTS.has(query.intent)) {
+      learnerContextData = await this.learnerContext.getForUser(userId);
       this.addEvidence(
         result,
         IntentEvidenceKind.LEARNER_CONTEXT,
-        await this.learnerContext.getForUser(userId),
+        learnerContextData,
       );
     }
 
     switch (query.intent) {
       case LearnerIntent.FIND_COURSE:
-      case LearnerIntent.CREATE_LEARNING_PATH:
       case LearnerIntent.NEXT_LEARNING_STEP:
         await this.retrieveCourseSearch(query, result);
         break;
+      case LearnerIntent.CREATE_LEARNING_PATH: {
+        const initialCourses = await this.retrieveCourseSearch(query, result);
+        const enrichment = await this.learningPaths.enrich(
+          query,
+          learnerContextData,
+          initialCourses,
+        );
+        if (enrichment.plan) result.learningPathPlan = enrichment.plan;
+        if (enrichment.supplementalCourses.length > 0) {
+          this.addEvidence(
+            result,
+            IntentEvidenceKind.COURSE_SEARCH_RESULTS,
+            enrichment.supplementalCourses,
+          );
+        }
+        result.warnings.push(...enrichment.warnings);
+        break;
+      }
       case LearnerIntent.COMPARE_COURSES:
       case LearnerIntent.CHECK_PREREQUISITES:
         await this.retrieveSpecifiedCourseSummaries(userId, query, result);
@@ -112,7 +134,7 @@ export class IntentRetrievalRouterService {
   private async retrieveCourseSearch(
     query: LearnerQuery,
     result: IntentRetrievalResult,
-  ): Promise<void> {
+  ): Promise<CourseSearchResult[]> {
     const courses = await this.courses.searchSummaries({
       query: this.searchText(query),
       desiredSkills: query.desiredSkills,
@@ -121,6 +143,7 @@ export class IntentRetrievalRouterService {
       difficultyMode: query.difficulty?.mode,
     });
     this.addEvidence(result, IntentEvidenceKind.COURSE_SEARCH_RESULTS, courses);
+    return courses;
   }
 
   private async retrieveSpecifiedCourseSummaries(

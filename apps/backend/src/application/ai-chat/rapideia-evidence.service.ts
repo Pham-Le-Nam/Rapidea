@@ -141,6 +141,9 @@ export class RapideiaEvidenceService {
         explanationLevel: retrieval.query.explanationLevel,
         includeDiscussions: retrieval.query.includeDiscussions,
       },
+      ...(retrieval.learningPathPlan
+        ? { learningPathPlan: retrieval.learningPathPlan }
+        : {}),
       items: [],
       warnings: [...retrieval.warnings],
       truncation: { truncated: false, omittedItems: 0 },

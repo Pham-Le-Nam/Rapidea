@@ -1,6 +1,10 @@
 import { IntentEvidenceKind } from './intent-retrieval.types';
 import { LearnerIntent, LearnerQuery } from './learner-query.types';
 import {
+  LearningPathStepCoverage,
+  LearningPathStepNecessity,
+} from './learning-path-plan.types';
+import {
   EvidenceAuthority,
   RapideiaEvidencePackage,
 } from './rapideia-evidence.types';
@@ -211,5 +215,36 @@ describe('RapideiaEvidenceService', () => {
     expect(service.toPromptBlock(evidence)).toBe(
       `<RAPIDEIA_EVIDENCE>\n${JSON.stringify(evidence)}\n</RAPIDEIA_EVIDENCE>`,
     );
+  });
+
+  it('includes derived learning-path coverage without turning it into a citation', () => {
+    const service = createService();
+    const learningPathPlan = {
+      steps: [
+        {
+          sequence: 1,
+          title: 'Mathematics foundations',
+          objective: 'Learn prerequisite mathematics',
+          requiredSkills: ['Linear Algebra'],
+          rationale: 'Required by later machine-learning work.',
+          necessity: LearningPathStepNecessity.REQUIRED,
+          coverage: LearningPathStepCoverage.UNCOVERED,
+          courseTitles: [],
+          searchQuery: 'linear algebra for machine learning',
+          supplementalSearchPerformed: true,
+        },
+      ],
+    };
+
+    const result = service.build({
+      intent: LearnerIntent.CREATE_LEARNING_PATH,
+      query: { ...baseQuery, intent: LearnerIntent.CREATE_LEARNING_PATH },
+      warnings: [],
+      evidence: [],
+      learningPathPlan,
+    });
+
+    expect(result.evidence.learningPathPlan).toEqual(learningPathPlan);
+    expect(result.citationMap).toEqual([]);
   });
 });

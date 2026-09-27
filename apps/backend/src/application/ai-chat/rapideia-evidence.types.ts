@@ -5,6 +5,7 @@ import {
   LearnerIntent,
   LearnerLevel,
 } from './learner-query.types';
+import { LearningPathPlan } from './learning-path-plan.types';
 
 export enum EvidenceAuthority {
   COURSE_OFFICIAL = 'COURSE_OFFICIAL',
@@ -44,6 +45,7 @@ export type RapideiaEvidencePackage = {
     explanationLevel: LearnerLevel | null;
     includeDiscussions: boolean;
   };
+  learningPathPlan?: LearningPathPlan;
   items: RapideiaEvidenceItem[];
   warnings: string[];
   truncation: {
