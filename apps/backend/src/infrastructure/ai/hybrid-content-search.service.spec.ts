@@ -2,6 +2,7 @@ import { InternalServerErrorException } from '@nestjs/common';
 import { ContentSourceType } from '../../../generated/prisma/enums';
 import { AiContentAccessMode } from '../../application/ai-chat/ai-content-authorization.types';
 import { HybridContentSearchService } from './hybrid-content-search.service';
+import { QueryEmbeddingService } from './query-embedding.service';
 
 function chunk(
     id: string,
@@ -34,13 +35,14 @@ function createFixture() {
     const authorization = {
         canAccess: jest.fn().mockResolvedValue(true),
     };
+    const queryEmbedding = new QueryEmbeddingService(aiService as any);
     return {
         prisma,
         aiService,
         authorization,
         service: new HybridContentSearchService(
             prisma as any,
-            aiService as any,
+            queryEmbedding,
             authorization as any,
         ),
     };

@@ -1,6 +1,7 @@
-import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { ContentSourceType } from '../../../generated/prisma/enums';
+import { reciprocalRankFuse } from '../../application/ai-chat/reciprocal-rank-fusion';
 import {
     AiContentAccessMode,
     AiContentResourceType,
@@ -9,13 +10,8 @@ import {
     HybridContentSearchInput,
     HybridContentSearchResult,
 } from '../../application/ai-chat/hybrid-content-search.types';
-import { AI_SERVICE, AiService } from '../../application/ports/ai.service';
-import {
-    AiModelEnvironmentVariable,
-    requiredAiModel,
-    requiredEmbeddingDimensions,
-} from './ai-model-config';
 import { AiContentAuthorizationService } from './ai-content-authorization.service';
+import { QueryEmbeddingService } from './query-embedding.service';
 import { PrismaService } from '../database/prisma/prisma.service';
 
 type RankedChunk = {
@@ -39,13 +35,11 @@ const DEFAULT_RESULT_LIMIT = 8;
 const MAX_RESULT_LIMIT = 50;
 const CANDIDATE_MULTIPLIER = 4;
 const MAX_CANDIDATE_LIMIT = 200;
-const RRF_RANK_CONSTANT = 60;
-
 @Injectable()
 export class HybridContentSearchService {
     constructor(
         private readonly prisma: PrismaService,
-        @Inject(AI_SERVICE) private readonly aiService: AiService,
+        private readonly queryEmbedding: QueryEmbeddingService,
         private readonly authorization: AiContentAuthorizationService,
     ) {}
 
@@ -61,16 +55,13 @@ export class HybridContentSearchService {
             limit * CANDIDATE_MULTIPLIER,
             MAX_CANDIDATE_LIMIT,
         );
-        const embeddingModel = requiredAiModel(
-            AiModelEnvironmentVariable.TEXT_EMBEDDING,
-        );
-        const queryEmbedding = await this.queryEmbedding(query);
+        const { embedding, model } = await this.queryEmbedding.create(query);
         const scope = this.scopeSql(input);
 
         const [semantic, keyword] = await Promise.all([
             this.semanticCandidates(
-                queryEmbedding,
-                embeddingModel,
+                embedding,
+                model,
                 scope,
                 candidateLimit,
             ),
@@ -87,22 +78,6 @@ export class HybridContentSearchService {
             const { semanticRank: _semanticRank, keywordRank: _keywordRank, ...safe } = result;
             return safe;
         });
-    }
-
-    private async queryEmbedding(query: string): Promise<number[]> {
-        const dimensions = requiredEmbeddingDimensions();
-        const embeddings = await this.aiService.createEmbeddings([query]);
-        const embedding = embeddings?.[0];
-        if (
-            !embedding ||
-            embedding.length !== dimensions ||
-            embedding.some((value) => !Number.isFinite(value))
-        ) {
-            throw new InternalServerErrorException(
-                'Embedding model returned an invalid search vector',
-            );
-        }
-        return embedding;
     }
 
     private semanticCandidates(
@@ -167,23 +142,19 @@ export class HybridContentSearchService {
         semantic: readonly RankedChunk[],
         keyword: readonly RankedChunk[],
     ): FusedChunk[] {
-        const fused = new Map<string, FusedChunk>();
-        this.addRankedCandidates(fused, semantic, 'semantic');
-        this.addRankedCandidates(fused, keyword, 'keyword');
-        return [...fused.values()].sort(
-            (left, right) => right.combinedScore - left.combinedScore,
-        );
-    }
-
-    private addRankedCandidates(
-        fused: Map<string, FusedChunk>,
-        candidates: readonly RankedChunk[],
-        kind: 'semantic' | 'keyword',
-    ): void {
-        candidates.forEach((candidate, index) => {
-            const rank = index + 1;
-            const key = this.logicalChunkKey(candidate);
-            const existing = fused.get(key) ?? {
+        return reciprocalRankFuse(
+            semantic,
+            keyword,
+            (candidate) => this.logicalChunkKey(candidate),
+        ).map(
+            ({
+                item: candidate,
+                semanticScore,
+                keywordScore,
+                semanticRank,
+                keywordRank,
+                combinedScore,
+            }) => ({
                 chunkId: candidate.id,
                 sourceType: candidate.sourceType,
                 sourceId: candidate.sourceId,
@@ -192,25 +163,13 @@ export class HybridContentSearchService {
                 content: candidate.content,
                 tokenCount: candidate.tokenCount,
                 metadata: candidate.metadata,
-                semanticScore: null,
-                keywordScore: null,
-                semanticRank: null,
-                keywordRank: null,
-                combinedScore: 0,
-            };
-
-            if (kind === 'semantic') {
-                existing.semanticScore = Number(candidate.score);
-                existing.semanticRank = rank;
-            } else {
-                existing.keywordScore = Number(candidate.score);
-                existing.keywordRank = rank;
-            }
-            existing.combinedScore =
-                this.reciprocalRank(existing.semanticRank) +
-                this.reciprocalRank(existing.keywordRank);
-            fused.set(key, existing);
-        });
+                semanticScore,
+                keywordScore,
+                semanticRank,
+                keywordRank,
+                combinedScore,
+            }),
+        );
     }
 
     private async authorizedResults(
@@ -302,10 +261,6 @@ export class HybridContentSearchService {
 
     private logicalChunkKey(chunk: RankedChunk): string {
         return `${chunk.sourceType}:${chunk.sourceId}:${chunk.sequence}`;
-    }
-
-    private reciprocalRank(rank: number | null): number {
-        return rank === null ? 0 : 1 / (RRF_RANK_CONSTANT + rank);
     }
 
     private resultLimit(value?: number): number {

@@ -5,25 +5,35 @@ import { AiChatConversationService } from '../../ai/ai-chat-conversation.service
 import { AiContentAuthorizationService } from '../../ai/ai-content-authorization.service';
 import { IntentClassificationService } from '../../ai/intent-classification.service';
 import { AiChatTrustedSourceService } from '../../ai/ai-chat-trusted-source.service';
+import { ContentRetrievalService } from '../../ai/content-retrieval.service';
+import { CourseRetrievalService } from '../../ai/course-retrieval.service';
 import { HybridContentSearchService } from '../../ai/hybrid-content-search.service';
+import { QueryEmbeddingService } from '../../ai/query-embedding.service';
 import { AiModule } from './ai.module';
+import { ContentProcessingModule } from './content-processing.module';
 
 @Module({
-    imports: [AiModule],
+    imports: [AiModule, ContentProcessingModule],
     controllers: [AiChatController, AiChatTrustedSourceController],
     providers: [
         AiChatConversationService,
         AiContentAuthorizationService,
         AiChatTrustedSourceService,
+        ContentRetrievalService,
+        CourseRetrievalService,
         HybridContentSearchService,
         IntentClassificationService,
+        QueryEmbeddingService,
     ],
     exports: [
         AiChatConversationService,
         AiContentAuthorizationService,
         AiChatTrustedSourceService,
+        ContentRetrievalService,
+        CourseRetrievalService,
         HybridContentSearchService,
         IntentClassificationService,
+        QueryEmbeddingService,
     ],
 })
 export class AiChatModule {}
