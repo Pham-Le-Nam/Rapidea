@@ -345,16 +345,17 @@ model AiChatConversation {
 }
 
 model AiChatMessage {
-  id              String            @id @default(uuid())
-  conversationId  String
-  clientRequestId String?           @unique
-  role            AiChatMessageRole
-  content         String
-  model           String?
-  tokenCount      Int?
-  citations       Json?
-  metadata        Json?
-  createdAt       DateTime          @default(now())
+  id                  String            @id @default(uuid())
+  conversationId      String
+  clientRequestId     String?           @unique
+  responseToMessageId String?           @unique
+  role                AiChatMessageRole
+  content             String
+  model               String?
+  tokenCount          Int?
+  citations           Json?
+  metadata            Json?
+  createdAt           DateTime          @default(now())
 
   conversation AiChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 

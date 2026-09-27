@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AiChatOrchestrationService } from '../../../application/ai-chat/ai-chat-orchestration.service';
 import { IntentRetrievalRouterService } from '../../../application/ai-chat/intent-retrieval-router.service';
 import { FinalAnswerGenerationService } from '../../../application/ai-chat/final-answer-generation.service';
 import { ConversationMemoryService } from '../../../application/ai-chat/conversation-memory.service';
@@ -32,6 +33,7 @@ import { ContentProcessingModule } from './content-processing.module';
   controllers: [AiChatController, AiChatTrustedSourceController],
   providers: [
     AiChatConversationService,
+    AiChatOrchestrationService,
     AiContentAuthorizationService,
     AiChatTrustedSourceService,
     ContentRetrievalService,
@@ -73,6 +75,7 @@ import { ContentProcessingModule } from './content-processing.module';
   ],
   exports: [
     AiChatConversationService,
+    AiChatOrchestrationService,
     AiContentAuthorizationService,
     AiChatTrustedSourceService,
     ContentRetrievalService,
