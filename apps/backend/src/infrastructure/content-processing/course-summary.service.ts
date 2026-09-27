@@ -4,6 +4,7 @@ import { Difficulty } from '../../../generated/prisma/enums';
 import {
     AiModelEnvironmentVariable,
     requiredAiModel,
+    requiredEmbeddingDimensions,
 } from '../ai/ai-model-config';
 import { OpenAiClientService } from '../ai/openai-client.service';
 import {
@@ -82,13 +83,14 @@ export class CourseSummaryService {
         const embeddingModel = requiredAiModel(
             AiModelEnvironmentVariable.TEXT_EMBEDDING,
         );
+        const embeddingDimensions = requiredEmbeddingDimensions();
         const embeddings = await this.openAiClient.createEmbeddings([
             profile.profileText,
         ]);
         const embedding = embeddings?.[0];
         if (
             !embedding ||
-            embedding.length === 0 ||
+            embedding.length !== embeddingDimensions ||
             embedding.some((value) => !Number.isFinite(value))
         ) {
             throw new InternalServerErrorException(

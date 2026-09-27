@@ -97,6 +97,7 @@ describe('ContentProcessingQueueService', () => {
                 deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
                 createMany: jest.fn().mockResolvedValue({ count: 1 }),
             },
+            $executeRaw: jest.fn().mockResolvedValue(1),
         };
         prisma.$transaction = jest.fn(async (callback) => callback(prisma));
 
@@ -278,6 +279,7 @@ describe('ContentProcessingQueueService', () => {
             ContentSourceType.DISCUSSION,
             ContentSourceType.REVIEW,
         ]);
+        expect(fixture.prisma.$executeRaw).toHaveBeenCalledTimes(4);
         expect(fixture.prisma.subscribe.findMany).toHaveBeenCalledWith({
             where: {
                 aiStatus: 'PENDING',

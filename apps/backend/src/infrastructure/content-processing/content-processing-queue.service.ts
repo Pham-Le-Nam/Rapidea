@@ -5,6 +5,7 @@ import {
     OnApplicationBootstrap,
     OnModuleDestroy,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import path from 'path';
 import { Readable } from 'stream';
 import {
@@ -267,6 +268,7 @@ export class ContentProcessingQueueService
                     source.courseIds.length > 0 ? source.courseIds : [null];
                 const chunkData = chunkCourseIds.flatMap((courseId) =>
                     chunks.map((chunk) => ({
+                        id: randomUUID(),
                         sourceType: contentSourceType,
                         sourceId: job.sourceId,
                         courseId,
@@ -280,8 +282,18 @@ export class ContentProcessingQueueService
                 );
                 if (chunkData.length > 0) {
                     await transaction.contentChunk.createMany({
-                        data: chunkData,
+                        data: chunkData.map(({ embedding: _embedding, ...chunk }) => chunk),
                     });
+                    await Promise.all(
+                        chunkData.map((chunk) => {
+                            const vector = `[${chunk.embedding.join(',')}]`;
+                            return transaction.$executeRaw`
+                                UPDATE "content_chunk"
+                                SET "embedding" = ${vector}::vector
+                                WHERE "id" = ${chunk.id}
+                            `;
+                        }),
+                    );
                 }
 
                 if (postProfile) {

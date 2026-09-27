@@ -478,7 +478,7 @@ model CourseAIProfile {
     summary         String
     difficulty      Difficulty
     profileText     String
-    embedding       Unsupported("vector")?
+    embedding       Unsupported("vector(1536)")?
     embeddingModel  String?
     profileVersion  Int         @default(1)
     generatedAt     DateTime    @default(now())
@@ -918,7 +918,7 @@ model ContentChunk {
     sequence        Int
     content         String
     tokenCount      Int
-    embedding       Json?
+    embedding       Unsupported("vector(1536)")?
     embeddingModel  String?
     metadata        Json?
     createdAt       DateTime            @default(now())

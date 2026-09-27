@@ -5,6 +5,7 @@ import { AiChatConversationService } from '../../ai/ai-chat-conversation.service
 import { AiContentAuthorizationService } from '../../ai/ai-content-authorization.service';
 import { IntentClassificationService } from '../../ai/intent-classification.service';
 import { AiChatTrustedSourceService } from '../../ai/ai-chat-trusted-source.service';
+import { HybridContentSearchService } from '../../ai/hybrid-content-search.service';
 import { AiModule } from './ai.module';
 
 @Module({
@@ -14,12 +15,14 @@ import { AiModule } from './ai.module';
         AiChatConversationService,
         AiContentAuthorizationService,
         AiChatTrustedSourceService,
+        HybridContentSearchService,
         IntentClassificationService,
     ],
     exports: [
         AiChatConversationService,
         AiContentAuthorizationService,
         AiChatTrustedSourceService,
+        HybridContentSearchService,
         IntentClassificationService,
     ],
 })

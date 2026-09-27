@@ -3,6 +3,7 @@ import { ChunkingEmbeddingService } from './chunking-embedding.service';
 
 describe('ChunkingEmbeddingService', () => {
     const originalEmbeddingModel = process.env.TEXT_EMBEDDING_MODEL;
+    const originalEmbeddingDimensions = process.env.TEXT_EMBEDDING_DIMENSIONS;
     const aiService = {
         createEmbeddings: jest.fn(),
     } as unknown as AiService;
@@ -11,6 +12,7 @@ describe('ChunkingEmbeddingService', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         process.env.TEXT_EMBEDDING_MODEL = 'test-embedding-model';
+        process.env.TEXT_EMBEDDING_DIMENSIONS = '1536';
     });
 
     afterAll(() => {
@@ -18,6 +20,11 @@ describe('ChunkingEmbeddingService', () => {
             delete process.env.TEXT_EMBEDDING_MODEL;
         } else {
             process.env.TEXT_EMBEDDING_MODEL = originalEmbeddingModel;
+        }
+        if (originalEmbeddingDimensions === undefined) {
+            delete process.env.TEXT_EMBEDDING_DIMENSIONS;
+        } else {
+            process.env.TEXT_EMBEDDING_DIMENSIONS = originalEmbeddingDimensions;
         }
     });
 
@@ -40,7 +47,9 @@ describe('ChunkingEmbeddingService', () => {
 
     it('embeds chunks in batches and records the model', async () => {
         jest.mocked(aiService.createEmbeddings)
-            .mockImplementation(async (input) => input.map((_, index) => [index, 1]));
+            .mockImplementation(async (input) =>
+                input.map((_, index) => [index, ...Array(1535).fill(1)]),
+            );
 
         const chunks = await service.chunkAndEmbed(
             'One two three four five six seven eight nine ten eleven twelve.',
@@ -52,7 +61,7 @@ describe('ChunkingEmbeddingService', () => {
             Math.ceil(chunks.length / 2),
         );
         expect(chunks.every((chunk) => chunk.embeddingModel === 'test-embedding-model')).toBe(true);
-        expect(chunks.every((chunk) => chunk.embedding.length === 2)).toBe(true);
+        expect(chunks.every((chunk) => chunk.embedding.length === 1536)).toBe(true);
     });
 
     it('returns no chunks or embedding calls for blank text', async () => {
@@ -71,5 +80,13 @@ describe('ChunkingEmbeddingService', () => {
         await expect(service.chunkAndEmbed('content')).rejects
             .toThrow('TEXT_EMBEDDING_MODEL is not configured');
         expect(aiService.createEmbeddings).not.toHaveBeenCalled();
+    });
+
+    it('rejects embeddings with the wrong configured dimensions', async () => {
+        jest.mocked(aiService.createEmbeddings).mockResolvedValue([[0.1]]);
+
+        await expect(service.chunkAndEmbed('content')).rejects.toThrow(
+            'returned an invalid vector',
+        );
     });
 });

@@ -4,6 +4,7 @@ import { AI_SERVICE, AiService } from '../../application/ports/ai.service';
 import {
     AiModelEnvironmentVariable,
     requiredAiModel,
+    requiredEmbeddingDimensions,
 } from '../ai/ai-model-config';
 
 export type ChunkingOptions = {
@@ -98,6 +99,7 @@ export class ChunkingEmbeddingService {
         const embeddingModel = requiredAiModel(
             AiModelEnvironmentVariable.TEXT_EMBEDDING,
         );
+        const embeddingDimensions = requiredEmbeddingDimensions();
         const result: EmbeddedTextChunk[] = [];
 
         for (let start = 0; start < chunks.length; start += batchSize) {
@@ -114,7 +116,11 @@ export class ChunkingEmbeddingService {
 
             batch.forEach((chunk, index) => {
                 const embedding = embeddings[index];
-                if (!Array.isArray(embedding) || embedding.some((value) => !Number.isFinite(value))) {
+                if (
+                    !Array.isArray(embedding) ||
+                    embedding.length !== embeddingDimensions ||
+                    embedding.some((value) => !Number.isFinite(value))
+                ) {
                     throw new InternalServerErrorException(
                         `Embedding model ${embeddingModel} returned an invalid vector`,
                     );

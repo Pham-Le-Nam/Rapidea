@@ -1,6 +1,10 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { AiMediaFile } from '../../application/ports/ai.service';
-import { AiModelEnvironmentVariable, requiredAiModel } from './ai-model-config';
+import {
+    AiModelEnvironmentVariable,
+    requiredAiModel,
+    requiredEmbeddingDimensions,
+} from './ai-model-config';
 
 type OpenAiResponse = {
     output_text?: string;
@@ -65,6 +69,7 @@ export class OpenAiClientService {
         const model = requiredAiModel(
             AiModelEnvironmentVariable.TEXT_EMBEDDING,
         );
+        const dimensions = requiredEmbeddingDimensions();
         const apiKey = process.env.OPENAI_API_KEY;
         if (!apiKey) return null;
 
@@ -77,7 +82,7 @@ export class OpenAiClientService {
                         Authorization: `Bearer ${apiKey}`,
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ model, input }),
+                    body: JSON.stringify({ model, input, dimensions }),
                 },
             );
             if (!response.ok) return null;
@@ -85,7 +90,19 @@ export class OpenAiClientService {
             const data = (await response.json()) as {
                 data?: { embedding: number[] }[];
             };
-            return data.data?.map((item) => item.embedding) ?? null;
+            const embeddings = data.data?.map((item) => item.embedding);
+            if (
+                !embeddings ||
+                embeddings.length !== input.length ||
+                embeddings.some(
+                    (embedding) =>
+                        embedding.length !== dimensions ||
+                        embedding.some((value) => !Number.isFinite(value)),
+                )
+            ) {
+                return null;
+            }
+            return embeddings;
         } catch {
             return null;
         }

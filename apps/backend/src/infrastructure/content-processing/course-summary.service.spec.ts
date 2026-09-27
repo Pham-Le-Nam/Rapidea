@@ -3,9 +3,12 @@ import { CourseSummaryService } from './course-summary.service';
 
 describe('CourseSummaryService', () => {
     const previousEmbeddingModel = process.env.TEXT_EMBEDDING_MODEL;
+    const previousEmbeddingDimensions = process.env.TEXT_EMBEDDING_DIMENSIONS;
+    const embedding = Array(1536).fill(0.1);
 
     beforeEach(() => {
         process.env.TEXT_EMBEDDING_MODEL = 'test-embedding-model';
+        process.env.TEXT_EMBEDDING_DIMENSIONS = '1536';
     });
 
     afterAll(() => {
@@ -13,6 +16,11 @@ describe('CourseSummaryService', () => {
             delete process.env.TEXT_EMBEDDING_MODEL;
         } else {
             process.env.TEXT_EMBEDDING_MODEL = previousEmbeddingModel;
+        }
+        if (previousEmbeddingDimensions === undefined) {
+            delete process.env.TEXT_EMBEDDING_DIMENSIONS;
+        } else {
+            process.env.TEXT_EMBEDDING_DIMENSIONS = previousEmbeddingDimensions;
         }
     });
 
@@ -58,7 +66,7 @@ describe('CourseSummaryService', () => {
                     ],
                 }),
             ),
-            createEmbeddings: jest.fn().mockResolvedValue([[0.1, 0.2]]),
+            createEmbeddings: jest.fn().mockResolvedValue([embedding]),
         };
         const service = new CourseSummaryService(openAiClient as any);
 
@@ -77,7 +85,7 @@ describe('CourseSummaryService', () => {
                     importance: 0.95,
                 },
             ],
-            embedding: [0.1, 0.2],
+            embedding,
             embeddingModel: 'test-embedding-model',
             sourceHash: expect.stringMatching(/^[a-f0-9]{64}$/),
         });

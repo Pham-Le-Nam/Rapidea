@@ -2,6 +2,7 @@ import { OpenAiClientService } from './openai-client.service';
 
 describe('OpenAiClientService', () => {
     const originalEmbeddingModel = process.env.TEXT_EMBEDDING_MODEL;
+    const originalEmbeddingDimensions = process.env.TEXT_EMBEDDING_DIMENSIONS;
     const originalTranscriptionModel = process.env.VIDEO_TRANSCRIPTION_MODEL;
     const originalResponseModel = process.env.RESPONSE_MODEL;
     const originalApiKey = process.env.OPENAI_API_KEY;
@@ -12,6 +13,10 @@ describe('OpenAiClientService', () => {
         restoreEnvironmentVariable(
             'TEXT_EMBEDDING_MODEL',
             originalEmbeddingModel,
+        );
+        restoreEnvironmentVariable(
+            'TEXT_EMBEDDING_DIMENSIONS',
+            originalEmbeddingDimensions,
         );
         restoreEnvironmentVariable(
             'VIDEO_TRANSCRIPTION_MODEL',
@@ -78,6 +83,45 @@ describe('OpenAiClientService', () => {
 
         await expect(service.createEmbeddings(['content'])).rejects.toThrow(
             'TEXT_EMBEDDING_MODEL is not configured',
+        );
+    });
+
+    it('requests embeddings with the configured dimensions', async () => {
+        process.env.TEXT_EMBEDDING_MODEL = 'text-embedding-3-small';
+        process.env.TEXT_EMBEDDING_DIMENSIONS = '1536';
+        process.env.OPENAI_API_KEY = 'test-api-key';
+        const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+            ok: true,
+            json: jest.fn().mockResolvedValue({
+                data: [{ embedding: Array(1536).fill(0.1) }],
+            }),
+        } as unknown as Response);
+
+        await service.createEmbeddings(['content']);
+
+        const request = fetchMock.mock.calls[0][1] as RequestInit;
+        expect(JSON.parse(request.body as string)).toEqual({
+            model: 'text-embedding-3-small',
+            input: ['content'],
+            dimensions: 1536,
+        });
+    });
+
+    it('rejects embedding requests without valid dimensions', async () => {
+        process.env.TEXT_EMBEDDING_MODEL = 'text-embedding-3-small';
+        delete process.env.TEXT_EMBEDDING_DIMENSIONS;
+
+        await expect(service.createEmbeddings(['content'])).rejects.toThrow(
+            'TEXT_EMBEDDING_DIMENSIONS must be configured as a positive integer',
+        );
+    });
+
+    it('rejects dimensions that do not match the database vector columns', async () => {
+        process.env.TEXT_EMBEDDING_MODEL = 'text-embedding-3-small';
+        process.env.TEXT_EMBEDDING_DIMENSIONS = '1024';
+
+        await expect(service.createEmbeddings(['content'])).rejects.toThrow(
+            'TEXT_EMBEDDING_DIMENSIONS must be 1536',
         );
     });
 
