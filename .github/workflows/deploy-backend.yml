@@ -74,6 +74,16 @@ jobs:
                 working-directory: apps/backend
                 run: npm run build
 
+            # Elastic Beanstalk otherwise runs `npm install` on the instance.
+            # Ship production dependencies in the bundle so deployments don't
+            # depend on the instance downloading hundreds of packages.
+            -   name: Prepare bundled production dependencies
+                working-directory: apps/backend
+                run: |
+                    npm prune --omit=dev
+                    npm rebuild
+                    node -e "require('bcrypt'); require('pg')"
+
             -   name: Validate required deployment files
                 shell: bash
                 run: |
@@ -85,6 +95,8 @@ jobs:
                     test -f apps/backend/.platform/nginx/conf.d/client_max_body_size.conf
                     test -d apps/backend/generated/prisma
                     test -d apps/backend/prisma/migrations
+                    test -d apps/backend/node_modules
+                    test -x apps/backend/node_modules/.bin/prisma
 
             -   name: Create Elastic Beanstalk source bundle
                 working-directory: apps/backend
@@ -93,7 +105,6 @@ jobs:
                     zip -rq ../../backend-deploy.zip . \
                         -x ".env" \
                         -x ".env.*" \
-                        -x "node_modules/*" \
                         -x "storage/*" \
                         -x "coverage/*" \
                         -x "test/*" \
@@ -108,6 +119,7 @@ jobs:
                     unzip -l backend-deploy.zip | grep -q "Procfile"
                     unzip -l backend-deploy.zip | grep -q "dist/src/main.js"
                     unzip -l backend-deploy.zip | grep -q ".platform/nginx/conf.d/client_max_body_size.conf"
+                    unzip -l backend-deploy.zip | grep -q "node_modules/"
 
                     if unzip -l backend-deploy.zip | grep -Eq '(^|/)\.env($|[[:space:]])'; then
                         echo "The deployment ZIP contains a .env file."
