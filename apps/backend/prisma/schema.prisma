@@ -36,7 +36,7 @@ model Users {
   rating           Float @default(0)
 
   sessionVersion Int         @default(0)
-  role           AccountRole @default(LEARNER)
+  role           AccountRole @default(INSTRUCTOR)
   isBanned       Boolean     @default(false)
   bannedAt       DateTime?
   banReason      String?
