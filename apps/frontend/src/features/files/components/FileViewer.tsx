@@ -117,9 +117,23 @@ export default function FileViewer({ file, isLocked = false }: FileViewerProps) 
 
     // Video
     if (type?.startsWith("video/")) {
+        if (!url) {
+            return (
+                <div className={`flex w-full ${height} items-center justify-center rounded-lg border bg-gray-50 mt-3`}>
+                    <span className="text-sm text-gray-500">Loading video...</span>
+                </div>
+            );
+        }
+
         return (
-            <video controls={!isLocked} className={`w-full rounded-lg mt-3 ${height}`}>
-                <source src={url} type={type} />
+            <video
+                key={url}
+                src={url}
+                controls={!isLocked}
+                preload="metadata"
+                className={`w-full rounded-lg mt-3 ${height}`}
+            >
+                Your browser does not support video playback.
             </video>
         );
     }
