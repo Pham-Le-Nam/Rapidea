@@ -139,7 +139,7 @@ export class SkillResolverService {
                 '</skill_resolution_input>',
             ].join('\n'),
             textFormat: SKILL_EQUIVALENCE_FORMAT,
-            maxOutputTokens: 100,
+            maxOutputTokens: 500,
             failureLabel: 'Skill equivalence resolution',
         });
 

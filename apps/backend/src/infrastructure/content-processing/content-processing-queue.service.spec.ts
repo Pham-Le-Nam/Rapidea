@@ -217,6 +217,56 @@ describe('ContentProcessingQueueService', () => {
         };
     }
 
+    it('does not start processing when the worker is disabled', () => {
+        const original = process.env.CONTENT_PROCESSING_WORKER_ENABLED;
+        const fixture = createFixture();
+        const prepare = jest
+            .spyOn(fixture.service, 'prepareAllAiMaterials')
+            .mockResolvedValue({
+                files: 0,
+                posts: 0,
+                discussions: 0,
+                reviews: 0,
+                courses: 0,
+            });
+        (fixture.service as any).logger.warn = jest.fn();
+
+        try {
+            process.env.CONTENT_PROCESSING_WORKER_ENABLED = 'false';
+            fixture.service.onApplicationBootstrap();
+
+            expect(prepare).not.toHaveBeenCalled();
+            expect((fixture.service as any).scanTimer).toBeUndefined();
+        } finally {
+            restoreEnvironmentVariable(
+                'CONTENT_PROCESSING_WORKER_ENABLED',
+                original,
+            );
+        }
+    });
+
+    it('rejects files that exceed the configured in-memory limit', async () => {
+        const original = process.env.CONTENT_PROCESSING_MAX_FILE_BYTES;
+        const fixture = createFixture();
+
+        try {
+            process.env.CONTENT_PROCESSING_MAX_FILE_BYTES = '8';
+
+            await expect(
+                (fixture.service as any).readBuffer(
+                    Readable.from([Buffer.alloc(9)]),
+                ),
+            ).rejects.toThrow(
+                'File exceeds the AI processing memory limit of 8 bytes',
+            );
+        } finally {
+            restoreEnvironmentVariable(
+                'CONTENT_PROCESSING_MAX_FILE_BYTES',
+                original,
+            );
+        }
+    });
+
     it('processes pending files, posts, discussions, and reviews one by one', async () => {
         const fixture = createFixture();
 
@@ -326,6 +376,9 @@ describe('ContentProcessingQueueService', () => {
         expect(reconciliationSql).toContain('UPDATE "course" AS source');
         expect(reconciliationSql).toContain('"course_ai_profile"');
         expect(reconciliationSql).toContain('"content_chunk"');
+        expect(reconciliationSql).not.toContain(
+            'source."aiStatus" = \'FAILED\'::"AiProcessingStatus"',
+        );
     });
 
     it('creates course-independent chunks for standalone content', async () => {
@@ -554,3 +607,14 @@ describe('ContentProcessingQueueService', () => {
         });
     });
 });
+
+function restoreEnvironmentVariable(
+    name: string,
+    originalValue: string | undefined,
+): void {
+    if (originalValue === undefined) {
+        delete process.env[name];
+    } else {
+        process.env[name] = originalValue;
+    }
+}

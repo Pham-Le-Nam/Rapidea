@@ -95,6 +95,7 @@ jobs:
           test -f apps/backend/.platform/nginx/conf.d/client_max_body_size.conf
           test -f apps/backend/.platform/nginx/conf.d/proxy_timeout.conf
           test -f apps/backend/.ebextensions/load-balancer-timeout.config
+          test -f apps/backend/.ebextensions/runtime-safety.config
           test -d apps/backend/generated/prisma
           test -d apps/backend/prisma/migrations
           test -d apps/backend/node_modules
@@ -127,6 +128,7 @@ jobs:
           unzip -l backend-deploy.zip | grep -q ".platform/nginx/conf.d/client_max_body_size.conf"
           unzip -l backend-deploy.zip | grep -q ".platform/nginx/conf.d/proxy_timeout.conf"
           unzip -l backend-deploy.zip | grep -q ".ebextensions/load-balancer-timeout.config"
+          unzip -l backend-deploy.zip | grep -q ".ebextensions/runtime-safety.config"
           unzip -l backend-deploy.zip | grep -q "node_modules/"
 
           if ! zipinfo -l backend-deploy.zip node_modules/.bin/prisma | grep -q '^l'; then

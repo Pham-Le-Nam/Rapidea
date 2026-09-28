@@ -52,6 +52,7 @@ type ProcessingSource = {
 
 const DEFAULT_SCAN_INTERVAL_MS = 5_000;
 const DEFAULT_STALE_PROCESSING_TIMEOUT_MS = 15 * 60 * 1_000;
+const DEFAULT_MAX_FILE_BUFFER_BYTES = 25 * 1024 * 1024;
 const CONTENT_WRITE_TRANSACTION_TIMEOUT_MS = 30_000;
 
 type AiMaterialPreparationResult = {
@@ -89,6 +90,13 @@ export class ContentProcessingQueueService
     ) {}
 
     onApplicationBootstrap(): void {
+        if (!this.workerEnabled()) {
+            this.logger.warn(
+                'Content-processing worker is disabled by configuration',
+            );
+            return;
+        }
+
         void this.prepareAllAiMaterials().catch((error) => {
             this.logger.error('Initial AI material preparation failed', error);
         });
@@ -207,9 +215,9 @@ export class ContentProcessingQueueService
                     AND (source."aiProcessedAt" IS NULL OR source."aiProcessedAt" < ${staleBefore})
                 ) OR (
                     source."aiStatus" IS DISTINCT FROM 'PROCESSING'::"AiProcessingStatus"
+                    AND source."aiStatus" IS DISTINCT FROM 'FAILED'::"AiProcessingStatus"
                     AND (
-                        source."aiStatus" = 'FAILED'::"AiProcessingStatus"
-                        OR source."summary" IS NULL
+                        source."summary" IS NULL
                         OR NOT EXISTS (
                             SELECT 1
                             FROM "content_chunk" AS chunk
@@ -239,9 +247,9 @@ export class ContentProcessingQueueService
                     AND (source."aiProcessedAt" IS NULL OR source."aiProcessedAt" < ${staleBefore})
                 ) OR (
                     source."aiStatus" IS DISTINCT FROM 'PROCESSING'::"AiProcessingStatus"
+                    AND source."aiStatus" IS DISTINCT FROM 'FAILED'::"AiProcessingStatus"
                     AND (
-                        source."aiStatus" = 'FAILED'::"AiProcessingStatus"
-                        OR source."summary" IS NULL
+                        source."summary" IS NULL
                         OR NOT EXISTS (
                             SELECT 1
                             FROM "content_chunk" AS chunk
@@ -271,9 +279,9 @@ export class ContentProcessingQueueService
                     AND (source."aiProcessedAt" IS NULL OR source."aiProcessedAt" < ${staleBefore})
                 ) OR (
                     source."aiStatus" IS DISTINCT FROM 'PROCESSING'::"AiProcessingStatus"
+                    AND source."aiStatus" IS DISTINCT FROM 'FAILED'::"AiProcessingStatus"
                     AND (
-                        source."aiStatus" = 'FAILED'::"AiProcessingStatus"
-                        OR NOT EXISTS (
+                        NOT EXISTS (
                             SELECT 1
                             FROM "content_chunk" AS chunk
                             WHERE chunk."sourceType" = 'DISCUSSION'::"ContentSourceType"
@@ -304,9 +312,9 @@ export class ContentProcessingQueueService
                         AND (source."aiProcessedAt" IS NULL OR source."aiProcessedAt" < ${staleBefore})
                     ) OR (
                         source."aiStatus" IS DISTINCT FROM 'PROCESSING'::"AiProcessingStatus"
+                        AND source."aiStatus" IS DISTINCT FROM 'FAILED'::"AiProcessingStatus"
                         AND (
                             source."aiStatus" IS NULL
-                            OR source."aiStatus" = 'FAILED'::"AiProcessingStatus"
                             OR NOT EXISTS (
                                 SELECT 1
                                 FROM "content_chunk" AS chunk
@@ -337,9 +345,9 @@ export class ContentProcessingQueueService
                     AND (source."aiProcessedAt" IS NULL OR source."aiProcessedAt" < ${staleBefore})
                 ) OR (
                     source."aiStatus" IS DISTINCT FROM 'PROCESSING'::"AiProcessingStatus"
+                    AND source."aiStatus" IS DISTINCT FROM 'FAILED'::"AiProcessingStatus"
                     AND (
-                        source."aiStatus" = 'FAILED'::"AiProcessingStatus"
-                        OR NOT EXISTS (
+                        NOT EXISTS (
                             SELECT 1
                             FROM "course_ai_profile" AS profile
                             WHERE profile."courseId" = source."id"
@@ -913,8 +921,19 @@ export class ContentProcessingQueueService
 
     private async readBuffer(stream: Readable): Promise<Buffer> {
         const chunks: Buffer[] = [];
+        const maxBytes = this.maxFileBufferBytes();
+        let totalBytes = 0;
+
         for await (const chunk of stream) {
-            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+            const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+            totalBytes += buffer.length;
+            if (totalBytes > maxBytes) {
+                stream.destroy();
+                throw new Error(
+                    `File exceeds the AI processing memory limit of ${maxBytes} bytes`,
+                );
+            }
+            chunks.push(buffer);
         }
         return Buffer.concat(chunks);
     }
@@ -949,6 +968,16 @@ export class ContentProcessingQueueService
         return `${job.sourceType}:${job.sourceId}`;
     }
 
+    private workerEnabled(): boolean {
+        const configured = (
+            process.env.CONTENT_PROCESSING_WORKER_ENABLED ?? 'true'
+        )
+            .trim()
+            .toLowerCase();
+
+        return !['false', '0', 'off', 'no'].includes(configured);
+    }
+
     private scanIntervalMs(): number {
         const configured = Number(
             process.env.CONTENT_PROCESSING_SCAN_INTERVAL_MS,
@@ -956,6 +985,15 @@ export class ContentProcessingQueueService
         return Number.isInteger(configured) && configured >= 1_000
             ? configured
             : DEFAULT_SCAN_INTERVAL_MS;
+    }
+
+    private maxFileBufferBytes(): number {
+        const configured = Number(
+            process.env.CONTENT_PROCESSING_MAX_FILE_BYTES,
+        );
+        return Number.isInteger(configured) && configured > 0
+            ? configured
+            : DEFAULT_MAX_FILE_BUFFER_BYTES;
     }
 
     private staleProcessingTimeoutMs(): number {
