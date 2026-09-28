@@ -9,6 +9,7 @@ import {
 } from '../ports/conversation-memory-repository.port';
 import {
   LEARNING_ASSISTANT_RESPONSE_PORT,
+  AiTextModelPurpose,
   LearningAssistantResponsePort,
 } from '../ports/learning-assistant-response.port';
 import {
@@ -88,6 +89,7 @@ export class ConversationMemoryService {
     if (!lastMessage) return false;
 
     const response = await this.learningAssistant.createResponse({
+      modelPurpose: AiTextModelPurpose.PROCESSING,
       additionalPolicyLayers: [RAPIDEIA_CONVERSATION_SUMMARY_PROMPT],
       input: this.summaryInput(state, messages),
       structuredOutput: CONVERSATION_SUMMARY_OUTPUT,

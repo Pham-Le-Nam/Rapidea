@@ -4,6 +4,7 @@ import {
     Logger,
 } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
+import { AiTextModelPurpose } from '../../application/ports/learning-assistant-response.port';
 import { OpenAiClientService } from '../ai/openai-client.service';
 import {
     SKILL_EQUIVALENCE_FORMAT,
@@ -121,6 +122,7 @@ export class SkillResolverService {
         if (taxonomy.length === 0) return null;
 
         const response = await this.openAiClient.createTextResponse({
+            modelPurpose: AiTextModelPurpose.PROCESSING,
             instructions: SKILL_EQUIVALENCE_INSTRUCTIONS,
             input: [
                 '<skill_resolution_input>',

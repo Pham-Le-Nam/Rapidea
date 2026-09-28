@@ -356,6 +356,38 @@ describe('AiChatConversationService', () => {
     );
   });
 
+  it('does not hold the response open while conversation memory refreshes', async () => {
+    const {
+      prisma,
+      trustedSources,
+      intentClassification,
+      orchestration,
+      conversationMemory,
+    } = setup();
+    conversationMemory.refreshAfterAssistantResponse.mockReturnValue(
+      new Promise(() => undefined),
+    );
+    const service = new AiChatConversationService(
+      prisma as any,
+      trustedSources as any,
+      intentClassification as any,
+      orchestration as any,
+      conversationMemory as any,
+    );
+
+    const result = await service.sendMessage('learner-1', {
+      clientRequestId: 'request-1',
+      content: 'Explain this post',
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({ assistantMessage: assistantMessage() }),
+    );
+    expect(
+      conversationMemory.refreshAfterAssistantResponse,
+    ).toHaveBeenCalledWith('learner-1', 'conversation-1');
+  });
+
   it('returns the latest message page in chronological display order', async () => {
     const {
       prisma,

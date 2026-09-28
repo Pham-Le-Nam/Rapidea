@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AiMediaFile, AiService } from '../../application/ports/ai.service';
+import { AiTextModelPurpose } from '../../application/ports/learning-assistant-response.port';
 import { OpenAiClientService } from './openai-client.service';
 
 const TIPTAP_DOCUMENT_FORMAT = {
@@ -49,6 +50,7 @@ export class OpenAiService implements AiService {
         context: string;
     }): Promise<string> {
         return this.openAiClient.createTextResponse({
+            modelPurpose: AiTextModelPurpose.PROCESSING,
             instructions: input.systemPrompt,
             input: input.context,
             failureLabel: 'Post generation',

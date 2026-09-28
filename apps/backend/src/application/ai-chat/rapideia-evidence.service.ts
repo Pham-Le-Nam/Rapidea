@@ -98,7 +98,12 @@ export class RapideiaEvidenceService {
       }
 
       evidencePackage.items.push(item);
-      citationMap.push({ reference, source: candidate.internalSource });
+      citationMap.push({
+        reference,
+        source: candidate.internalSource
+          ? { ...candidate.internalSource, label: candidate.sourceLabel }
+          : null,
+      });
     }
 
     evidencePackage.truncation = {

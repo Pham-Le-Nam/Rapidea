@@ -1,3 +1,4 @@
+import { AiTextModelPurpose } from '../../application/ports/learning-assistant-response.port';
 import { LearningAssistantAiService } from './learning-assistant-ai.service';
 import { RAPIDEIA_LEARNING_ASSISTANT_SYSTEM_PROMPT } from './prompts/learning-assistant.prompts';
 
@@ -15,6 +16,7 @@ it('sends the complete system policy on every learning-assistant response', asyn
 
   await expect(
     service.createResponse({
+      modelPurpose: AiTextModelPurpose.PROCESSING,
       input: 'What does this file mean?',
       failureLabel: 'Learning assistant response',
     }),
@@ -22,6 +24,7 @@ it('sends the complete system policy on every learning-assistant response', asyn
 
   expect(prompt.build).toHaveBeenCalledWith(undefined);
   expect(openAiClient.createTextResponse).toHaveBeenCalledWith({
+    modelPurpose: AiTextModelPurpose.PROCESSING,
     instructions: RAPIDEIA_LEARNING_ASSISTANT_SYSTEM_PROMPT,
     input: 'What does this file mean?',
     failureLabel: 'Learning assistant response',
@@ -39,6 +42,7 @@ it('maps provider-neutral structured output to Responses API text format', async
   );
 
   await service.createResponse({
+    modelPurpose: AiTextModelPurpose.RESPONSE,
     input: 'evidence',
     failureLabel: 'Final answer',
     structuredOutput: {
@@ -48,6 +52,7 @@ it('maps provider-neutral structured output to Responses API text format', async
   });
 
   expect(openAiClient.createTextResponse).toHaveBeenCalledWith({
+    modelPurpose: AiTextModelPurpose.RESPONSE,
     input: 'evidence',
     failureLabel: 'Final answer',
     textFormat: {

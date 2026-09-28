@@ -5,6 +5,7 @@ import {
 } from '../ports/course-retrieval.port';
 import {
   LEARNING_ASSISTANT_RESPONSE_PORT,
+  AiTextModelPurpose,
   LearningAssistantResponsePort,
 } from '../ports/learning-assistant-response.port';
 import { LearnerQuery } from './learner-query.types';
@@ -34,9 +35,22 @@ type CourseCandidate = {
   modelData: unknown;
 };
 
+type SupplementalSearchTask = {
+  index: number;
+  step: DraftStep;
+};
+
+type SupplementalSearchResult = {
+  index: number;
+  planStep: LearningPathPlanStep;
+  courses: CourseSearchResult[];
+  warning: string | null;
+};
+
 const MAX_OUTPUT_TOKENS = 2_500;
 const MAX_PLAN_STEPS = 8;
 const SUPPLEMENTAL_RESULTS_PER_STEP = 3;
+const SUPPLEMENTAL_SEARCH_CONCURRENCY = 3;
 const PLANNING_UNAVAILABLE_WARNING =
   'Learning-path gap analysis was unavailable; only the initial course search results were used.';
 
@@ -60,6 +74,7 @@ export class LearningPathRetrievalService {
     let draft: DraftStep[];
     try {
       const response = await this.learningAssistant.createResponse({
+        modelPurpose: AiTextModelPurpose.PLANNING,
         additionalPolicyLayers: [LEARNING_PATH_PLANNING_PROMPT],
         input: this.modelInput(query, learnerContext, candidates),
         structuredOutput: LEARNING_PATH_PLAN_OUTPUT,
@@ -81,7 +96,10 @@ export class LearningPathRetrievalService {
     const initialIds = new Set(initialCourses.map((course) => course.id));
     const supplementalById = new Map<string, CourseSearchResult>();
     const warnings: string[] = [];
-    const steps: LearningPathPlanStep[] = [];
+    const steps: Array<LearningPathPlanStep | undefined> = new Array(
+      draft.length,
+    );
+    const supplementalTasks: SupplementalSearchTask[] = [];
 
     for (const [index, step] of draft.entries()) {
       const initialMatches = step.matchedCourseReferences.flatMap(
@@ -91,7 +109,7 @@ export class LearningPathRetrievalService {
         },
       );
       if (initialMatches.length > 0) {
-        steps.push({
+        steps[index] = {
           sequence: index + 1,
           title: step.title,
           objective: step.objective,
@@ -102,26 +120,54 @@ export class LearningPathRetrievalService {
           courseTitles: initialMatches.map((course) => course.title),
           searchQuery: null,
           supplementalSearchPerformed: false,
-        });
+        };
         continue;
       }
 
-      try {
-        const results = await this.courses.searchSummaries({
-          query: step.searchQuery ?? this.fallbackSearchQuery(step),
-          desiredSkills: step.requiredSkills,
-          desiredOutcomes: [step.objective],
-          difficulty: query.difficulty?.value,
-          difficultyMode: query.difficulty?.mode,
-          limit: SUPPLEMENTAL_RESULTS_PER_STEP,
-        });
-        const newCandidates = results.filter(
-          (course) => !initialIds.has(course.id),
-        );
-        for (const course of newCandidates) {
-          supplementalById.set(course.id, course);
-        }
-        steps.push({
+      supplementalTasks.push({ index, step });
+    }
+
+    const supplementalResults = await this.mapWithConcurrency(
+      supplementalTasks,
+      SUPPLEMENTAL_SEARCH_CONCURRENCY,
+      (task) => this.searchSupplementalStep(query, initialIds, task),
+    );
+    for (const result of supplementalResults) {
+      steps[result.index] = result.planStep;
+      if (result.warning) warnings.push(result.warning);
+      for (const course of result.courses) {
+        supplementalById.set(course.id, course);
+      }
+    }
+
+    return {
+      plan: { steps: steps.filter((step) => step !== undefined) },
+      supplementalCourses: [...supplementalById.values()],
+      warnings,
+    };
+  }
+
+  private async searchSupplementalStep(
+    query: LearnerQuery,
+    initialIds: ReadonlySet<string>,
+    task: SupplementalSearchTask,
+  ): Promise<SupplementalSearchResult> {
+    const { index, step } = task;
+    try {
+      const results = await this.courses.searchSummaries({
+        query: step.searchQuery ?? this.fallbackSearchQuery(step),
+        desiredSkills: step.requiredSkills,
+        desiredOutcomes: [step.objective],
+        difficulty: query.difficulty?.value,
+        difficultyMode: query.difficulty?.mode,
+        limit: SUPPLEMENTAL_RESULTS_PER_STEP,
+      });
+      const courses = results.filter((course) => !initialIds.has(course.id));
+      return {
+        index,
+        courses,
+        warning: null,
+        planStep: {
           sequence: index + 1,
           title: step.title,
           objective: step.objective,
@@ -129,18 +175,20 @@ export class LearningPathRetrievalService {
           rationale: step.rationale,
           necessity: step.necessity,
           coverage:
-            newCandidates.length > 0
+            courses.length > 0
               ? LearningPathStepCoverage.SUPPLEMENTAL_CANDIDATES
               : LearningPathStepCoverage.UNCOVERED,
-          courseTitles: newCandidates.map((course) => course.title),
+          courseTitles: courses.map((course) => course.title),
           searchQuery: step.searchQuery,
           supplementalSearchPerformed: true,
-        });
-      } catch {
-        warnings.push(
-          `The additional Rapideia course search for "${step.title}" was unavailable.`,
-        );
-        steps.push({
+        },
+      };
+    } catch {
+      return {
+        index,
+        courses: [],
+        warning: `The additional Rapideia course search for "${step.title}" was unavailable.`,
+        planStep: {
           sequence: index + 1,
           title: step.title,
           objective: step.objective,
@@ -151,15 +199,31 @@ export class LearningPathRetrievalService {
           courseTitles: [],
           searchQuery: step.searchQuery,
           supplementalSearchPerformed: true,
-        });
-      }
+        },
+      };
     }
+  }
 
-    return {
-      plan: { steps },
-      supplementalCourses: [...supplementalById.values()],
-      warnings,
+  private async mapWithConcurrency<T, R>(
+    items: readonly T[],
+    concurrency: number,
+    mapper: (item: T) => Promise<R>,
+  ): Promise<R[]> {
+    const results = new Array<R>(items.length);
+    let nextIndex = 0;
+    const worker = async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await mapper(items[index]);
+      }
     };
+    await Promise.all(
+      Array.from({ length: Math.min(concurrency, items.length) }, () =>
+        worker(),
+      ),
+    );
+    return results;
   }
 
   private modelInput(

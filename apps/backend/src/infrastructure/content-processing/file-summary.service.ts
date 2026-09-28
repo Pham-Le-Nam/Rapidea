@@ -1,5 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { getEncoding } from 'js-tiktoken';
+import { AiTextModelPurpose } from '../../application/ports/learning-assistant-response.port';
 import { OpenAiClientService } from '../ai/openai-client.service';
 import {
     FILE_SUMMARY_CHUNK_INSTRUCTIONS,
@@ -49,6 +50,7 @@ export class FileSummaryService {
         text: string,
     ): Promise<string> {
         return this.openAiClient.createTextResponse({
+            modelPurpose: AiTextModelPurpose.PROCESSING,
             instructions: FILE_SUMMARY_INSTRUCTIONS,
             input: this.fileSourceInput(input.fileName, input.mimeType, text),
             maxOutputTokens: SUMMARY_MAX_OUTPUT_TOKENS,
@@ -81,6 +83,7 @@ export class FileSummaryService {
         for (let index = 0; index < chunks.length; index += 1) {
             notes.push(
                 await this.openAiClient.createTextResponse({
+                    modelPurpose: AiTextModelPurpose.PROCESSING,
                     instructions: FILE_SUMMARY_CHUNK_INSTRUCTIONS,
                     input: this.chunkInput(
                         input,
@@ -95,6 +98,7 @@ export class FileSummaryService {
         }
 
         return this.openAiClient.createTextResponse({
+            modelPurpose: AiTextModelPurpose.PROCESSING,
             instructions: FILE_SUMMARY_SYNTHESIS_INSTRUCTIONS,
             input: this.synthesisInput(input, notes),
             maxOutputTokens: SUMMARY_MAX_OUTPUT_TOKENS,

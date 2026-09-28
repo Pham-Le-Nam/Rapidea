@@ -1,4 +1,5 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { AiTextModelPurpose } from '../../application/ports/learning-assistant-response.port';
 import { OpenAiClientService } from '../ai/openai-client.service';
 import {
     POST_PROFILE_FORMAT,
@@ -49,6 +50,7 @@ export class PostSummaryService {
         }
 
         const response = await this.openAiClient.createTextResponse({
+            modelPurpose: AiTextModelPurpose.PROCESSING,
             instructions: POST_PROFILE_INSTRUCTIONS,
             input: [
                 '<post_material>',

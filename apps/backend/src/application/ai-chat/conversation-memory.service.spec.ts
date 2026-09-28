@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { AiTextModelPurpose } from '../ports/learning-assistant-response.port';
 import { ConversationMemoryService } from './conversation-memory.service';
 import { CONVERSATION_SUMMARY_OUTPUT } from './conversation-summary.schema';
 import {
@@ -169,6 +170,7 @@ describe('ConversationMemoryService', () => {
     ).not.toContain('message-6');
     expect(fixture.learningAssistant.createResponse).toHaveBeenCalledWith(
       expect.objectContaining({
+        modelPurpose: AiTextModelPurpose.PROCESSING,
         additionalPolicyLayers: [RAPIDEIA_CONVERSATION_SUMMARY_PROMPT],
         structuredOutput: CONVERSATION_SUMMARY_OUTPUT,
         maxOutputTokens: 300,

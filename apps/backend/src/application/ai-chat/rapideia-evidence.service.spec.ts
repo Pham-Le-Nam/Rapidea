@@ -69,7 +69,11 @@ describe('RapideiaEvidenceService', () => {
     expect(result.citationMap).toEqual([
       {
         reference: 'R1',
-        source: { type: 'FILE', id: 'private-file-id' },
+        source: {
+          type: 'FILE',
+          id: 'private-file-id',
+          label: 'Architecture.pdf',
+        },
       },
     ]);
     expect(modelEvidence).not.toContain('private-file-id');
@@ -123,6 +127,7 @@ describe('RapideiaEvidenceService', () => {
     expect(result.citationMap[2].source).toEqual({
       type: 'COURSE',
       id: 'course-1',
+      label: null,
     });
   });
 

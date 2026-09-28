@@ -1,9 +1,12 @@
+import { AiTextModelPurpose } from '../../application/ports/learning-assistant-response.port';
 import { OpenAiClientService } from './openai-client.service';
 
 describe('OpenAiClientService', () => {
     const originalEmbeddingModel = process.env.TEXT_EMBEDDING_MODEL;
     const originalEmbeddingDimensions = process.env.TEXT_EMBEDDING_DIMENSIONS;
     const originalTranscriptionModel = process.env.VIDEO_TRANSCRIPTION_MODEL;
+    const originalProcessingModel = process.env.PROCESSING_MODEL;
+    const originalPlanningModel = process.env.PLANNING_MODEL;
     const originalResponseModel = process.env.RESPONSE_MODEL;
     const originalApiKey = process.env.OPENAI_API_KEY;
     const service = new OpenAiClientService();
@@ -22,6 +25,8 @@ describe('OpenAiClientService', () => {
             'VIDEO_TRANSCRIPTION_MODEL',
             originalTranscriptionModel,
         );
+        restoreEnvironmentVariable('PROCESSING_MODEL', originalProcessingModel);
+        restoreEnvironmentVariable('PLANNING_MODEL', originalPlanningModel);
         restoreEnvironmentVariable('RESPONSE_MODEL', originalResponseModel);
         restoreEnvironmentVariable('OPENAI_API_KEY', originalApiKey);
     });
@@ -45,6 +50,7 @@ describe('OpenAiClientService', () => {
 
         await expect(
             service.createTextResponse({
+                modelPurpose: AiTextModelPurpose.RESPONSE,
                 instructions: 'Generate content.',
                 input: 'Source material',
                 failureLabel: 'Generation',
@@ -66,16 +72,49 @@ describe('OpenAiClientService', () => {
         });
     });
 
-    it('rejects text generation without RESPONSE_MODEL', async () => {
-        delete process.env.RESPONSE_MODEL;
+    it.each([
+        [
+            AiTextModelPurpose.PROCESSING,
+            'PROCESSING_MODEL',
+            'test-processing-model',
+        ],
+        [AiTextModelPurpose.PLANNING, 'PLANNING_MODEL', 'test-planning-model'],
+        [AiTextModelPurpose.RESPONSE, 'RESPONSE_MODEL', 'test-response-model'],
+    ] as const)(
+        'uses the configured model for %s requests',
+        async (modelPurpose, environmentVariable, configuredModel) => {
+            process.env[environmentVariable] = configuredModel;
+            process.env.OPENAI_API_KEY = 'test-api-key';
+            const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+                ok: true,
+                json: jest.fn().mockResolvedValue({ output_text: 'ok' }),
+            } as unknown as Response);
+
+            await service.createTextResponse({
+                modelPurpose,
+                instructions: 'Generate content.',
+                input: 'Source material',
+                failureLabel: 'Generation',
+            });
+
+            const request = fetchMock.mock.calls[0][1] as RequestInit;
+            expect(JSON.parse(request.body as string).model).toBe(
+                configuredModel,
+            );
+        },
+    );
+
+    it('rejects processing without PROCESSING_MODEL', async () => {
+        delete process.env.PROCESSING_MODEL;
 
         await expect(
             service.createTextResponse({
+                modelPurpose: AiTextModelPurpose.PROCESSING,
                 instructions: 'Generate content.',
                 input: 'Source material',
                 failureLabel: 'Generation',
             }),
-        ).rejects.toThrow('RESPONSE_MODEL is not configured');
+        ).rejects.toThrow('PROCESSING_MODEL is not configured');
     });
 
     it('rejects embedding requests without TEXT_EMBEDDING_MODEL', async () => {

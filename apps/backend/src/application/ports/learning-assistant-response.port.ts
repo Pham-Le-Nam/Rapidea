@@ -6,9 +6,16 @@ export type StructuredOutputDefinition = {
   schema: Record<string, unknown>;
 };
 
+export enum AiTextModelPurpose {
+  PROCESSING = 'PROCESSING',
+  PLANNING = 'PLANNING',
+  RESPONSE = 'RESPONSE',
+}
+
 export type LearningAssistantResponseRequest = {
   input: string;
   failureLabel: string;
+  modelPurpose: AiTextModelPurpose;
   maxOutputTokens?: number;
   additionalPolicyLayers?: readonly string[];
   structuredOutput?: StructuredOutputDefinition;

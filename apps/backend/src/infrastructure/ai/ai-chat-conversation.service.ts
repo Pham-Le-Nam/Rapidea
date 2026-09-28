@@ -398,7 +398,7 @@ export class AiChatConversationService {
       learnerQuery,
       generated,
     );
-    await this.refreshConversationMemory(userId, response.conversation.id);
+    void this.refreshConversationMemory(userId, response.conversation.id);
 
     return {
       ...response,

@@ -1,8 +1,10 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { AiMediaFile } from '../../application/ports/ai.service';
+import { AiTextModelPurpose } from '../../application/ports/learning-assistant-response.port';
 import {
     AiModelEnvironmentVariable,
     requiredAiModel,
+    requiredAiTextModel,
     requiredEmbeddingDimensions,
 } from './ai-model-config';
 
@@ -21,6 +23,7 @@ export type OpenAiTextResponseInput = {
     instructions: string;
     input: string;
     failureLabel: string;
+    modelPurpose: AiTextModelPurpose;
     maxOutputTokens?: number;
     textFormat?: Record<string, unknown>;
 };
@@ -28,7 +31,7 @@ export type OpenAiTextResponseInput = {
 @Injectable()
 export class OpenAiClientService {
     async createTextResponse(input: OpenAiTextResponseInput): Promise<string> {
-        const model = requiredAiModel(AiModelEnvironmentVariable.RESPONSE);
+        const model = requiredAiTextModel(input.modelPurpose);
         const apiKey = this.requiredApiKey();
         const response = await fetch('https://api.openai.com/v1/responses', {
             method: 'POST',

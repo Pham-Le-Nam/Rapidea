@@ -12,6 +12,7 @@ import { useAuth } from "@/providers";
 import { Button } from "@/shared/components/ui/button";
 import {
     BotIcon,
+    ExternalLinkIcon,
     FileTextIcon,
     MessageCircleIcon,
     SearchIcon,
@@ -23,6 +24,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import toast from "react-hot-toast";
 import type {
+    AiChatCitation,
     AiChatMessage,
     AiChatTrustedSource,
     AiChatTrustedSourceInput,
@@ -714,21 +716,84 @@ function AiConversationPanel({
 function AiMessageBubble({ message }: { message: AiChatMessage }) {
     const isUser = message.role === "USER";
     const citations = Array.isArray(message.citations) ? message.citations : [];
+    const resourceCitations = getUniqueResourceCitations(citations);
     return (
         <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
             <div className={`max-w-[86%] rounded-xl px-3 py-2 text-sm ${isUser ? "bg-main text-white" : "bg-gray-100 text-gray-900"}`}>
-                <p className="whitespace-pre-wrap break-words leading-5">{message.content}</p>
-                {!isUser && citations.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1 border-t border-gray-200 pt-2">
-                        {citations.map((citation) => (
-                            <span key={citation.reference} className="rounded-full bg-white px-2 py-0.5 text-[0.68rem] text-gray-600">
-                                {citation.source ? `${citation.source.type.toLowerCase()} source` : "Rapideia source"}
-                            </span>
+                <p className="whitespace-pre-wrap break-words leading-5">
+                    {isUser ? message.content : withoutCitationReferences(message.content)}
+                </p>
+                {!isUser && resourceCitations.length > 0 && (
+                    <div className="mt-3 space-y-2 border-t border-gray-200 pt-2">
+                        {resourceCitations.map((citation) => (
+                            <CitationResourceLink key={`${citation.source!.type}:${citation.source!.id}`} citation={citation} />
                         ))}
                     </div>
                 )}
                 <p className={`mt-1 text-[0.68rem] ${isUser ? "text-white/75" : "text-gray-400"}`}>{new Date(message.createdAt).toLocaleString()}</p>
             </div>
+        </div>
+    );
+}
+
+function withoutCitationReferences(content: string) {
+    return content
+        .replace(/\s*\[(?:R\d+)(?:\s*,\s*R\d+)*\]/g, "")
+        .replace(/[ \t]+\n/g, "\n")
+        .trim();
+}
+
+function getUniqueResourceCitations(citations: AiChatCitation[]) {
+    const byResource = new Map<string, AiChatCitation>();
+
+    for (const citation of citations) {
+        if (!citation.source || !getCitationUrl(citation)) continue;
+        const key = `${citation.source.type}:${citation.source.id}`;
+        if (!byResource.has(key)) byResource.set(key, citation);
+    }
+
+    return [...byResource.values()];
+}
+
+function getCitationUrl(citation: AiChatCitation) {
+    if (!citation.source) return null;
+
+    switch (citation.source.type) {
+        case "COURSE":
+            return `/course/${encodeURIComponent(citation.source.id)}`;
+        case "POST":
+        case "DISCUSSION":
+            return `/post/${encodeURIComponent(citation.source.id)}`;
+        default:
+            return null;
+    }
+}
+
+function CitationResourceLink({ citation }: { citation: AiChatCitation }) {
+    const url = getCitationUrl(citation)!;
+    const source = citation.source!;
+    const resourceName = source.label || (source.type === "COURSE" ? "Course material" : "Learning material");
+    const actionLabel = source.type === "COURSE" ? "Open course" : "Open material";
+    const displayUrl = typeof window === "undefined" ? url : new URL(url, window.location.origin).href;
+
+    return (
+        <div className="rounded-lg border border-gray-200 bg-white p-2.5">
+            <p className="truncate text-xs font-semibold text-gray-900">{resourceName}</p>
+            <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-0.5 block truncate text-[0.68rem] text-main hover:underline"
+                title={displayUrl}
+            >
+                {displayUrl}
+            </a>
+            <Button asChild size="xs" className="mt-2 bg-main hover:bg-main-hover">
+                <a href={url} target="_blank" rel="noopener noreferrer">
+                    {actionLabel}
+                    <ExternalLinkIcon className="size-3" />
+                </a>
+            </Button>
         </div>
     );
 }

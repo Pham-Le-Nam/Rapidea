@@ -1,4 +1,5 @@
 import { InternalServerErrorException } from '@nestjs/common';
+import { AiTextModelPurpose } from '../ports/learning-assistant-response.port';
 import { LearnerIntent } from './learner-query.types';
 import { FinalAnswerGenerationService } from './final-answer-generation.service';
 import { FINAL_ANSWER_OUTPUT } from './final-answer.schema';
@@ -27,11 +28,19 @@ function evidence() {
     citationMap: [
       {
         reference: 'R1',
-        source: { type: 'FILE' as const, id: 'file-1' },
+        source: {
+          type: 'FILE' as const,
+          id: 'file-1',
+          label: 'Architecture.pdf',
+        },
       },
       {
         reference: 'R2',
-        source: { type: 'POST' as const, id: 'post-1' },
+        source: {
+          type: 'POST' as const,
+          id: 'post-1',
+          label: 'Dependency Injection',
+        },
       },
       { reference: 'R3', source: null },
     ],
@@ -116,6 +125,7 @@ describe('FinalAnswerGenerationService', () => {
       citations: inputEvidence.citationMap.slice(0, 2),
     });
     expect(fixture.learningAssistant.createResponse).toHaveBeenCalledWith({
+      modelPurpose: AiTextModelPurpose.RESPONSE,
       additionalPolicyLayers: [RAPIDEIA_FINAL_ANSWER_PROMPT],
       input: expect.stringContaining('<RAPIDEIA_EVIDENCE />'),
       structuredOutput: FINAL_ANSWER_OUTPUT,

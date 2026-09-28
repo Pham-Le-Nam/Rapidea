@@ -5,11 +5,10 @@ import {
     parseLearnerQuery,
 } from '../../application/ai-chat/learner-query.parser';
 import { LearnerQuery } from '../../application/ai-chat/learner-query.types';
+import { AiTextModelPurpose } from '../../application/ports/learning-assistant-response.port';
 import { LEARNER_QUERY_FORMAT } from './learner-query.schema';
 import { OpenAiClientService } from './openai-client.service';
-import {
-    LEARNER_INTENT_CLASSIFIER_INSTRUCTIONS,
-} from './prompts/learner-intent-classification.prompts';
+import { LEARNER_INTENT_CLASSIFIER_INSTRUCTIONS } from './prompts/learner-intent-classification.prompts';
 import { AiChatTrustedSourceService } from './ai-chat-trusted-source.service';
 
 @Injectable()
@@ -32,6 +31,7 @@ export class IntentClassificationService {
                 currentSources,
             );
         const response = await this.openAiClient.createTextResponse({
+            modelPurpose: AiTextModelPurpose.PROCESSING,
             instructions: LEARNER_INTENT_CLASSIFIER_INSTRUCTIONS,
             input: [
                 '<learner_query_input>',
@@ -64,5 +64,4 @@ export class IntentClassificationService {
             );
         }
     }
-
 }

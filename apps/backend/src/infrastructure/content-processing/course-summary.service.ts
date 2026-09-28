@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { Difficulty } from '../../../generated/prisma/enums';
+import { AiTextModelPurpose } from '../../application/ports/learning-assistant-response.port';
 import {
     AiModelEnvironmentVariable,
     requiredAiModel,
@@ -69,6 +70,7 @@ export class CourseSummaryService {
         }
 
         const response = await this.openAiClient.createTextResponse({
+            modelPurpose: AiTextModelPurpose.PROCESSING,
             instructions: COURSE_PROFILE_INSTRUCTIONS,
             input: [
                 '<course_material>',

@@ -51,6 +51,7 @@ export type AiChatCitation = {
     source: {
         type: "COURSE" | "POST" | "FILE" | "DISCUSSION" | "REVIEW" | "LEARNER";
         id: string;
+        label?: string | null;
     } | null;
 };
 

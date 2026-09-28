@@ -1,8 +1,11 @@
 import { InternalServerErrorException } from '@nestjs/common';
+import { AiTextModelPurpose } from '../../application/ports/learning-assistant-response.port';
 
 export enum AiModelEnvironmentVariable {
     TEXT_EMBEDDING = 'TEXT_EMBEDDING_MODEL',
     VIDEO_TRANSCRIPTION = 'VIDEO_TRANSCRIPTION_MODEL',
+    PROCESSING = 'PROCESSING_MODEL',
+    PLANNING = 'PLANNING_MODEL',
     RESPONSE = 'RESPONSE_MODEL',
 }
 
@@ -19,6 +22,19 @@ export function requiredAiModel(name: AiModelEnvironmentVariable): string {
     }
 
     return model;
+}
+
+const TEXT_MODEL_ENVIRONMENT_VARIABLE: Record<
+    AiTextModelPurpose,
+    AiModelEnvironmentVariable
+> = {
+    [AiTextModelPurpose.PROCESSING]: AiModelEnvironmentVariable.PROCESSING,
+    [AiTextModelPurpose.PLANNING]: AiModelEnvironmentVariable.PLANNING,
+    [AiTextModelPurpose.RESPONSE]: AiModelEnvironmentVariable.RESPONSE,
+};
+
+export function requiredAiTextModel(purpose: AiTextModelPurpose): string {
+    return requiredAiModel(TEXT_MODEL_ENVIRONMENT_VARIABLE[purpose]);
 }
 
 export function requiredPositiveInteger(

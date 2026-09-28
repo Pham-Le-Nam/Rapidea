@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import {
   LEARNING_ASSISTANT_RESPONSE_PORT,
+  AiTextModelPurpose,
   LearningAssistantResponsePort,
 } from '../ports/learning-assistant-response.port';
 import { FINAL_ANSWER_OUTPUT } from './final-answer.schema';
@@ -50,12 +51,9 @@ export class FinalAnswerGenerationService {
         .map((citation) => [citation.reference, citation]),
     );
     const response = await this.learningAssistant.createResponse({
+      modelPurpose: AiTextModelPurpose.RESPONSE,
       additionalPolicyLayers: [RAPIDEIA_FINAL_ANSWER_PROMPT],
-      input: this.modelInput(
-        input,
-        conversationContext,
-        [...available.keys()],
-      ),
+      input: this.modelInput(input, conversationContext, [...available.keys()]),
       structuredOutput: FINAL_ANSWER_OUTPUT,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       failureLabel: 'Rapideia final answer generation',

@@ -1,3 +1,4 @@
+import { AiTextModelPurpose } from '../ports/learning-assistant-response.port';
 import { LearnerIntent, LearnerQuery } from './learner-query.types';
 import { LearningPathRetrievalService } from './learning-path-retrieval.service';
 import { LearningPathStepCoverage } from './learning-path-plan.types';
@@ -135,6 +136,9 @@ describe('LearningPathRetrievalService', () => {
     ]);
     const plannerInput = fixture.learningAssistant.createResponse.mock
       .calls[0][0].input as string;
+    expect(
+      fixture.learningAssistant.createResponse.mock.calls[0][0].modelPurpose,
+    ).toBe(AiTextModelPurpose.PLANNING);
     expect(plannerInput).toContain('"reference":"C1"');
     expect(plannerInput).not.toContain('private-course-id');
     expect(plannerInput).not.toContain('private-user-id');
@@ -188,5 +192,45 @@ describe('LearningPathRetrievalService', () => {
     expect(result.warnings).toContain(
       'The additional Rapideia course search for "Mathematics foundations" was unavailable.',
     );
+  });
+
+  it('runs supplemental searches with bounded concurrency and preserves step order', async () => {
+    const response = JSON.stringify({
+      steps: Array.from({ length: 6 }, (_, index) => ({
+        title: `Step ${index + 1}`,
+        objective: `Learn skill ${index + 1}`,
+        requiredSkills: [`Skill ${index + 1}`],
+        rationale: `Skill ${index + 1} is required.`,
+        necessity: 'REQUIRED',
+        matchedCourseReferences: [],
+        searchQuery: `skill ${index + 1}`,
+      })),
+    });
+    const fixture = createFixture(response);
+    let activeSearches = 0;
+    let maximumActiveSearches = 0;
+    fixture.courses.searchSummaries.mockImplementation(async (input) => {
+      activeSearches += 1;
+      maximumActiveSearches = Math.max(maximumActiveSearches, activeSearches);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      activeSearches -= 1;
+      return [course(`course-${input.query}`, input.query, input.query)];
+    });
+
+    const result = await fixture.service.enrich(query, { skills: [] }, []);
+
+    expect(fixture.courses.searchSummaries).toHaveBeenCalledTimes(6);
+    expect(maximumActiveSearches).toBe(3);
+    expect(result.plan?.steps.map((step) => step.sequence)).toEqual([
+      1, 2, 3, 4, 5, 6,
+    ]);
+    expect(result.plan?.steps.map((step) => step.title)).toEqual([
+      'Step 1',
+      'Step 2',
+      'Step 3',
+      'Step 4',
+      'Step 5',
+      'Step 6',
+    ]);
   });
 });
