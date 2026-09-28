@@ -123,4 +123,47 @@ describe('AiChatTrustedSourceService', () => {
         ]);
         expect(JSON.stringify(result)).not.toContain('must not be sent');
     });
+
+    it('removes a trusted source only from the learner-owned conversation', async () => {
+        const prisma = createPrismaMock();
+        prisma.aiChatConversation.findFirst.mockResolvedValue({ id: 'chat-1' });
+        prisma.aiChatTrustedSource.findFirst.mockResolvedValue({
+            id: 'trusted-1',
+        });
+        prisma.aiChatTrustedSource.delete.mockResolvedValue({ id: 'trusted-1' });
+
+        await expect(
+            createService(prisma).remove(
+                'learner-1',
+                'chat-1',
+                'trusted-1',
+            ),
+        ).resolves.toEqual({ id: 'trusted-1' });
+        expect(prisma.aiChatConversation.findFirst).toHaveBeenCalledWith({
+            where: { id: 'chat-1', userId: 'learner-1' },
+            select: { id: true },
+        });
+        expect(prisma.aiChatTrustedSource.findFirst).toHaveBeenCalledWith({
+            where: { id: 'trusted-1', conversationId: 'chat-1' },
+            select: { id: true },
+        });
+        expect(prisma.aiChatTrustedSource.delete).toHaveBeenCalledWith({
+            where: { id: 'trusted-1' },
+        });
+    });
+
+    it('does not remove an unknown trusted source', async () => {
+        const prisma = createPrismaMock();
+        prisma.aiChatConversation.findFirst.mockResolvedValue({ id: 'chat-1' });
+        prisma.aiChatTrustedSource.findFirst.mockResolvedValue(null);
+
+        await expect(
+            createService(prisma).remove(
+                'learner-1',
+                'chat-1',
+                'missing-source',
+            ),
+        ).rejects.toBeInstanceOf(NotFoundException);
+        expect(prisma.aiChatTrustedSource.delete).not.toHaveBeenCalled();
+    });
 });

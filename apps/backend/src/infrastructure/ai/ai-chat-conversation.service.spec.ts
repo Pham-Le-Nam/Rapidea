@@ -255,6 +255,78 @@ describe('AiChatConversationService', () => {
     expect(transaction.aiChatConversation.create).not.toHaveBeenCalled();
   });
 
+  it('returns the winning response when concurrent first-message creation hits the idempotency constraint', async () => {
+    const {
+      transaction,
+      prisma,
+      trustedSources,
+      intentClassification,
+      orchestration,
+      conversationMemory,
+    } = setup();
+    prisma.aiChatMessage.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        ...message('message-1', { learnerQuery }),
+        conversation: { ...conversation(), userId: 'learner-1' },
+      })
+      .mockResolvedValueOnce(assistantMessage());
+    prisma.$transaction.mockRejectedValueOnce({ code: 'P2002' });
+    const service = new AiChatConversationService(
+      prisma as any,
+      trustedSources as any,
+      intentClassification as any,
+      orchestration as any,
+      conversationMemory as any,
+    );
+
+    const result = await service.sendMessage('learner-1', {
+      clientRequestId: 'request-1',
+      content: 'Explain this post',
+    });
+
+    expect(result.idempotentReplay).toBe(true);
+    expect(result.assistantMessage).toEqual(assistantMessage());
+    expect(transaction.aiChatConversation.create).not.toHaveBeenCalled();
+    expect(orchestration.respond).not.toHaveBeenCalled();
+  });
+
+  it('returns the winning assistant message when concurrent response persistence hits the reply constraint', async () => {
+    const {
+      prisma,
+      trustedSources,
+      intentClassification,
+      orchestration,
+      conversationMemory,
+    } = setup();
+    prisma.aiChatMessage.findUnique
+      .mockResolvedValueOnce({
+        ...message('message-1', { learnerQuery }),
+        conversation: { ...conversation(), userId: 'learner-1' },
+      })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(assistantMessage());
+    prisma.$transaction.mockRejectedValueOnce({ code: 'P2002' });
+    const service = new AiChatConversationService(
+      prisma as any,
+      trustedSources as any,
+      intentClassification as any,
+      orchestration as any,
+      conversationMemory as any,
+    );
+
+    const result = await service.sendMessage('learner-1', {
+      clientRequestId: 'request-1',
+      content: 'Explain this post',
+    });
+
+    expect(orchestration.respond).toHaveBeenCalledTimes(1);
+    expect(result.assistantMessage).toEqual(assistantMessage());
+    expect(
+      conversationMemory.refreshAfterAssistantResponse,
+    ).toHaveBeenCalledTimes(1);
+  });
+
   it('returns the persisted answer even when the optional memory refresh fails', async () => {
     const {
       prisma,
@@ -317,5 +389,65 @@ describe('AiChatConversationService', () => {
     expect(result).toEqual(
       expect.objectContaining({ hasMore: true, nextCursor: 'message-2' }),
     );
+  });
+
+  it('returns one owned conversation without loading its complete message history', async () => {
+    const {
+      prisma,
+      trustedSources,
+      intentClassification,
+      orchestration,
+      conversationMemory,
+    } = setup();
+    prisma.aiChatConversation.findFirst.mockResolvedValue({
+      ...conversation(),
+      messages: [assistantMessage()],
+      _count: { messages: 4, trustedSources: 2 },
+    });
+    const service = new AiChatConversationService(
+      prisma as any,
+      trustedSources as any,
+      intentClassification as any,
+      orchestration as any,
+      conversationMemory as any,
+    );
+
+    const result = await service.getConversation('learner-1', 'conversation-1');
+
+    expect(prisma.aiChatConversation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'conversation-1', userId: 'learner-1' },
+      }),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'conversation-1',
+        lastMessage: assistantMessage(),
+        messageCount: 4,
+        trustedSourceCount: 2,
+      }),
+    );
+  });
+
+  it('does not return an AI conversation owned by another user', async () => {
+    const {
+      prisma,
+      trustedSources,
+      intentClassification,
+      orchestration,
+      conversationMemory,
+    } = setup();
+    prisma.aiChatConversation.findFirst.mockResolvedValue(null);
+    const service = new AiChatConversationService(
+      prisma as any,
+      trustedSources as any,
+      intentClassification as any,
+      orchestration as any,
+      conversationMemory as any,
+    );
+
+    await expect(
+      service.getConversation('learner-2', 'conversation-1'),
+    ).rejects.toThrow('AI conversation not found');
   });
 });

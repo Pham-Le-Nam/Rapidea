@@ -18,6 +18,27 @@ function chunk(id: string, sourceId: string, score: number, sequence = 0) {
   };
 }
 
+const RETRIEVAL_QUALITY_FIXTURES = [
+  {
+    name: 'promotes content supported by both semantic and keyword retrieval',
+    semantic: [
+      chunk('semantic-only', 'post-semantic', 0.95),
+      chunk('both', 'post-both', 0.88),
+    ],
+    keyword: [chunk('both', 'post-both', 0.72)],
+    expectedSourceOrder: ['post-both', 'post-semantic'],
+  },
+  {
+    name: 'lets an exact keyword match rescue a lower semantic result',
+    semantic: [
+      chunk('conceptual', 'post-conceptual', 0.92),
+      chunk('exact', 'post-exact', 0.75),
+    ],
+    keyword: [chunk('exact', 'post-exact', 0.98)],
+    expectedSourceOrder: ['post-exact', 'post-conceptual'],
+  },
+] as const;
+
 function createFixture() {
   const prisma = {
     $queryRaw: jest.fn(),
@@ -106,6 +127,23 @@ describe('HybridContentSearchService', () => {
     expect(result).toHaveLength(2);
     expect(fixture.authorization.canAccess).toHaveBeenCalledTimes(1);
   });
+
+  it.each(RETRIEVAL_QUALITY_FIXTURES)(
+    '$name',
+    async ({ semantic, keyword, expectedSourceOrder }) => {
+      const fixture = createFixture();
+      fixture.prisma.$queryRaw
+        .mockResolvedValueOnce(semantic)
+        .mockResolvedValueOnce(keyword);
+
+      const result = await fixture.service.search('learner-1', {
+        query: 'quality fixture query',
+        limit: expectedSourceOrder.length,
+      });
+
+      expect(result.map((item) => item.sourceId)).toEqual(expectedSourceOrder);
+    },
+  );
 
   it('adds course, source, and source-type scope through parameterized SQL', async () => {
     const fixture = createFixture();

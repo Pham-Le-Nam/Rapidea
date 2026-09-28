@@ -149,4 +149,68 @@ describe('AiContentAuthorizationService', () => {
             ),
         ).rejects.toBeInstanceOf(NotFoundException);
     });
+
+    it.each([
+        [AiContentResourceType.COURSE, AiContentAccessMode.SUMMARY, 'course'],
+        [AiContentResourceType.COURSE, AiContentAccessMode.DETAILS, 'course'],
+        [AiContentResourceType.POST, AiContentAccessMode.SUMMARY, 'post'],
+        [AiContentResourceType.POST, AiContentAccessMode.DETAILS, 'post'],
+        [AiContentResourceType.FILE, AiContentAccessMode.SUMMARY, 'file'],
+        [AiContentResourceType.FILE, AiContentAccessMode.DETAILS, 'file'],
+        [AiContentResourceType.DISCUSSION, AiContentAccessMode.SUMMARY, 'discussion'],
+        [AiContentResourceType.DISCUSSION, AiContentAccessMode.DETAILS, 'discussion'],
+        [AiContentResourceType.REVIEW, AiContentAccessMode.SUMMARY, 'subscribe'],
+        [AiContentResourceType.REVIEW, AiContentAccessMode.DETAILS, 'subscribe'],
+    ] as const)(
+        'applies the authorization matrix for %s in %s mode',
+        async (type, mode, model) => {
+            const prisma = createPrismaMock();
+            prisma[model].findFirst.mockResolvedValue({ id: 'source-1' });
+            const service = new AiContentAuthorizationService(prisma as any);
+
+            await expect(
+                service.canAccess(
+                    'learner-1',
+                    { type, id: 'source-1' },
+                    mode,
+                ),
+            ).resolves.toBe(true);
+
+            const where = prisma[model].findFirst.mock.calls[0][0].where;
+            if (type === AiContentResourceType.COURSE) {
+                if (mode === AiContentAccessMode.SUMMARY) {
+                    expect(where).not.toHaveProperty('OR');
+                } else {
+                    expect(where.OR).toEqual(expect.any(Array));
+                }
+            }
+            if (type === AiContentResourceType.REVIEW) {
+                if (mode === AiContentAccessMode.SUMMARY) {
+                    expect(where).not.toHaveProperty('course');
+                } else {
+                    expect(where.course).toBeDefined();
+                }
+            }
+        },
+    );
+
+    it.each([
+        [AiContentResourceType.COURSE, 'course'],
+        [AiContentResourceType.POST, 'post'],
+        [AiContentResourceType.FILE, 'file'],
+        [AiContentResourceType.DISCUSSION, 'discussion'],
+        [AiContentResourceType.REVIEW, 'subscribe'],
+    ] as const)('denies %s when no authorized database row exists', async (type, model) => {
+        const prisma = createPrismaMock();
+        prisma[model].findFirst.mockResolvedValue(null);
+        const service = new AiContentAuthorizationService(prisma as any);
+
+        await expect(
+            service.canAccess(
+                'learner-1',
+                { type, id: 'source-1' },
+                AiContentAccessMode.DETAILS,
+            ),
+        ).resolves.toBe(false);
+    });
 });

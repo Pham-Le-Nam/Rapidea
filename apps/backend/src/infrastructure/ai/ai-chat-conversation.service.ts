@@ -196,6 +196,37 @@ export class AiChatConversationService {
     };
   }
 
+  async getConversation(userId: string, conversationId: string) {
+    const conversation = await this.prisma.aiChatConversation.findFirst({
+      where: { id: conversationId, userId },
+      select: {
+        id: true,
+        title: true,
+        lastMessageAt: true,
+        createdAt: true,
+        updatedAt: true,
+        messages: {
+          take: 1,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          select: messageSelect,
+        },
+        _count: { select: { messages: true, trustedSources: true } },
+      },
+    });
+    if (!conversation) throw new NotFoundException('AI conversation not found');
+
+    return {
+      id: conversation.id,
+      title: conversation.title,
+      lastMessageAt: conversation.lastMessageAt,
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt,
+      lastMessage: conversation.messages[0] ?? null,
+      messageCount: conversation._count.messages,
+      trustedSourceCount: conversation._count.trustedSources,
+    };
+  }
+
   async listMessages(
     userId: string,
     conversationId: string,

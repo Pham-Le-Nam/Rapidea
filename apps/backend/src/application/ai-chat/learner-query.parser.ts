@@ -23,6 +23,9 @@ const LEARNER_QUERY_KEYS = [
     'includeDiscussions',
 ] as const;
 
+const UUID_PATTERN =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export function parseLearnerQuery(value: unknown): LearnerQuery {
     const query = exactObject(value, LEARNER_QUERY_KEYS, 'learner query');
     const intent = enumValue(
@@ -53,7 +56,7 @@ export function parseLearnerQuery(value: unknown): LearnerQuery {
     return {
         intent,
         targets,
-        courseScope: nullableString(query.courseScope, 'courseScope'),
+        courseScope: nullableUuid(query.courseScope, 'courseScope'),
         desiredSkills: stringArray(query.desiredSkills, 'desiredSkills'),
         existingSkills: stringArray(query.existingSkills, 'existingSkills'),
         desiredOutcomes: stringArray(query.desiredOutcomes, 'desiredOutcomes'),
@@ -116,7 +119,7 @@ function parseTarget(value: unknown, index: number): LearnerQueryTarget {
             LEARNER_RESOURCE_TYPES,
             `targets[${index}].type`,
         ),
-        id: nullableString(target.id, `targets[${index}].id`),
+        id: nullableUuid(target.id, `targets[${index}].id`),
         name: nullableString(target.name, `targets[${index}].name`),
     };
 }
@@ -182,6 +185,14 @@ function nullableString(value: unknown, label: string): string | null {
         throw new Error(`${label} must be a non-empty string or null`);
     }
     return value.trim();
+}
+
+function nullableUuid(value: unknown, label: string): string | null {
+    const parsed = nullableString(value, label);
+    if (parsed !== null && !UUID_PATTERN.test(parsed)) {
+        throw new Error(`${label} must be a UUID or null`);
+    }
+    return parsed;
 }
 
 function nullableNumber(value: unknown, label: string): number | null {

@@ -38,6 +38,17 @@ export class AiChatController {
         );
     }
 
+    @Get('conversations/:conversationId')
+    async getConversation(
+        @Request() request: any,
+        @Param('conversationId') conversationId: string,
+    ) {
+        return this.conversations.getConversation(
+            request.user.userId,
+            conversationId,
+        );
+    }
+
     @Get('conversations/:conversationId/messages')
     async listMessages(
         @Request() request: any,
