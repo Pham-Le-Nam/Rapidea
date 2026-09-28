@@ -51,6 +51,15 @@ type ProcessingSource = {
 };
 
 const DEFAULT_SCAN_INTERVAL_MS = 5_000;
+const DEFAULT_STALE_PROCESSING_TIMEOUT_MS = 15 * 60 * 1_000;
+
+type AiMaterialPreparationResult = {
+    files: number;
+    posts: number;
+    discussions: number;
+    reviews: number;
+    courses: number;
+};
 
 class PendingContentDependencyError extends Error {}
 
@@ -79,8 +88,8 @@ export class ContentProcessingQueueService
     ) {}
 
     onApplicationBootstrap(): void {
-        void this.scanAndProcessPending().catch((error) => {
-            this.logger.error('Initial content-processing scan failed', error);
+        void this.prepareAllAiMaterials().catch((error) => {
+            this.logger.error('Initial AI material preparation failed', error);
         });
 
         this.scanTimer = setInterval(() => {
@@ -93,6 +102,23 @@ export class ContentProcessingQueueService
 
     onModuleDestroy(): void {
         if (this.scanTimer) clearInterval(this.scanTimer);
+    }
+
+    async prepareAllAiMaterials(): Promise<AiMaterialPreparationResult> {
+        const result = await this.reconcileIncompleteAiMaterials();
+        const queuedCount = Object.values(result).reduce(
+            (total, count) => total + count,
+            0,
+        );
+
+        this.logger.log(
+            `AI material preparation queued ${queuedCount} incomplete, failed, or stale source(s) ` +
+                `(${result.files} files, ${result.posts} posts, ${result.discussions} discussions, ` +
+                `${result.reviews} reviews, ${result.courses} courses)`,
+        );
+
+        await this.scanAndProcessPending();
+        return result;
     }
 
     async scanAndProcessPending(): Promise<void> {
@@ -160,6 +186,185 @@ export class ContentProcessingQueueService
             (left, right) =>
                 left.createdAt.getTime() - right.createdAt.getTime(),
         );
+    }
+
+    private async reconcileIncompleteAiMaterials(): Promise<AiMaterialPreparationResult> {
+        const embeddingModel = process.env.TEXT_EMBEDDING_MODEL?.trim() ?? '';
+        const staleBefore = new Date(
+            Date.now() - this.staleProcessingTimeoutMs(),
+        );
+
+        const [files, posts, discussions, reviews, courses] = await Promise.all(
+            [
+                this.prisma.$executeRaw`
+                UPDATE "file" AS source
+                SET "aiStatus" = 'PENDING'::"AiProcessingStatus",
+                    "aiError" = NULL,
+                    "aiProcessedAt" = NULL
+                WHERE (
+                    source."aiStatus" = 'PROCESSING'::"AiProcessingStatus"
+                    AND (source."aiProcessedAt" IS NULL OR source."aiProcessedAt" < ${staleBefore})
+                ) OR (
+                    source."aiStatus" IS DISTINCT FROM 'PROCESSING'::"AiProcessingStatus"
+                    AND (
+                        source."aiStatus" = 'FAILED'::"AiProcessingStatus"
+                        OR source."summary" IS NULL
+                        OR NOT EXISTS (
+                            SELECT 1
+                            FROM "content_chunk" AS chunk
+                            WHERE chunk."sourceType" = 'FILE'::"ContentSourceType"
+                              AND chunk."sourceId" = source."id"
+                        )
+                        OR EXISTS (
+                            SELECT 1
+                            FROM "content_chunk" AS chunk
+                            WHERE chunk."sourceType" = 'FILE'::"ContentSourceType"
+                              AND chunk."sourceId" = source."id"
+                              AND (
+                                  chunk."embedding" IS NULL
+                                  OR (${embeddingModel} <> '' AND chunk."embeddingModel" IS DISTINCT FROM ${embeddingModel})
+                              )
+                        )
+                    )
+                )
+            `,
+                this.prisma.$executeRaw`
+                UPDATE "post" AS source
+                SET "aiStatus" = 'PENDING'::"AiProcessingStatus",
+                    "aiError" = NULL,
+                    "aiProcessedAt" = NULL
+                WHERE (
+                    source."aiStatus" = 'PROCESSING'::"AiProcessingStatus"
+                    AND (source."aiProcessedAt" IS NULL OR source."aiProcessedAt" < ${staleBefore})
+                ) OR (
+                    source."aiStatus" IS DISTINCT FROM 'PROCESSING'::"AiProcessingStatus"
+                    AND (
+                        source."aiStatus" = 'FAILED'::"AiProcessingStatus"
+                        OR source."summary" IS NULL
+                        OR NOT EXISTS (
+                            SELECT 1
+                            FROM "content_chunk" AS chunk
+                            WHERE chunk."sourceType" = 'POST'::"ContentSourceType"
+                              AND chunk."sourceId" = source."id"
+                        )
+                        OR EXISTS (
+                            SELECT 1
+                            FROM "content_chunk" AS chunk
+                            WHERE chunk."sourceType" = 'POST'::"ContentSourceType"
+                              AND chunk."sourceId" = source."id"
+                              AND (
+                                  chunk."embedding" IS NULL
+                                  OR (${embeddingModel} <> '' AND chunk."embeddingModel" IS DISTINCT FROM ${embeddingModel})
+                              )
+                        )
+                    )
+                )
+            `,
+                this.prisma.$executeRaw`
+                UPDATE "discussion" AS source
+                SET "aiStatus" = 'PENDING'::"AiProcessingStatus",
+                    "aiError" = NULL,
+                    "aiProcessedAt" = NULL
+                WHERE (
+                    source."aiStatus" = 'PROCESSING'::"AiProcessingStatus"
+                    AND (source."aiProcessedAt" IS NULL OR source."aiProcessedAt" < ${staleBefore})
+                ) OR (
+                    source."aiStatus" IS DISTINCT FROM 'PROCESSING'::"AiProcessingStatus"
+                    AND (
+                        source."aiStatus" = 'FAILED'::"AiProcessingStatus"
+                        OR NOT EXISTS (
+                            SELECT 1
+                            FROM "content_chunk" AS chunk
+                            WHERE chunk."sourceType" = 'DISCUSSION'::"ContentSourceType"
+                              AND chunk."sourceId" = source."id"
+                        )
+                        OR EXISTS (
+                            SELECT 1
+                            FROM "content_chunk" AS chunk
+                            WHERE chunk."sourceType" = 'DISCUSSION'::"ContentSourceType"
+                              AND chunk."sourceId" = source."id"
+                              AND (
+                                  chunk."embedding" IS NULL
+                                  OR (${embeddingModel} <> '' AND chunk."embeddingModel" IS DISTINCT FROM ${embeddingModel})
+                              )
+                        )
+                    )
+                )
+            `,
+                this.prisma.$executeRaw`
+                UPDATE "subscribe" AS source
+                SET "aiStatus" = 'PENDING'::"AiProcessingStatus",
+                    "aiError" = NULL,
+                    "aiProcessedAt" = NULL
+                WHERE source."review" IS NOT NULL
+                  AND (
+                    (
+                        source."aiStatus" = 'PROCESSING'::"AiProcessingStatus"
+                        AND (source."aiProcessedAt" IS NULL OR source."aiProcessedAt" < ${staleBefore})
+                    ) OR (
+                        source."aiStatus" IS DISTINCT FROM 'PROCESSING'::"AiProcessingStatus"
+                        AND (
+                            source."aiStatus" IS NULL
+                            OR source."aiStatus" = 'FAILED'::"AiProcessingStatus"
+                            OR NOT EXISTS (
+                                SELECT 1
+                                FROM "content_chunk" AS chunk
+                                WHERE chunk."sourceType" = 'REVIEW'::"ContentSourceType"
+                                  AND chunk."sourceId" = source."id"
+                            )
+                            OR EXISTS (
+                                SELECT 1
+                                FROM "content_chunk" AS chunk
+                                WHERE chunk."sourceType" = 'REVIEW'::"ContentSourceType"
+                                  AND chunk."sourceId" = source."id"
+                                  AND (
+                                      chunk."embedding" IS NULL
+                                      OR (${embeddingModel} <> '' AND chunk."embeddingModel" IS DISTINCT FROM ${embeddingModel})
+                                  )
+                            )
+                        )
+                    )
+                  )
+            `,
+                this.prisma.$executeRaw`
+                UPDATE "course" AS source
+                SET "aiStatus" = 'PENDING'::"AiProcessingStatus",
+                    "aiError" = NULL,
+                    "aiProcessedAt" = NULL
+                WHERE (
+                    source."aiStatus" = 'PROCESSING'::"AiProcessingStatus"
+                    AND (source."aiProcessedAt" IS NULL OR source."aiProcessedAt" < ${staleBefore})
+                ) OR (
+                    source."aiStatus" IS DISTINCT FROM 'PROCESSING'::"AiProcessingStatus"
+                    AND (
+                        source."aiStatus" = 'FAILED'::"AiProcessingStatus"
+                        OR NOT EXISTS (
+                            SELECT 1
+                            FROM "course_ai_profile" AS profile
+                            WHERE profile."courseId" = source."id"
+                        )
+                        OR EXISTS (
+                            SELECT 1
+                            FROM "course_ai_profile" AS profile
+                            WHERE profile."courseId" = source."id"
+                              AND (
+                                  profile."embedding" IS NULL
+                                  OR (${embeddingModel} <> '' AND profile."embeddingModel" IS DISTINCT FROM ${embeddingModel})
+                              )
+                        )
+                    )
+                )
+            `,
+            ],
+        );
+
+        return {
+            files: Number(files),
+            posts: Number(posts),
+            discussions: Number(discussions),
+            reviews: Number(reviews),
+            courses: Number(courses),
+        };
     }
 
     private enqueue(job: ContentProcessingJob): void {
@@ -282,7 +487,9 @@ export class ContentProcessingQueueService
                 );
                 if (chunkData.length > 0) {
                     await transaction.contentChunk.createMany({
-                        data: chunkData.map(({ embedding: _embedding, ...chunk }) => chunk),
+                        data: chunkData.map(
+                            ({ embedding: _embedding, ...chunk }) => chunk,
+                        ),
                     });
                     await Promise.all(
                         chunkData.map((chunk) => {
@@ -405,7 +612,7 @@ export class ContentProcessingQueueService
             data: {
                 aiStatus: AiProcessingStatus.PROCESSING,
                 aiError: null,
-                aiProcessedAt: null,
+                aiProcessedAt: new Date(),
             },
         });
 
@@ -732,6 +939,15 @@ export class ContentProcessingQueueService
         return Number.isInteger(configured) && configured >= 1_000
             ? configured
             : DEFAULT_SCAN_INTERVAL_MS;
+    }
+
+    private staleProcessingTimeoutMs(): number {
+        const configured = Number(
+            process.env.CONTENT_PROCESSING_STALE_AFTER_MS,
+        );
+        return Number.isInteger(configured) && configured >= 60_000
+            ? configured
+            : DEFAULT_STALE_PROCESSING_TIMEOUT_MS;
     }
 
     private errorMessage(error: unknown): string {

@@ -289,6 +289,39 @@ describe('ContentProcessingQueueService', () => {
         });
     });
 
+    it('reconciles all incomplete AI materials before the startup scan', async () => {
+        const fixture = createFixture();
+        fixture.prisma.file.findMany.mockResolvedValue([]);
+        fixture.prisma.post.findMany.mockResolvedValue([]);
+        fixture.prisma.discussion.findMany.mockResolvedValue([]);
+        fixture.prisma.subscribe.findMany.mockResolvedValue([]);
+        fixture.prisma.course.findMany.mockResolvedValue([]);
+        fixture.prisma.$executeRaw.mockResolvedValue(1);
+        (fixture.service as any).logger.log = jest.fn();
+
+        await expect(fixture.service.prepareAllAiMaterials()).resolves.toEqual({
+            files: 1,
+            posts: 1,
+            discussions: 1,
+            reviews: 1,
+            courses: 1,
+        });
+
+        expect(fixture.prisma.$executeRaw).toHaveBeenCalledTimes(5);
+        const reconciliationSql = fixture.prisma.$executeRaw.mock.calls
+            .map(([query]) =>
+                Array.from(query as TemplateStringsArray).join('?'),
+            )
+            .join('\n');
+        expect(reconciliationSql).toContain('UPDATE "file" AS source');
+        expect(reconciliationSql).toContain('UPDATE "post" AS source');
+        expect(reconciliationSql).toContain('UPDATE "discussion" AS source');
+        expect(reconciliationSql).toContain('UPDATE "subscribe" AS source');
+        expect(reconciliationSql).toContain('UPDATE "course" AS source');
+        expect(reconciliationSql).toContain('"course_ai_profile"');
+        expect(reconciliationSql).toContain('"content_chunk"');
+    });
+
     it('creates course-independent chunks for standalone content', async () => {
         const fixture = createFixture();
         fixture.prisma.subscribe.findMany.mockResolvedValue([]);
