@@ -3,7 +3,7 @@ import { useState } from "react";
 
 import { LeftSidebar } from "../components/LeftSidebar";
 import { RightSidebar } from "../components/RightSidebar";
-import { ChatBox, type ChatUser } from "@/features/chat";
+import { ChatBox, OPEN_AI_CHAT_EVENT, OPEN_CHAT_EVENT, type ChatUser } from "@/features/chat";
 
 import {
   SidebarProvider,
@@ -36,8 +36,14 @@ export default function Layout() {
     const [chatRefreshKey, setChatRefreshKey] = useState(0);
 
     const openChat = (user: ChatUser) => {
-        window.dispatchEvent(new CustomEvent("rapidea:open-chat", {
+        window.dispatchEvent(new CustomEvent(OPEN_CHAT_EVENT, {
             detail: user,
+        }));
+    };
+
+    const openAiChat = (conversationId?: string) => {
+        window.dispatchEvent(new CustomEvent(OPEN_AI_CHAT_EVENT, {
+            detail: { conversationId },
         }));
     };
 
@@ -60,6 +66,7 @@ export default function Layout() {
                 <RightSidebar
                     refreshKey={chatRefreshKey}
                     onSelectChat={openChat}
+                    onSelectAiChat={openAiChat}
                 />
                 <ClosedSidebarTrigger side="right" label="SMS" />
             </SidebarProvider>

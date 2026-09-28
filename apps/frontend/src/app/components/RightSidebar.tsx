@@ -1,9 +1,9 @@
-import { getChatConversationsApi } from "@/features/chat/api";
+import { getAiChatConversationsApi, getChatConversationsApi } from "@/features/chat/api";
 import { useAuth } from "@/providers";
-import type { ChatConversationSummary, ChatUser } from "@/features/chat";
+import type { AiChatConversationSummary, ChatConversationSummary, ChatUser } from "@/features/chat";
 import { getChatAvatarUrl, getChatUserName, getRelationshipLabels, hasChatRelationship } from "@/features/chat";
-import { MessageCircleIcon, PanelRightCloseIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { MessageCircleIcon, PanelRightCloseIcon, PlusIcon, SparklesIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
     Sidebar,
@@ -16,6 +16,7 @@ import {
 
 type RightSidebarProps = {
     onSelectChat?: (user: ChatUser) => void;
+    onSelectAiChat?: (conversationId?: string) => void;
     refreshKey?: number;
 };
 
@@ -93,10 +94,96 @@ function ConversationButton({
     );
 }
 
-export function RightSidebar({ onSelectChat, refreshKey = 0 }: RightSidebarProps) {
+function AiConversationSection({
+    conversations,
+    hasMore,
+    isLoadingMore,
+    onNewConversation,
+    onSelectConversation,
+    onLoadMore,
+}: {
+    conversations: AiChatConversationSummary[];
+    hasMore: boolean;
+    isLoadingMore: boolean;
+    onNewConversation?: () => void;
+    onSelectConversation?: (conversationId: string) => void;
+    onLoadMore: () => void;
+}) {
+    return (
+        <SidebarMenuItem className="mb-2 border-b border-gray-200 pb-3">
+            <div className="flex items-center justify-between px-2 py-2">
+                <div className="flex items-center gap-2 text-sm font-bold">
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-main/10 text-main">
+                        <SparklesIcon className="size-4" />
+                    </span>
+                    Rapideia AI
+                </div>
+                <button
+                    type="button"
+                    className="flex size-8 items-center justify-center rounded-full border border-main/20 text-main transition hover:bg-main/10"
+                    title="New AI conversation"
+                    aria-label="New AI conversation"
+                    onClick={onNewConversation}
+                >
+                    <PlusIcon className="size-4" />
+                </button>
+            </div>
+
+            {conversations.length === 0 ? (
+                <button
+                    type="button"
+                    className="mx-2 flex w-[calc(100%-1rem)] items-center gap-2 rounded-lg bg-main/5 px-3 py-3 text-left text-sm text-gray-700 hover:bg-main/10"
+                    onClick={onNewConversation}
+                >
+                    <SparklesIcon className="size-4 shrink-0 text-main" />
+                    Start a conversation with your learning assistant
+                </button>
+            ) : conversations.map((conversation) => (
+                <button
+                    key={conversation.id}
+                    type="button"
+                    className="flex w-full gap-2 rounded-md px-2 py-2 text-left hover:bg-gray-100"
+                    onClick={() => onSelectConversation?.(conversation.id)}
+                >
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-main text-white">
+                        <SparklesIcon className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">
+                            {conversation.title || "AI conversation"}
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs text-gray-500">
+                            {conversation.lastMessage?.content || "No messages yet"}
+                        </span>
+                        <span className="mt-1 block text-[0.7rem] text-gray-400">
+                            {new Date(conversation.lastMessageAt).toLocaleDateString()}
+                        </span>
+                    </span>
+                </button>
+            ))}
+
+            {hasMore && (
+                <button
+                    type="button"
+                    className="mt-1 w-full rounded-md px-2 py-2 text-xs font-medium text-main hover:bg-main/5 disabled:opacity-50"
+                    disabled={isLoadingMore}
+                    onClick={onLoadMore}
+                >
+                    {isLoadingMore ? "Loading..." : "Load older AI conversations"}
+                </button>
+            )}
+        </SidebarMenuItem>
+    );
+}
+
+export function RightSidebar({ onSelectChat, onSelectAiChat, refreshKey = 0 }: RightSidebarProps) {
     const { isLoggedIn } = useAuth();
     const [conversations, setConversations] = useState<ChatConversationSummary[]>([]);
+    const [aiConversations, setAiConversations] = useState<AiChatConversationSummary[]>([]);
+    const [aiNextCursor, setAiNextCursor] = useState<string | null>(null);
+    const [hasMoreAiConversations, setHasMoreAiConversations] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingMoreAi, setIsLoadingMoreAi] = useState(false);
 
     const sortedConversations = useMemo(() => {
         return [...conversations].sort((a, b) => {
@@ -112,9 +199,10 @@ export function RightSidebar({ onSelectChat, refreshKey = 0 }: RightSidebarProps
     const relatedConversations = sortedConversations.filter((conversation) => hasChatRelationship(conversation.relationship));
     const generalConversations = sortedConversations.filter((conversation) => !hasChatRelationship(conversation.relationship));
 
-    const loadConversations = async (showLoading = false) => {
+    const loadConversations = useCallback(async (showLoading = false) => {
         if (!isLoggedIn) {
             setConversations([]);
+            setAiConversations([]);
             return;
         }
 
@@ -122,8 +210,14 @@ export function RightSidebar({ onSelectChat, refreshKey = 0 }: RightSidebarProps
             if (showLoading) {
                 setIsLoading(true);
             }
-            const response = await getChatConversationsApi(false);
-            setConversations(response.conversations ?? []);
+            const [chatResponse, aiResponse] = await Promise.all([
+                getChatConversationsApi(false),
+                getAiChatConversationsApi(),
+            ]);
+            setConversations(chatResponse.conversations ?? []);
+            setAiConversations(aiResponse.conversations ?? []);
+            setHasMoreAiConversations(aiResponse.hasMore);
+            setAiNextCursor(aiResponse.nextCursor);
         } catch (error) {
             console.error("Couldn't load recent messages", error);
             setConversations([]);
@@ -132,16 +226,45 @@ export function RightSidebar({ onSelectChat, refreshKey = 0 }: RightSidebarProps
                 setIsLoading(false);
             }
         }
+    }, [isLoggedIn]);
+
+    const loadMoreAiConversations = async () => {
+        if (!aiNextCursor || isLoadingMoreAi) return;
+
+        try {
+            setIsLoadingMoreAi(true);
+            const response = await getAiChatConversationsApi(20, aiNextCursor);
+            setAiConversations((current) => {
+                const ids = new Set(current.map((conversation) => conversation.id));
+                return [
+                    ...current,
+                    ...response.conversations.filter((conversation) => !ids.has(conversation.id)),
+                ];
+            });
+            setHasMoreAiConversations(response.hasMore);
+            setAiNextCursor(response.nextCursor);
+        } catch (error) {
+            console.error("Couldn't load older AI conversations", error);
+        } finally {
+            setIsLoadingMoreAi(false);
+        }
     };
 
     useEffect(() => {
         loadConversations(true);
-    }, [isLoggedIn, refreshKey]);
+    }, [loadConversations, refreshKey]);
 
     useEffect(() => {
         if (!isLoggedIn) return;
 
-        const intervalId = window.setInterval(() => loadConversations(false), 5000);
+        const intervalId = window.setInterval(async () => {
+            try {
+                const response = await getChatConversationsApi(false);
+                setConversations(response.conversations ?? []);
+            } catch (error) {
+                console.error("Couldn't refresh recent messages", error);
+            }
+        }, 5000);
 
         return () => window.clearInterval(intervalId);
     }, [isLoggedIn]);
@@ -171,6 +294,14 @@ export function RightSidebar({ onSelectChat, refreshKey = 0 }: RightSidebarProps
                         </SidebarMenuItem>
                     ) : (
                         <>
+                            <AiConversationSection
+                                conversations={aiConversations}
+                                hasMore={hasMoreAiConversations}
+                                isLoadingMore={isLoadingMoreAi}
+                                onNewConversation={() => onSelectAiChat?.()}
+                                onSelectConversation={onSelectAiChat}
+                                onLoadMore={loadMoreAiConversations}
+                            />
                             <ConversationSection
                                 title="Followers & Subscribers"
                                 conversations={relatedConversations}

@@ -37,6 +37,7 @@ import {
 import StarRating from "@/shared/components/StarRating";
 import LoadingScreen from "@/shared/components/LoadingScreen";
 import { getExplicitTagNames } from "@/features/tags";
+import { ChatWithAiButton } from "@/features/chat";
 
 const POSTS_PAGE_SIZE = 5;
 
@@ -509,6 +510,18 @@ function Post ({ post, reloadPosts, canViewAllPosts, courseOptions = [] }: PostP
                                 Copy Link
                             </Button>
                         </DropdownMenuItem>
+
+                        {isLoggedIn && !isPostLocked && loadedPost?.id && (
+                            <DropdownMenuItem asChild>
+                                <ChatWithAiButton
+                                    sourceType="POST"
+                                    sourceId={loadedPost.id}
+                                    sourceLabel={loadedPost.title || "Post"}
+                                    variant="ghost"
+                                    className="w-full justify-start font-normal"
+                                />
+                            </DropdownMenuItem>
+                        )}
 
                         {isOwner && (
                             <div className="border-t">

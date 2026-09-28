@@ -50,6 +50,7 @@ import {
     canUseOfficeViewer,
     isOfficeViewerEmbeddableUrl,
 } from "@/features/files/utils/officeViewer";
+import { ChatWithAiButton } from "@/features/chat";
 
 type FilesProp = {
     rootFolderId: string,
@@ -63,7 +64,7 @@ type FolderCrumb = {
 }
 
 function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
-    const { logout } = useAuth();
+    const { logout, isLoggedIn } = useAuth();
     const navigate = useNavigate();
     const [folder, setFolder] = useState<any>();
     const [isOwner, setIsOwner] = useState(false);
@@ -469,7 +470,7 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                             </span>
                         </Button>
 
-                        {isOwner && (
+                        {(isOwner || isLoggedIn) && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild className="hover:bg-gray-100 h-full bg-white shrink-0">
                                     <Button type="button" variant="outline" className="border-0 rounded-full">
@@ -478,6 +479,20 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                                 </DropdownMenuTrigger>
 
                                 <DropdownMenuContent>
+                                    {isLoggedIn && (
+                                        <DropdownMenuItem asChild>
+                                            <ChatWithAiButton
+                                                sourceType="FILE"
+                                                sourceId={childFile.id}
+                                                sourceLabel={childFile.name}
+                                                variant="ghost"
+                                                className="w-full justify-start text-lg font-normal"
+                                            />
+                                        </DropdownMenuItem>
+                                    )}
+
+                                    {isOwner && (
+                                        <>
                                     <DropdownMenuItem
                                         asChild
                                         onClick={() => downloadFile(childFile)}
@@ -502,6 +517,8 @@ function Files ({ rootFolderId, addFile, lockRootActions = false }: FilesProp) {
                                                 getRelatedPosts={getPostsUsingFileApi}
                                             />
                                         </DropdownMenuItem>
+                                    )}
+                                        </>
                                     )}
                                 </DropdownMenuContent>
                             </DropdownMenu>

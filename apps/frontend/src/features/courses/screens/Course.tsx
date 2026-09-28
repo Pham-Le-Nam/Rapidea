@@ -30,6 +30,7 @@ import { Posts } from "@/features/posts";
 import { Reviews } from "../components/Reviews";
 import LoadingScreen from "@/shared/components/LoadingScreen";
 import { TagSelector, getTagNames } from "@/features/tags";
+import { ChatWithAiButton } from "@/features/chat";
 
 function Course () {
     const { id } = useParams();
@@ -279,6 +280,15 @@ function Course () {
                 </div>
 
                 <div className="flex flex-wrap justify-center gap-2 px-4 pb-2">
+                    {isLoggedIn && course?.id && (
+                        <ChatWithAiButton
+                            sourceType="COURSE"
+                            sourceId={course.id}
+                            sourceLabel={course.title}
+                            variant="outline"
+                            className="border-main/30 text-main hover:bg-main/5"
+                        />
+                    )}
                     {!isOwner && isLoggedIn && (
                         <SubscribeCourseAction
                             course={course}
