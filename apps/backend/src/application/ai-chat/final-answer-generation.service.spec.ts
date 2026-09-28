@@ -129,6 +129,11 @@ describe('FinalAnswerGenerationService', () => {
       fixture.learningAssistant.createResponse.mock.calls[0][0].input,
     ).toContain('<CONVERSATION_SUMMARY>');
     expect(
+      fixture.learningAssistant.createResponse.mock.calls[0][0].input,
+    ).toContain(
+      '<AVAILABLE_CITATION_REFERENCES>\n["R1","R2"]\n</AVAILABLE_CITATION_REFERENCES>',
+    );
+    expect(
       fixture.conversationMemory.getContextForFinalResponse,
     ).toHaveBeenCalledWith('learner-1', 'conversation-1', 'message-1');
   });
@@ -161,6 +166,34 @@ describe('FinalAnswerGenerationService', () => {
         learnerMessage: 'Explain it.',
       }),
     ).rejects.toThrow('referenced unavailable evidence');
+  });
+
+  it('returns a learning path without citations when no citable resources were retrieved', async () => {
+    const fixture = createFixture({
+      answer:
+        'Start with mathematical foundations [R1], then learn supervised and unsupervised algorithm families.',
+      citations: ['R1'],
+      followUpQuestion: 'Would you like this broken into a weekly schedule?',
+    });
+    const input = generationInput();
+    input.learnerMessage =
+      'Give me a learning path to learn all of the machine learning algorithms';
+    input.evidence.evidence.intent = LearnerIntent.CREATE_LEARNING_PATH;
+    input.evidence.citationMap = [];
+
+    const result = await fixture.service.generate(input);
+
+    expect(result.answer).toBe(
+      'Start with mathematical foundations, then learn supervised and unsupervised algorithm families.',
+    );
+    expect(result.citedReferences).toEqual([]);
+    expect(result.citations).toEqual([]);
+    expect(result.content).not.toContain('R1');
+    expect(
+      fixture.learningAssistant.createResponse.mock.calls[0][0].input,
+    ).toContain(
+      '<AVAILABLE_CITATION_REFERENCES>\n[]\n</AVAILABLE_CITATION_REFERENCES>',
+    );
   });
 
   it('does not allow learner context to become a content citation', async () => {

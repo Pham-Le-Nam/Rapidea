@@ -44,22 +44,35 @@ export class FinalAnswerGenerationService {
         input.conversationId,
         input.currentMessageId,
       );
-    const response = await this.learningAssistant.createResponse({
-      additionalPolicyLayers: [RAPIDEIA_FINAL_ANSWER_PROMPT],
-      input: this.modelInput(input, conversationContext),
-      structuredOutput: FINAL_ANSWER_OUTPUT,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      failureLabel: 'Rapideia final answer generation',
-    });
-    const parsed = this.parse(response);
     const available = new Map(
       input.evidence.citationMap
         .filter((citation) => citation.source !== null)
         .map((citation) => [citation.reference, citation]),
     );
-    const mentionedReferences = this.referencesIn(parsed.answer);
+    const response = await this.learningAssistant.createResponse({
+      additionalPolicyLayers: [RAPIDEIA_FINAL_ANSWER_PROMPT],
+      input: this.modelInput(
+        input,
+        conversationContext,
+        [...available.keys()],
+      ),
+      structuredOutput: FINAL_ANSWER_OUTPUT,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
+      failureLabel: 'Rapideia final answer generation',
+    });
+    const parsed = this.parse(response);
+    const answer = (
+      available.size === 0
+        ? this.withoutReferences(parsed.answer)
+        : parsed.answer
+    ).trim();
+    if (!answer) throw this.invalidOutput();
+    const mentionedReferences = this.referencesIn(answer);
     const citedReferences = [
-      ...new Set([...parsed.citations, ...mentionedReferences]),
+      ...new Set([
+        ...(available.size === 0 ? [] : parsed.citations),
+        ...mentionedReferences,
+      ]),
     ];
     const unknownReferences = citedReferences.filter(
       (reference) => !available.has(reference),
@@ -70,7 +83,6 @@ export class FinalAnswerGenerationService {
       );
     }
 
-    const answer = parsed.answer.trim();
     const followUpQuestion = parsed.followUpQuestion.trim();
     return {
       content: `${answer}\n\n${followUpQuestion}`,
@@ -84,6 +96,7 @@ export class FinalAnswerGenerationService {
   private modelInput(
     input: FinalAnswerGenerationInput,
     context: ConversationMemoryContext,
+    availableCitationReferences: readonly string[],
   ): string {
     const sections = [
       '<LEARNER_MESSAGE>',
@@ -104,7 +117,12 @@ export class FinalAnswerGenerationService {
         '</RECENT_CONVERSATION>',
       );
     }
-    sections.push(this.evidenceService.toPromptBlock(input.evidence.evidence));
+    sections.push(
+      '<AVAILABLE_CITATION_REFERENCES>',
+      JSON.stringify(availableCitationReferences),
+      '</AVAILABLE_CITATION_REFERENCES>',
+      this.evidenceService.toPromptBlock(input.evidence.evidence),
+    );
     return sections.join('\n');
   }
 
@@ -145,6 +163,15 @@ export class FinalAnswerGenerationService {
 
   private referencesIn(answer: string): string[] {
     return [...answer.matchAll(/\bR[1-9]\d*\b/g)].map((match) => match[0]);
+  }
+
+  private withoutReferences(answer: string): string {
+    return answer
+      .replace(/\bR[1-9]\d*\b/g, '')
+      .replace(/\[\s*(?:,\s*)*\]/g, '')
+      .replace(/\(\s*\)/g, '')
+      .replace(/[ \t]+([,.;:!?])/g, '$1')
+      .replace(/[ \t]{2,}/g, ' ');
   }
 
   private invalidOutput(): InternalServerErrorException {

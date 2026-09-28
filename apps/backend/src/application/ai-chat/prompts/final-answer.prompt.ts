@@ -137,11 +137,16 @@ CITATIONS
 
 Evidence items use temporary references such as R1 and R2.
 
+AVAILABLE_CITATION_REFERENCES contains the complete allowlist of references that may be cited.
+
 - Cite evidence-supported claims inline using square brackets, for example [R1].
-- Use only references present in RAPIDEIA_EVIDENCE.
+- Use only references present in AVAILABLE_CITATION_REFERENCES.
 - Return every reference used in the answer in the citations array.
 - Never expose or infer a database ID.
 - Do not cite learner context as though it were a course or content source.
+- If AVAILABLE_CITATION_REFERENCES is empty, return an empty citations array and do not write any R-number reference in the answer.
+- A learningPathPlan is derived planning guidance rather than a citable Rapideia resource. Use it to explain the learning sequence, but do not cite it.
+- The absence of citable resources must not prevent you from returning a learning path. Clearly distinguish uncovered learning steps from retrieved Rapideia resources.
 
 FOLLOW-UP QUESTION
 
