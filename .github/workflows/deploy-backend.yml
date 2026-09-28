@@ -96,13 +96,17 @@ jobs:
                     test -d apps/backend/generated/prisma
                     test -d apps/backend/prisma/migrations
                     test -d apps/backend/node_modules
+                    test -L apps/backend/node_modules/.bin/prisma
                     test -x apps/backend/node_modules/.bin/prisma
 
             -   name: Create Elastic Beanstalk source bundle
                 working-directory: apps/backend
                 shell: bash
                 run: |
-                    zip -rq ../../backend-deploy.zip . \
+                    # Preserve node_modules/.bin symlinks. Without -y, zip
+                    # dereferences Prisma's launcher and breaks its relative
+                    # lookup for prisma_schema_build_bg.wasm on the instance.
+                    zip -rqy ../../backend-deploy.zip . \
                         -x ".env" \
                         -x ".env.*" \
                         -x "storage/*" \
@@ -120,6 +124,11 @@ jobs:
                     unzip -l backend-deploy.zip | grep -q "dist/src/main.js"
                     unzip -l backend-deploy.zip | grep -q ".platform/nginx/conf.d/client_max_body_size.conf"
                     unzip -l backend-deploy.zip | grep -q "node_modules/"
+
+                    if ! zipinfo -l backend-deploy.zip node_modules/.bin/prisma | grep -q '^l'; then
+                        echo "The deployment ZIP did not preserve the Prisma launcher symlink."
+                        exit 1
+                    fi
 
                     if unzip -l backend-deploy.zip | grep -Eq '(^|/)\.env($|[[:space:]])'; then
                         echo "The deployment ZIP contains a .env file."
