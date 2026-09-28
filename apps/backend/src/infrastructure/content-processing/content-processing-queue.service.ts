@@ -52,6 +52,7 @@ type ProcessingSource = {
 
 const DEFAULT_SCAN_INTERVAL_MS = 5_000;
 const DEFAULT_STALE_PROCESSING_TIMEOUT_MS = 15 * 60 * 1_000;
+const CONTENT_WRITE_TRANSACTION_TIMEOUT_MS = 30_000;
 
 type AiMaterialPreparationResult = {
     files: number;
@@ -441,127 +442,136 @@ export class ContentProcessingQueueService
             }
 
             const generatedSummary = fileSummary ?? postProfile?.summary;
+            const resolvedPostSkills = postProfile
+                ? await this.postSkills.resolve(postProfile.skills)
+                : undefined;
 
-            await this.prisma.$transaction(async (transaction) => {
-                const completed = await this.statusDelegate(
-                    transaction,
-                    job.sourceType,
-                ).updateMany({
-                    where: {
-                        id: job.sourceId,
-                        aiStatus: AiProcessingStatus.PROCESSING,
-                    },
-                    data: {
-                        aiStatus: AiProcessingStatus.READY,
-                        aiError: null,
-                        aiProcessedAt: new Date(),
-                        ...(generatedSummary === undefined
-                            ? {}
-                            : { summary: generatedSummary }),
-                    },
-                });
-
-                if (completed.count !== 1) return;
-
-                await transaction.contentChunk.deleteMany({
-                    where: {
-                        sourceType: contentSourceType,
-                        sourceId: job.sourceId,
-                    },
-                });
-                const chunkCourseIds: Array<string | null> =
-                    source.courseIds.length > 0 ? source.courseIds : [null];
-                const chunkData = chunkCourseIds.flatMap((courseId) =>
-                    chunks.map((chunk) => ({
-                        id: randomUUID(),
-                        sourceType: contentSourceType,
-                        sourceId: job.sourceId,
-                        courseId,
-                        sequence: chunk.sequence,
-                        content: chunk.content,
-                        tokenCount: chunk.tokenCount,
-                        embedding: chunk.embedding,
-                        embeddingModel: chunk.embeddingModel,
-                        metadata: chunk.metadata as Prisma.InputJsonObject,
-                    })),
-                );
-                if (chunkData.length > 0) {
-                    await transaction.contentChunk.createMany({
-                        data: chunkData.map(
-                            ({ embedding: _embedding, ...chunk }) => chunk,
-                        ),
+            await this.prisma.$transaction(
+                async (transaction) => {
+                    const completed = await this.statusDelegate(
+                        transaction,
+                        job.sourceType,
+                    ).updateMany({
+                        where: {
+                            id: job.sourceId,
+                            aiStatus: AiProcessingStatus.PROCESSING,
+                        },
+                        data: {
+                            aiStatus: AiProcessingStatus.READY,
+                            aiError: null,
+                            aiProcessedAt: new Date(),
+                            ...(generatedSummary === undefined
+                                ? {}
+                                : { summary: generatedSummary }),
+                        },
                     });
-                    await Promise.all(
-                        chunkData.map((chunk) => {
-                            const vector = `[${chunk.embedding.join(',')}]`;
-                            return transaction.$executeRaw`
+
+                    if (completed.count !== 1) return;
+
+                    await transaction.contentChunk.deleteMany({
+                        where: {
+                            sourceType: contentSourceType,
+                            sourceId: job.sourceId,
+                        },
+                    });
+                    const chunkCourseIds: Array<string | null> =
+                        source.courseIds.length > 0 ? source.courseIds : [null];
+                    const chunkData = chunkCourseIds.flatMap((courseId) =>
+                        chunks.map((chunk) => ({
+                            id: randomUUID(),
+                            sourceType: contentSourceType,
+                            sourceId: job.sourceId,
+                            courseId,
+                            sequence: chunk.sequence,
+                            content: chunk.content,
+                            tokenCount: chunk.tokenCount,
+                            embedding: chunk.embedding,
+                            embeddingModel: chunk.embeddingModel,
+                            metadata: chunk.metadata as Prisma.InputJsonObject,
+                        })),
+                    );
+                    if (chunkData.length > 0) {
+                        await transaction.contentChunk.createMany({
+                            data: chunkData.map(
+                                ({ embedding: _embedding, ...chunk }) => chunk,
+                            ),
+                        });
+                        await Promise.all(
+                            chunkData.map((chunk) => {
+                                const vector = `[${chunk.embedding.join(',')}]`;
+                                return transaction.$executeRaw`
                                 UPDATE "content_chunk"
                                 SET "embedding" = ${vector}::vector
                                 WHERE "id" = ${chunk.id}
                             `;
-                        }),
-                    );
-                }
+                            }),
+                        );
+                    }
 
-                if (postProfile) {
-                    await this.postSkills.replace(
-                        transaction,
-                        job.sourceId,
-                        postProfile.skills,
-                    );
-                }
+                    if (resolvedPostSkills) {
+                        await this.postSkills.replace(
+                            transaction,
+                            job.sourceId,
+                            resolvedPostSkills,
+                        );
+                    }
 
-                if (
-                    job.sourceType === ContentSourceType.POST &&
-                    source.courseIds.length > 0
-                ) {
-                    await transaction.course.updateMany({
-                        where: { id: { in: source.courseIds } },
-                        data: {
-                            aiStatus: AiProcessingStatus.PENDING,
-                            aiError: null,
-                            aiProcessedAt: null,
-                        },
-                    });
-                }
+                    if (
+                        job.sourceType === ContentSourceType.POST &&
+                        source.courseIds.length > 0
+                    ) {
+                        await transaction.course.updateMany({
+                            where: { id: { in: source.courseIds } },
+                            data: {
+                                aiStatus: AiProcessingStatus.PENDING,
+                                aiError: null,
+                                aiProcessedAt: null,
+                            },
+                        });
+                    }
 
-                if (job.sourceType === ContentSourceType.FILE && fileSummary) {
-                    await transaction.postSkill.deleteMany({
-                        where: {
-                            post: {
+                    if (
+                        job.sourceType === ContentSourceType.FILE &&
+                        fileSummary
+                    ) {
+                        await transaction.postSkill.deleteMany({
+                            where: {
+                                post: {
+                                    files: { some: { fileId: job.sourceId } },
+                                },
+                            },
+                        });
+                        await transaction.post.updateMany({
+                            where: {
                                 files: { some: { fileId: job.sourceId } },
                             },
-                        },
-                    });
-                    await transaction.post.updateMany({
-                        where: {
-                            files: { some: { fileId: job.sourceId } },
-                        },
-                        data: {
-                            aiStatus: AiProcessingStatus.PENDING,
-                            aiError: null,
-                            aiProcessedAt: null,
-                            summary: null,
-                        },
-                    });
-                    await transaction.course.updateMany({
-                        where: {
-                            posts: {
-                                some: {
-                                    files: {
-                                        some: { fileId: job.sourceId },
+                            data: {
+                                aiStatus: AiProcessingStatus.PENDING,
+                                aiError: null,
+                                aiProcessedAt: null,
+                                summary: null,
+                            },
+                        });
+                        await transaction.course.updateMany({
+                            where: {
+                                posts: {
+                                    some: {
+                                        files: {
+                                            some: { fileId: job.sourceId },
+                                        },
                                     },
                                 },
                             },
-                        },
-                        data: {
-                            aiStatus: AiProcessingStatus.PENDING,
-                            aiError: null,
-                            aiProcessedAt: null,
-                        },
-                    });
-                }
-            });
+                            data: {
+                                aiStatus: AiProcessingStatus.PENDING,
+                                aiError: null,
+                                aiProcessedAt: null,
+                            },
+                        });
+                    }
+                },
+                { timeout: CONTENT_WRITE_TRANSACTION_TIMEOUT_MS },
+            );
         } catch (error) {
             if (error instanceof PendingContentDependencyError) {
                 await this.statusDelegate(
@@ -639,22 +649,29 @@ export class ContentProcessingQueueService
         const input = await this.loadCourse(courseId);
         const profile = await this.courseSummary.generate(input);
 
-        await this.prisma.$transaction(async (transaction) => {
-            const completed = await transaction.course.updateMany({
-                where: {
-                    id: courseId,
-                    aiStatus: AiProcessingStatus.PROCESSING,
-                },
-                data: {
-                    aiStatus: AiProcessingStatus.READY,
-                    aiError: null,
-                    aiProcessedAt: new Date(),
-                },
-            });
-            if (completed.count !== 1) return;
+        await this.prisma.$transaction(
+            async (transaction) => {
+                const completed = await transaction.course.updateMany({
+                    where: {
+                        id: courseId,
+                        aiStatus: AiProcessingStatus.PROCESSING,
+                    },
+                    data: {
+                        aiStatus: AiProcessingStatus.READY,
+                        aiError: null,
+                        aiProcessedAt: new Date(),
+                    },
+                });
+                if (completed.count !== 1) return;
 
-            await this.courseProfiles.replace(transaction, courseId, profile);
-        });
+                await this.courseProfiles.replace(
+                    transaction,
+                    courseId,
+                    profile,
+                );
+            },
+            { timeout: CONTENT_WRITE_TRANSACTION_TIMEOUT_MS },
+        );
     }
 
     private async loadCourse(courseId: string): Promise<CourseSummaryInput> {

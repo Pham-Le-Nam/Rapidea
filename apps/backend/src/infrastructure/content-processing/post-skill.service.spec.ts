@@ -8,7 +8,8 @@ describe('PostSkillService', () => {
                 .mockResolvedValueOnce({ id: 10 })
                 .mockResolvedValueOnce({ id: 20 }),
         };
-        const service = new PostSkillService(skillResolver as any);
+        const prisma = {} as any;
+        const service = new PostSkillService(prisma, skillResolver as any);
         const transaction: any = {
             postSkill: {
                 deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -16,7 +17,7 @@ describe('PostSkillService', () => {
             },
         };
 
-        await service.replace(transaction, 'post-1', [
+        const resolvedSkills = await service.resolve([
             {
                 name: 'TypeScript',
                 description: 'Static typing for JavaScript.',
@@ -32,6 +33,7 @@ describe('PostSkillService', () => {
                 confidence: 0.9,
             },
         ]);
+        await service.replace(transaction, 'post-1', resolvedSkills);
 
         expect(transaction.postSkill.deleteMany).toHaveBeenCalledWith({
             where: { postId: 'post-1' },
@@ -39,7 +41,7 @@ describe('PostSkillService', () => {
         expect(skillResolver.resolve).toHaveBeenCalledTimes(2);
         expect(skillResolver.resolve).toHaveBeenNthCalledWith(
             1,
-            transaction,
+            prisma,
             expect.objectContaining({ name: 'TypeScript' }),
         );
         expect(transaction.postSkill.createMany).toHaveBeenCalledWith({
@@ -64,7 +66,7 @@ describe('PostSkillService', () => {
 
     it('removes stale links when no skills are generated', async () => {
         const skillResolver = { resolve: jest.fn() };
-        const service = new PostSkillService(skillResolver as any);
+        const service = new PostSkillService({} as any, skillResolver as any);
         const transaction: any = {
             postSkill: {
                 deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -72,7 +74,8 @@ describe('PostSkillService', () => {
             },
         };
 
-        await service.replace(transaction, 'post-1', []);
+        const resolvedSkills = await service.resolve([]);
+        await service.replace(transaction, 'post-1', resolvedSkills);
 
         expect(transaction.postSkill.deleteMany).toHaveBeenCalledWith({
             where: { postId: 'post-1' },

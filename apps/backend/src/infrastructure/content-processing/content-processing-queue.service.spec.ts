@@ -160,6 +160,11 @@ describe('ContentProcessingQueueService', () => {
             }),
         };
         const postSkills = {
+            resolve: jest
+                .fn()
+                .mockImplementation(async (skills) =>
+                    skills.map((skill: any) => ({ ...skill, skillId: 10 })),
+                ),
             replace: jest.fn().mockResolvedValue(undefined),
         };
         const courseSummary = {
@@ -252,6 +257,7 @@ describe('ContentProcessingQueueService', () => {
             'post-1',
             [
                 {
+                    skillId: 10,
                     name: 'TypeScript',
                     description: 'Use TypeScript to create typed applications.',
                     outcome: 'Apply TypeScript types to application code.',
@@ -427,6 +433,7 @@ describe('ContentProcessingQueueService', () => {
             },
         });
         expect(fixture.postSkills.replace).not.toHaveBeenCalled();
+        expect(fixture.postSkills.resolve).not.toHaveBeenCalled();
     });
 
     it('generates a course profile from ready post summaries and skills', async () => {

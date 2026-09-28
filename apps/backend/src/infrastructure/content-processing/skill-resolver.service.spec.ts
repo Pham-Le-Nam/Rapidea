@@ -125,4 +125,40 @@ describe('SkillResolverService', () => {
             select: { id: true },
         });
     });
+
+    it('creates a canonical skill when semantic matching is unavailable', async () => {
+        const tx = transaction();
+        tx.skill.findFirst.mockResolvedValue(null);
+        tx.skill.findMany.mockResolvedValue([
+            { id: 3, name: 'JavaScript', aliases: [] },
+        ]);
+        tx.skill.upsert.mockResolvedValue({ id: 11 });
+        const openAiClient = {
+            createTextResponse: jest
+                .fn()
+                .mockRejectedValue(
+                    new Error(
+                        'Skill equivalence resolution returned no content',
+                    ),
+                ),
+        };
+        const service = new SkillResolverService(openAiClient as any);
+
+        await expect(
+            service.resolve(tx, {
+                name: 'Database Design',
+                description: 'Design relational database schemas.',
+            }),
+        ).resolves.toEqual({ id: 11 });
+
+        expect(tx.skill.upsert).toHaveBeenCalledWith({
+            where: { name: 'Database Design' },
+            update: {},
+            create: {
+                name: 'Database Design',
+                description: 'Design relational database schemas.',
+            },
+            select: { id: true },
+        });
+    });
 });

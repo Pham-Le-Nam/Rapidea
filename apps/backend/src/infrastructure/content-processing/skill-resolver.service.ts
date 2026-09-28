@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+    Injectable,
+    InternalServerErrorException,
+    Logger,
+} from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { OpenAiClientService } from '../ai/openai-client.service';
 import {
@@ -19,6 +23,8 @@ type TaxonomySkill = {
 
 @Injectable()
 export class SkillResolverService {
+    private readonly logger = new Logger(SkillResolverService.name);
+
     constructor(private readonly openAiClient: OpenAiClientService) {}
 
     async resolve(
@@ -65,11 +71,19 @@ export class SkillResolverService {
             return this.addAlias(transaction, normalizedMatches[0].id, name);
         }
 
-        const matchedSkillId = await this.findSemanticMatch(
-            name,
-            generated.description,
-            taxonomy,
-        );
+        let matchedSkillId: number | null = null;
+        try {
+            matchedSkillId = await this.findSemanticMatch(
+                name,
+                generated.description,
+                taxonomy,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Could not resolve a semantic match for skill "${name}"; ` +
+                    `creating it as a canonical skill instead: ${this.errorMessage(error)}`,
+            );
+        }
         if (matchedSkillId !== null) {
             return this.addAlias(transaction, matchedSkillId, name);
         }
@@ -179,5 +193,9 @@ export class SkillResolverService {
         return typeof value === 'string'
             ? value.replace(/\s+/g, ' ').trim()
             : '';
+    }
+
+    private errorMessage(error: unknown): string {
+        return error instanceof Error ? error.message : String(error);
     }
 }

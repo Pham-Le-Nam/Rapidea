@@ -1,38 +1,53 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
+import { PrismaService } from '../database/prisma/prisma.service';
 import { GeneratedPostSkill } from './post-summary.service';
 import { SkillResolverService } from './skill-resolver.service';
 
+export type ResolvedPostSkill = GeneratedPostSkill & {
+    skillId: number;
+};
+
 @Injectable()
 export class PostSkillService {
-    constructor(private readonly skillResolver: SkillResolverService) {}
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly skillResolver: SkillResolverService,
+    ) {}
 
-    async replace(
-        transaction: Prisma.TransactionClient,
-        postId: string,
+    async resolve(
         generatedSkills: GeneratedPostSkill[],
-    ): Promise<void> {
-        await transaction.postSkill.deleteMany({ where: { postId } });
-
-        const skillsById = new Map<number, GeneratedPostSkill>();
+    ): Promise<ResolvedPostSkill[]> {
+        const skillsById = new Map<number, ResolvedPostSkill>();
         for (const generated of generatedSkills) {
             const skill = await this.skillResolver.resolve(
-                transaction,
+                this.prisma,
                 generated,
             );
+            const resolved = { ...generated, skillId: skill.id };
             const current = skillsById.get(skill.id);
             if (
                 !current ||
                 generated.importance * generated.confidence >
                     current.importance * current.confidence
             ) {
-                skillsById.set(skill.id, generated);
+                skillsById.set(skill.id, resolved);
             }
         }
 
-        if (skillsById.size > 0) {
+        return [...skillsById.values()];
+    }
+
+    async replace(
+        transaction: Prisma.TransactionClient,
+        postId: string,
+        resolvedSkills: ResolvedPostSkill[],
+    ): Promise<void> {
+        await transaction.postSkill.deleteMany({ where: { postId } });
+
+        if (resolvedSkills.length > 0) {
             await transaction.postSkill.createMany({
-                data: [...skillsById].map(([skillId, generated]) => ({
+                data: resolvedSkills.map(({ skillId, ...generated }) => ({
                     postId,
                     skillId,
                     outcome: generated.outcome,
