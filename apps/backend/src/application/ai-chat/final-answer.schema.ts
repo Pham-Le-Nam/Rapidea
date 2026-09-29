@@ -1,12 +1,12 @@
 export const FINAL_ANSWER_SCHEMA = {
   type: 'object',
   properties: {
-    answer: { type: 'string' },
+    answer: { type: 'string', pattern: '\\S' },
     citations: {
       type: 'array',
-      items: { type: 'string' },
+      items: { type: 'string', pattern: '^R[1-9][0-9]*$' },
     },
-    followUpQuestion: { type: 'string' },
+    followUpQuestion: { type: 'string', pattern: '\\S' },
   },
   required: ['answer', 'citations', 'followUpQuestion'],
   additionalProperties: false,

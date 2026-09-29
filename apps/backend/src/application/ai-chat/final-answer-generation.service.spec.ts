@@ -3,7 +3,10 @@ import { AiTextModelPurpose } from '../ports/learning-assistant-response.port';
 import { LearnerIntent } from './learner-query.types';
 import { FinalAnswerGenerationService } from './final-answer-generation.service';
 import { FINAL_ANSWER_OUTPUT } from './final-answer.schema';
-import { RAPIDEIA_FINAL_ANSWER_PROMPT } from './prompts/final-answer.prompt';
+import {
+  RAPIDEIA_FINAL_ANSWER_PROMPT,
+  RAPIDEIA_FINAL_ANSWER_RETRY_PROMPT,
+} from './prompts/final-answer.prompt';
 
 function evidence() {
   return {
@@ -161,6 +164,55 @@ describe('FinalAnswerGenerationService', () => {
     });
 
     expect(result.citedReferences).toEqual(['R1']);
+  });
+
+  it('normalizes harmless citation-array formatting variants', async () => {
+    const fixture = createFixture({
+      answer: 'Use Architecture.pdf [R1] and Dependency Injection [R2].',
+      citations: ['[R1]', 'R1, R2', '(R2)'],
+      followUpQuestion: 'Would you like a study plan?',
+    });
+
+    const result = await fixture.service.generate(generationInput());
+
+    expect(result.citedReferences).toEqual(['R1', 'R2']);
+    expect(result.citations).toEqual(evidence().citationMap.slice(0, 2));
+  });
+
+  it('retries once with stricter correction instructions after invalid output', async () => {
+    const fixture = createFixture({
+      answer: 'Unused',
+      citations: [],
+      followUpQuestion: 'Unused?',
+    });
+    fixture.learningAssistant.createResponse
+      .mockReset()
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          answer: 'Use Architecture.pdf [R1].',
+          citations: ['Architecture.pdf'],
+          followUpQuestion: 'Would you like an example?',
+        }),
+      )
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          answer: 'Use Architecture.pdf [R1].',
+          citations: ['R1'],
+          followUpQuestion: 'Would you like an example?',
+        }),
+      );
+
+    const result = await fixture.service.generate(generationInput());
+
+    expect(result.citedReferences).toEqual(['R1']);
+    expect(fixture.learningAssistant.createResponse).toHaveBeenCalledTimes(2);
+    expect(
+      fixture.learningAssistant.createResponse.mock.calls[1][0]
+        .additionalPolicyLayers,
+    ).toEqual([
+      RAPIDEIA_FINAL_ANSWER_PROMPT,
+      RAPIDEIA_FINAL_ANSWER_RETRY_PROMPT,
+    ]);
   });
 
   it('canonicalizes temporary references so the interface can render source links', async () => {
@@ -326,5 +378,18 @@ describe('FinalAnswerGenerationService', () => {
     expect(RAPIDEIA_FINAL_ANSWER_PROMPT).toContain(
       'Prefer concise bullet points for course recommendations',
     );
+    expect(RAPIDEIA_FINAL_ANSWER_PROMPT).toContain(
+      'Each citations-array item must be one bare reference such as "R1"',
+    );
+  });
+
+  it('constrains non-empty text and citation references in the output schema', () => {
+    expect(FINAL_ANSWER_OUTPUT.schema.properties.answer.pattern).toBe('\\S');
+    expect(
+      FINAL_ANSWER_OUTPUT.schema.properties.followUpQuestion.pattern,
+    ).toBe('\\S');
+    expect(
+      FINAL_ANSWER_OUTPUT.schema.properties.citations.items.pattern,
+    ).toBe('^R[1-9][0-9]*$');
   });
 });

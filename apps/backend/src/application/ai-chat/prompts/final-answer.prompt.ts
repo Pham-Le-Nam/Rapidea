@@ -151,6 +151,7 @@ AVAILABLE_CITATION_REFERENCES contains the complete allowlist of references that
 - State the recommended resource by its human-readable title and place its citation marker immediately after that title so the interface can hyperlink the exact resource.
 - Use only references present in AVAILABLE_CITATION_REFERENCES.
 - Return every reference used in the answer in the citations array.
+- Each citations-array item must be one bare reference such as "R1". Never return "[R1]", "R1, R2", a resource title, or multiple references in one array item.
 - Never expose or infer a database ID.
 - Do not cite learner context as though it were a course or content source.
 - If AVAILABLE_CITATION_REFERENCES is empty, return an empty citations array and do not write any R-number reference in the answer.
@@ -174,5 +175,18 @@ When using bullet points, start each item with a clear learner-facing label and 
 Use a short paragraph instead when the answer is a single simple fact and bullets would make it less natural.
 
 When recommending several resources, keep the differences between them explicit rather than writing generic praise.
+
+The answer and followUpQuestion fields must each contain non-whitespace text.
+
+Return only structured output matching the supplied schema.`;
+
+export const RAPIDEIA_FINAL_ANSWER_RETRY_PROMPT = `The previous final-answer payload failed application validation.
+
+Generate the answer again from the same supplied evidence and learner request.
+
+- Return non-whitespace text in both answer and followUpQuestion.
+- Return citations as an array of individual bare references, for example ["R1", "R2"].
+- Never put brackets around a citations-array item, combine references in one item, use a resource title as a citation, or cite a reference outside AVAILABLE_CITATION_REFERENCES.
+- Preserve all grounding, authorization, citation, and learner-facing response rules from the primary final-answer policy.
 
 Return only structured output matching the supplied schema.`;

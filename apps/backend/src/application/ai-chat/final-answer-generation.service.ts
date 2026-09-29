@@ -2,6 +2,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import {
   LEARNING_ASSISTANT_RESPONSE_PORT,
@@ -13,7 +14,10 @@ import {
   FinalAnswerGenerationInput,
   FinalAnswerGenerationResult,
 } from './final-answer.types';
-import { RAPIDEIA_FINAL_ANSWER_PROMPT } from './prompts/final-answer.prompt';
+import {
+  RAPIDEIA_FINAL_ANSWER_PROMPT,
+  RAPIDEIA_FINAL_ANSWER_RETRY_PROMPT,
+} from './prompts/final-answer.prompt';
 import { RapideiaEvidenceService } from './rapideia-evidence.service';
 import { ConversationMemoryService } from './conversation-memory.service';
 import { ConversationMemoryContext } from './conversation-memory.types';
@@ -27,9 +31,19 @@ type ModelFinalAnswer = {
 
 const MAX_OUTPUT_TOKENS = 2_500;
 const REFERENCE_PATTERN = /^R[1-9]\d*$/;
+const REFERENCE_IN_TEXT_PATTERN = /\bR[1-9]\d*\b/g;
+
+class InvalidModelFinalAnswerError extends Error {
+  constructor(readonly reason: string) {
+    super(reason);
+    this.name = InvalidModelFinalAnswerError.name;
+  }
+}
 
 @Injectable()
 export class FinalAnswerGenerationService {
+  private readonly logger = new Logger(FinalAnswerGenerationService.name);
+
   constructor(
     @Inject(LEARNING_ASSISTANT_RESPONSE_PORT)
     private readonly learningAssistant: LearningAssistantResponsePort,
@@ -51,15 +65,10 @@ export class FinalAnswerGenerationService {
         .filter((citation) => citation.source !== null)
         .map((citation) => [citation.reference, citation]),
     );
-    const response = await this.learningAssistant.createResponse({
-      modelPurpose: AiTextModelPurpose.RESPONSE,
-      additionalPolicyLayers: [RAPIDEIA_FINAL_ANSWER_PROMPT],
-      input: this.modelInput(input, conversationContext, [...available.keys()]),
-      structuredOutput: FINAL_ANSWER_OUTPUT,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      failureLabel: 'Rapideia final answer generation',
-    });
-    const parsed = this.parse(response);
+    const modelInput = this.modelInput(input, conversationContext, [
+      ...available.keys(),
+    ]);
+    const parsed = await this.generateValidatedAnswer(modelInput);
     const answer = this.normalizeReferenceMarkers(
       this.withoutInternalEvidenceLabels(
         available.size === 0
@@ -92,6 +101,43 @@ export class FinalAnswerGenerationService {
       citedReferences,
       citations: citedReferences.map((reference) => available.get(reference)!),
     };
+  }
+
+  private async generateValidatedAnswer(
+    input: string,
+  ): Promise<ModelFinalAnswer> {
+    try {
+      return this.parse(await this.requestAnswer(input, false));
+    } catch (error) {
+      if (!(error instanceof InvalidModelFinalAnswerError)) throw error;
+      this.logger.warn(
+        `Final answer validation failed; retrying once: reason=${error.reason}`,
+      );
+    }
+
+    try {
+      return this.parse(await this.requestAnswer(input, true));
+    } catch (error) {
+      if (!(error instanceof InvalidModelFinalAnswerError)) throw error;
+      this.logger.error(
+        `Final answer validation failed after retry: reason=${error.reason}`,
+      );
+      throw this.invalidOutput();
+    }
+  }
+
+  private requestAnswer(input: string, retry: boolean): Promise<string> {
+    return this.learningAssistant.createResponse({
+      modelPurpose: AiTextModelPurpose.RESPONSE,
+      additionalPolicyLayers: [
+        RAPIDEIA_FINAL_ANSWER_PROMPT,
+        ...(retry ? [RAPIDEIA_FINAL_ANSWER_RETRY_PROMPT] : []),
+      ],
+      input,
+      structuredOutput: FINAL_ANSWER_OUTPUT,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
+      failureLabel: 'Rapideia final answer generation',
+    });
   }
 
   private modelInput(
@@ -132,34 +178,57 @@ export class FinalAnswerGenerationService {
     try {
       parsed = JSON.parse(value);
     } catch {
-      throw new InternalServerErrorException(
-        'Rapideia final answer returned invalid JSON',
-      );
+      throw new InvalidModelFinalAnswerError('invalid_json');
     }
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw this.invalidOutput();
+      throw new InvalidModelFinalAnswerError('not_an_object');
     }
 
     const record = parsed as Record<string, unknown>;
-    if (
-      typeof record.answer !== 'string' ||
-      !record.answer.trim() ||
-      typeof record.followUpQuestion !== 'string' ||
-      !record.followUpQuestion.trim() ||
-      !Array.isArray(record.citations) ||
-      record.citations.some(
-        (reference) =>
-          typeof reference !== 'string' || !REFERENCE_PATTERN.test(reference),
-      )
-    ) {
-      throw this.invalidOutput();
+    if (typeof record.answer !== 'string' || !record.answer.trim()) {
+      throw new InvalidModelFinalAnswerError('empty_answer');
     }
+    if (
+      typeof record.followUpQuestion !== 'string' ||
+      !record.followUpQuestion.trim()
+    ) {
+      throw new InvalidModelFinalAnswerError('empty_follow_up_question');
+    }
+    const citations = this.parseCitations(record.citations);
 
     return {
       answer: record.answer,
       followUpQuestion: record.followUpQuestion,
-      citations: [...new Set(record.citations as string[])],
+      citations,
     };
+  }
+
+  private parseCitations(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+      throw new InvalidModelFinalAnswerError('citations_not_an_array');
+    }
+
+    const citations: string[] = [];
+    for (const item of value) {
+      if (typeof item !== 'string') {
+        throw new InvalidModelFinalAnswerError('citation_not_a_string');
+      }
+      if (REFERENCE_PATTERN.test(item)) {
+        citations.push(item);
+        continue;
+      }
+
+      const references = item.match(REFERENCE_IN_TEXT_PATTERN) ?? [];
+      const remainder = item
+        .replace(REFERENCE_IN_TEXT_PATTERN, '')
+        .replace(/[\s,;()[\]]/g, '');
+      if (references.length === 0 || remainder.length > 0) {
+        throw new InvalidModelFinalAnswerError('invalid_citation_reference');
+      }
+      citations.push(...references);
+    }
+
+    return [...new Set(citations)];
   }
 
   private referencesIn(answer: string): string[] {
