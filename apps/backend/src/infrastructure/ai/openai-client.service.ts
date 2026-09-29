@@ -1,23 +1,48 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+    Injectable,
+    InternalServerErrorException,
+    Logger,
+} from '@nestjs/common';
 import { AiMediaFile } from '../../application/ports/ai.service';
 import { AiTextModelPurpose } from '../../application/ports/learning-assistant-response.port';
 import {
     AiModelEnvironmentVariable,
+    aiTextGenerationProfile,
     requiredAiModel,
     requiredAiTextModel,
     requiredEmbeddingDimensions,
 } from './ai-model-config';
 
+type OpenAiResponseStatus =
+    | 'completed'
+    | 'failed'
+    | 'in_progress'
+    | 'cancelled'
+    | 'queued'
+    | 'incomplete';
+
 type OpenAiResponse = {
+    id?: string;
+    status?: OpenAiResponseStatus;
+    incomplete_details?: { reason?: string } | null;
+    error?: { code?: string; message?: string } | null;
+    usage?: {
+        output_tokens?: number;
+        output_tokens_details?: { reasoning_tokens?: number };
+    } | null;
     output_text?: string;
     output?: Array<{
         type?: string;
         content?: Array<{
             type?: string;
             text?: string;
+            refusal?: string;
         }>;
     }>;
 };
+
+const MAX_TEXT_RESPONSE_ATTEMPTS = 2;
+const MIN_RETRY_OUTPUT_TOKENS = 4_000;
 
 export type OpenAiTextResponseInput = {
     instructions: string;
@@ -30,9 +55,76 @@ export type OpenAiTextResponseInput = {
 
 @Injectable()
 export class OpenAiClientService {
+    private readonly logger = new Logger(OpenAiClientService.name);
+
     async createTextResponse(input: OpenAiTextResponseInput): Promise<string> {
         const model = requiredAiTextModel(input.modelPurpose);
         const apiKey = this.requiredApiKey();
+        const profile = aiTextGenerationProfile(input.modelPurpose);
+        let maxOutputTokens = input.maxOutputTokens;
+
+        for (
+            let attempt = 1;
+            attempt <= MAX_TEXT_RESPONSE_ATTEMPTS;
+            attempt++
+        ) {
+            const data = await this.requestTextResponse(
+                input,
+                model,
+                apiKey,
+                profile,
+                maxOutputTokens,
+            );
+            const value = this.responseText(data);
+            const refusal = this.responseRefusal(data);
+
+            if (
+                (data.status === undefined || data.status === 'completed') &&
+                value
+            ) {
+                return value;
+            }
+
+            if (refusal) {
+                this.logUnusableResponse(input, model, data, 'refusal');
+                throw new InternalServerErrorException(
+                    `${input.failureLabel} was refused by the model`,
+                );
+            }
+
+            const canRetry = this.canRetryTextResponse(
+                data,
+                value,
+                attempt,
+                maxOutputTokens,
+            );
+            if (canRetry) {
+                maxOutputTokens = this.retryOutputTokenLimit(
+                    data,
+                    maxOutputTokens,
+                );
+                this.logUnusableResponse(input, model, data, 'retrying');
+                continue;
+            }
+
+            this.logUnusableResponse(input, model, data, 'failed');
+            throw new InternalServerErrorException(
+                `${input.failureLabel} could not be completed`,
+            );
+        }
+
+        throw new InternalServerErrorException(
+            `${input.failureLabel} could not be completed`,
+        );
+    }
+
+    private async requestTextResponse(
+        input: OpenAiTextResponseInput,
+        model: string,
+        apiKey: string,
+        profile: ReturnType<typeof aiTextGenerationProfile>,
+        maxOutputTokens: number | undefined,
+    ): Promise<OpenAiResponse> {
         const response = await fetch('https://api.openai.com/v1/responses', {
             method: 'POST',
             headers: {
@@ -44,28 +136,28 @@ export class OpenAiClientService {
                 instructions: input.instructions,
                 input: input.input,
                 store: false,
-                ...(input.maxOutputTokens === undefined
+                reasoning: { effort: profile.reasoningEffort },
+                ...(maxOutputTokens === undefined
                     ? {}
-                    : { max_output_tokens: input.maxOutputTokens }),
-                ...(input.textFormat === undefined
-                    ? {}
-                    : { text: { format: input.textFormat } }),
+                    : { max_output_tokens: maxOutputTokens }),
+                text: {
+                    verbosity: profile.verbosity,
+                    ...(input.textFormat === undefined
+                        ? {}
+                        : { format: input.textFormat }),
+                },
             }),
         });
         if (!response.ok) {
+            this.logger.error(
+                `${input.failureLabel} HTTP failure: model=${model} status=${response.status}`,
+            );
             throw new InternalServerErrorException(
                 `${input.failureLabel} failed (${response.status})`,
             );
         }
 
-        const data = (await response.json()) as OpenAiResponse;
-        const value = this.responseText(data);
-        if (!value) {
-            throw new InternalServerErrorException(
-                `${input.failureLabel} returned no content`,
-            );
-        }
-        return value;
+        return (await response.json()) as OpenAiResponse;
     }
 
     async createEmbeddings(input: string[]): Promise<number[][] | null> {
@@ -154,6 +246,75 @@ export class OpenAiClientService {
                 .join('') ??
             ''
         ).trim();
+    }
+
+    private responseRefusal(data: OpenAiResponse): string {
+        return (
+            data.output
+                ?.flatMap((item) =>
+                    item.type === 'message' ? (item.content ?? []) : [],
+                )
+                .filter((content) => content.type === 'refusal')
+                .map((content) => content.refusal ?? '')
+                .join('') ?? ''
+        ).trim();
+    }
+
+    private canRetryTextResponse(
+        data: OpenAiResponse,
+        value: string,
+        attempt: number,
+        maxOutputTokens: number | undefined,
+    ): boolean {
+        if (attempt >= MAX_TEXT_RESPONSE_ATTEMPTS) return false;
+        if (
+            data.status === 'incomplete' &&
+            data.incomplete_details?.reason === 'max_output_tokens'
+        ) {
+            return maxOutputTokens !== undefined;
+        }
+
+        return (
+            !value && (data.status === undefined || data.status === 'completed')
+        );
+    }
+
+    private retryOutputTokenLimit(
+        data: OpenAiResponse,
+        maxOutputTokens: number | undefined,
+    ): number | undefined {
+        if (
+            data.status !== 'incomplete' ||
+            data.incomplete_details?.reason !== 'max_output_tokens' ||
+            maxOutputTokens === undefined
+        ) {
+            return maxOutputTokens;
+        }
+
+        return Math.max(maxOutputTokens * 2, MIN_RETRY_OUTPUT_TOKENS);
+    }
+
+    private logUnusableResponse(
+        input: OpenAiTextResponseInput,
+        model: string,
+        data: OpenAiResponse,
+        outcome: 'retrying' | 'failed' | 'refusal',
+    ): void {
+        const details = [
+            `model=${model}`,
+            `purpose=${input.modelPurpose}`,
+            `responseId=${data.id ?? 'unknown'}`,
+            `status=${data.status ?? 'unknown'}`,
+            `reason=${data.incomplete_details?.reason ?? 'none'}`,
+            `outputTokens=${data.usage?.output_tokens ?? 'unknown'}`,
+            `reasoningTokens=${data.usage?.output_tokens_details?.reasoning_tokens ?? 'unknown'}`,
+        ].join(' ');
+        const message = `${input.failureLabel} ${outcome}: ${details}`;
+        if (outcome === 'retrying') {
+            this.logger.warn(message);
+        } else {
+            this.logger.error(message);
+        }
     }
 
     private requiredApiKey(): string {

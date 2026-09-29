@@ -68,7 +68,9 @@ describe('OpenAiClientService', () => {
             instructions: 'Generate content.',
             input: 'Source material',
             store: false,
+            reasoning: { effort: 'low' },
             max_output_tokens: 500,
+            text: { verbosity: 'medium' },
         });
     });
 
@@ -77,12 +79,32 @@ describe('OpenAiClientService', () => {
             AiTextModelPurpose.PROCESSING,
             'PROCESSING_MODEL',
             'test-processing-model',
+            'minimal',
+            'low',
         ],
-        [AiTextModelPurpose.PLANNING, 'PLANNING_MODEL', 'test-planning-model'],
-        [AiTextModelPurpose.RESPONSE, 'RESPONSE_MODEL', 'test-response-model'],
+        [
+            AiTextModelPurpose.PLANNING,
+            'PLANNING_MODEL',
+            'test-planning-model',
+            'low',
+            'low',
+        ],
+        [
+            AiTextModelPurpose.RESPONSE,
+            'RESPONSE_MODEL',
+            'test-response-model',
+            'low',
+            'medium',
+        ],
     ] as const)(
         'uses the configured model for %s requests',
-        async (modelPurpose, environmentVariable, configuredModel) => {
+        async (
+            modelPurpose,
+            environmentVariable,
+            configuredModel,
+            reasoningEffort,
+            verbosity,
+        ) => {
             process.env[environmentVariable] = configuredModel;
             process.env.OPENAI_API_KEY = 'test-api-key';
             const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
@@ -98,11 +120,130 @@ describe('OpenAiClientService', () => {
             });
 
             const request = fetchMock.mock.calls[0][1] as RequestInit;
-            expect(JSON.parse(request.body as string).model).toBe(
-                configuredModel,
-            );
+            const body = JSON.parse(request.body as string);
+            expect(body.model).toBe(configuredModel);
+            expect(body.reasoning).toEqual({ effort: reasoningEffort });
+            expect(body.text).toEqual({ verbosity });
         },
     );
+
+    it('retries an incomplete response with more output-token headroom', async () => {
+        process.env.PROCESSING_MODEL = 'gpt-5-nano';
+        process.env.OPENAI_API_KEY = 'test-api-key';
+        const fetchMock = jest
+            .spyOn(global, 'fetch')
+            .mockResolvedValueOnce({
+                ok: true,
+                json: jest.fn().mockResolvedValue({
+                    id: 'response-1',
+                    status: 'incomplete',
+                    incomplete_details: { reason: 'max_output_tokens' },
+                    usage: {
+                        output_tokens: 500,
+                        output_tokens_details: { reasoning_tokens: 500 },
+                    },
+                    output: [],
+                }),
+            } as unknown as Response)
+            .mockResolvedValueOnce({
+                ok: true,
+                json: jest.fn().mockResolvedValue({
+                    id: 'response-2',
+                    status: 'completed',
+                    output_text: '{"intent":"GENERAL"}',
+                }),
+            } as unknown as Response);
+
+        await expect(
+            service.createTextResponse({
+                modelPurpose: AiTextModelPurpose.PROCESSING,
+                instructions: 'Classify the learner request.',
+                input: 'I want to learn calculus',
+                failureLabel: 'Learner intent classification',
+                maxOutputTokens: 500,
+            }),
+        ).resolves.toBe('{"intent":"GENERAL"}');
+
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        const firstBody = JSON.parse(
+            (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+        );
+        const retryBody = JSON.parse(
+            (fetchMock.mock.calls[1][1] as RequestInit).body as string,
+        );
+        expect(firstBody.max_output_tokens).toBe(500);
+        expect(retryBody.max_output_tokens).toBe(4_000);
+        expect(retryBody.reasoning).toEqual({ effort: 'minimal' });
+    });
+
+    it('retries a completed response that unexpectedly contains no content', async () => {
+        process.env.PLANNING_MODEL = 'gpt-5-nano';
+        process.env.OPENAI_API_KEY = 'test-api-key';
+        const fetchMock = jest
+            .spyOn(global, 'fetch')
+            .mockResolvedValueOnce({
+                ok: true,
+                json: jest.fn().mockResolvedValue({
+                    id: 'response-1',
+                    status: 'completed',
+                    output: [],
+                }),
+            } as unknown as Response)
+            .mockResolvedValueOnce({
+                ok: true,
+                json: jest.fn().mockResolvedValue({
+                    id: 'response-2',
+                    status: 'completed',
+                    output_text: 'Recovered plan',
+                }),
+            } as unknown as Response);
+
+        await expect(
+            service.createTextResponse({
+                modelPurpose: AiTextModelPurpose.PLANNING,
+                instructions: 'Plan.',
+                input: 'Calculus',
+                failureLabel: 'Planning',
+                maxOutputTokens: 2_500,
+            }),
+        ).resolves.toBe('Recovered plan');
+
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        const retryBody = JSON.parse(
+            (fetchMock.mock.calls[1][1] as RequestInit).body as string,
+        );
+        expect(retryBody.max_output_tokens).toBe(2_500);
+    });
+
+    it('reports refusals without retrying them', async () => {
+        process.env.PROCESSING_MODEL = 'gpt-5-nano';
+        process.env.OPENAI_API_KEY = 'test-api-key';
+        const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+            ok: true,
+            json: jest.fn().mockResolvedValue({
+                id: 'response-1',
+                status: 'completed',
+                output: [
+                    {
+                        type: 'message',
+                        content: [
+                            { type: 'refusal', refusal: 'Cannot comply.' },
+                        ],
+                    },
+                ],
+            }),
+        } as unknown as Response);
+
+        await expect(
+            service.createTextResponse({
+                modelPurpose: AiTextModelPurpose.PROCESSING,
+                instructions: 'Classify.',
+                input: 'Request',
+                failureLabel: 'Classification',
+            }),
+        ).rejects.toThrow('Classification was refused by the model');
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
 
     it('rejects processing without PROCESSING_MODEL', async () => {
         delete process.env.PROCESSING_MODEL;

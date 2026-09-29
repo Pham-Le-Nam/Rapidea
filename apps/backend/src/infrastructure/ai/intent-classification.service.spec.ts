@@ -124,7 +124,10 @@ describe('IntentClassificationService', () => {
             expect.any(Array),
         );
         expect(openAiClient.createTextResponse).toHaveBeenCalledWith(
-            expect.objectContaining({ textFormat: LEARNER_QUERY_FORMAT }),
+            expect.objectContaining({
+                textFormat: LEARNER_QUERY_FORMAT,
+                maxOutputTokens: 4_000,
+            }),
         );
         const modelInput = openAiClient.createTextResponse.mock.calls[0][0].input;
         expect(modelInput).toContain(context[0].id);

@@ -39,7 +39,7 @@ export class IntentClassificationService {
                 '</learner_query_input>',
             ].join('\n'),
             textFormat: LEARNER_QUERY_FORMAT,
-            maxOutputTokens: 1200,
+            maxOutputTokens: 4_000,
             failureLabel: 'Learner intent classification',
         });
 

@@ -13,6 +13,24 @@ export enum AiNumericEnvironmentVariable {
     TEXT_EMBEDDING_DIMENSIONS = 'TEXT_EMBEDDING_DIMENSIONS',
 }
 
+export enum AiReasoningEffort {
+    MINIMAL = 'minimal',
+    LOW = 'low',
+    MEDIUM = 'medium',
+    HIGH = 'high',
+}
+
+export enum AiTextVerbosity {
+    LOW = 'low',
+    MEDIUM = 'medium',
+    HIGH = 'high',
+}
+
+export type AiTextGenerationProfile = {
+    reasoningEffort: AiReasoningEffort;
+    verbosity: AiTextVerbosity;
+};
+
 export const DATABASE_EMBEDDING_DIMENSIONS = 1536;
 
 export function requiredAiModel(name: AiModelEnvironmentVariable): string {
@@ -33,8 +51,32 @@ const TEXT_MODEL_ENVIRONMENT_VARIABLE: Record<
     [AiTextModelPurpose.RESPONSE]: AiModelEnvironmentVariable.RESPONSE,
 };
 
+const TEXT_GENERATION_PROFILE: Record<
+    AiTextModelPurpose,
+    AiTextGenerationProfile
+> = {
+    [AiTextModelPurpose.PROCESSING]: {
+        reasoningEffort: AiReasoningEffort.MINIMAL,
+        verbosity: AiTextVerbosity.LOW,
+    },
+    [AiTextModelPurpose.PLANNING]: {
+        reasoningEffort: AiReasoningEffort.LOW,
+        verbosity: AiTextVerbosity.LOW,
+    },
+    [AiTextModelPurpose.RESPONSE]: {
+        reasoningEffort: AiReasoningEffort.LOW,
+        verbosity: AiTextVerbosity.MEDIUM,
+    },
+};
+
 export function requiredAiTextModel(purpose: AiTextModelPurpose): string {
     return requiredAiModel(TEXT_MODEL_ENVIRONMENT_VARIABLE[purpose]);
+}
+
+export function aiTextGenerationProfile(
+    purpose: AiTextModelPurpose,
+): AiTextGenerationProfile {
+    return TEXT_GENERATION_PROFILE[purpose];
 }
 
 export function requiredPositiveInteger(
