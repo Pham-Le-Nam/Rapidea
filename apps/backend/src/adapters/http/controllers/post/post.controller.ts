@@ -137,6 +137,7 @@ export class PostController {
             details?: string;
             tags?: string[];
             fileIds?: string[];
+            courseId?: string;
         },
     ) {
         this.assertCanCreate(req.user);

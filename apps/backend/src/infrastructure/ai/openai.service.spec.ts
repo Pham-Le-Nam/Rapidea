@@ -1,4 +1,5 @@
 import { OpenAiService } from './openai.service';
+import { AiTextModelPurpose } from '../../application/ports/learning-assistant-response.port';
 
 describe('OpenAiService', () => {
     const openAiClient = {
@@ -25,9 +26,11 @@ describe('OpenAiService', () => {
 
         expect(openAiClient.createTextResponse).toHaveBeenCalledWith(
             expect.objectContaining({
+                modelPurpose: AiTextModelPurpose.PROCESSING,
                 instructions: 'Generate a title.',
                 input: '{"materials":[]}',
                 failureLabel: 'Post generation',
+                maxOutputTokens: 500,
             }),
         );
     });
@@ -55,6 +58,12 @@ describe('OpenAiService', () => {
                 additionalProperties: false,
             },
         });
+        expect(openAiClient.createTextResponse).toHaveBeenCalledWith(
+            expect.objectContaining({
+                modelPurpose: AiTextModelPurpose.RESPONSE,
+                maxOutputTokens: 2_000,
+            }),
+        );
     });
 
     it('delegates embeddings and transcription to the client', async () => {

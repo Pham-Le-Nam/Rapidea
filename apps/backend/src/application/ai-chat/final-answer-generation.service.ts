@@ -17,6 +17,7 @@ import { RAPIDEIA_FINAL_ANSWER_PROMPT } from './prompts/final-answer.prompt';
 import { RapideiaEvidenceService } from './rapideia-evidence.service';
 import { ConversationMemoryService } from './conversation-memory.service';
 import { ConversationMemoryContext } from './conversation-memory.types';
+import { EvidenceAuthority } from './rapideia-evidence.types';
 
 type ModelFinalAnswer = {
   answer: string;
@@ -60,9 +61,11 @@ export class FinalAnswerGenerationService {
     });
     const parsed = this.parse(response);
     const answer = this.normalizeReferenceMarkers(
-      available.size === 0
-        ? this.withoutReferences(parsed.answer)
-        : parsed.answer,
+      this.withoutInternalEvidenceLabels(
+        available.size === 0
+          ? this.withoutReferences(parsed.answer)
+          : parsed.answer,
+      ),
     ).trim();
     if (!answer) throw this.invalidOutput();
     const mentionedReferences = this.referencesIn(answer);
@@ -169,6 +172,20 @@ export class FinalAnswerGenerationService {
       (_match, bracketed: string, parenthesized: string, bare: string) =>
         `[${bracketed ?? parenthesized ?? bare}]`,
     );
+  }
+
+  private withoutInternalEvidenceLabels(answer: string): string {
+    const labels = Object.values(EvidenceAuthority).join('|');
+    const parenthetical = new RegExp(
+      `\\s*\\([^)]*\\b(?:${labels})\\b[^)]*\\)`,
+      'gi',
+    );
+    const remainingLabel = new RegExp(`\\b(?:${labels})\\b`, 'g');
+    return answer
+      .replace(parenthetical, '')
+      .replace(remainingLabel, '')
+      .replace(/[ \t]+([,.;:!?])/g, '$1')
+      .replace(/[ \t]{2,}/g, ' ');
   }
 
   private withoutReferences(answer: string): string {

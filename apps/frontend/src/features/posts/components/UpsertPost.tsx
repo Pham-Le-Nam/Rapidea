@@ -71,6 +71,7 @@ function UpsertPost({ className, post, uploadedFiles, course, courseOptions = []
                 details: extractTextFromEditorContent(content),
                 tags,
                 fileIds: activeFiles.map((file) => file.id),
+                courseId: selectedPostCourseId,
             });
             if (target === "title") setTitle(response.value);
             else setContent(response.value);

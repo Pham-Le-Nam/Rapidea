@@ -755,6 +755,24 @@ function AiMessageBubble({ message }: { message: AiChatMessage }) {
 
 const INLINE_CITATION_PATTERN =
     /\[(R[1-9]\d*(?:\s*,\s*R[1-9]\d*)*)\]|\(\s*(R[1-9]\d*)\s*\)|\b(R[1-9]\d*)\b/g;
+const INTERNAL_EVIDENCE_LABELS =
+    "COURSE_OFFICIAL|RESOURCE_SPECIFIC|COMMUNITY|LEARNER_CONTEXT";
+
+function withoutInternalEvidenceLabels(content: string) {
+    const parenthetical = new RegExp(
+        `\\s*\\([^)]*\\b(?:${INTERNAL_EVIDENCE_LABELS})\\b[^)]*\\)`,
+        "gi",
+    );
+    const remainingLabel = new RegExp(
+        `\\b(?:${INTERNAL_EVIDENCE_LABELS})\\b`,
+        "g",
+    );
+    return content
+        .replace(parenthetical, "")
+        .replace(remainingLabel, "")
+        .replace(/[ \t]+([,.;:!?])/g, "$1")
+        .replace(/[ \t]{2,}/g, " ");
+}
 
 function AssistantMessageContent({
     content,
@@ -763,6 +781,7 @@ function AssistantMessageContent({
     content: string;
     citations: AiChatCitation[];
 }) {
+    const learnerContent = withoutInternalEvidenceLabels(content);
     const citationsByReference = new Map(
         citations.map((citation) => [citation.reference, citation]),
     );
@@ -770,9 +789,9 @@ function AssistantMessageContent({
     let cursor = 0;
     let key = 0;
 
-    for (const match of content.matchAll(INLINE_CITATION_PATTERN)) {
+    for (const match of learnerContent.matchAll(INLINE_CITATION_PATTERN)) {
         const index = match.index ?? 0;
-        const leadingText = content.slice(cursor, index);
+        const leadingText = learnerContent.slice(cursor, index);
         const references = (match[1] ?? match[2] ?? match[3] ?? "")
             .split(",")
             .map((reference) => reference.trim());
@@ -840,7 +859,7 @@ function AssistantMessageContent({
         cursor = index + match[0].length;
     }
 
-    nodes.push(content.slice(cursor));
+    nodes.push(learnerContent.slice(cursor));
     return <>{nodes}</>;
 }
 

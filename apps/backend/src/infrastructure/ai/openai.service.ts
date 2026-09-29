@@ -50,10 +50,14 @@ export class OpenAiService implements AiService {
         context: string;
     }): Promise<string> {
         return this.openAiClient.createTextResponse({
-            modelPurpose: AiTextModelPurpose.PROCESSING,
+            modelPurpose:
+                input.target === 'details'
+                    ? AiTextModelPurpose.RESPONSE
+                    : AiTextModelPurpose.PROCESSING,
             instructions: input.systemPrompt,
             input: input.context,
             failureLabel: 'Post generation',
+            maxOutputTokens: input.target === 'details' ? 2_000 : 500,
             textFormat:
                 input.target === 'details' ? TIPTAP_DOCUMENT_FORMAT : undefined,
         });

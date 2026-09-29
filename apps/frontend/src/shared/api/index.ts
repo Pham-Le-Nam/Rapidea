@@ -444,6 +444,7 @@ export async function generatePostFieldApi(data: {
     details?: string;
     tags?: string[];
     fileIds?: string[];
+    courseId?: string;
 }) {
     const token = authTokenStorage.get();
     const response = await API.post("api/post/generate", data, {

@@ -183,6 +183,22 @@ describe('FinalAnswerGenerationService', () => {
     expect(result.content).not.toContain('the R2 post');
   });
 
+  it('removes internal evidence-authority labels from learner-facing answers', async () => {
+    const fixture = createFixture({
+      answer:
+        'Gợi ý khóa học: Calculus [R1] (do COURSE_OFFICIAL cung cấp). Khóa học phù hợp cho người mới bắt đầu.',
+      citations: ['R1'],
+      followUpQuestion: 'Bạn có muốn xem lộ trình học không?',
+    });
+
+    const result = await fixture.service.generate(generationInput());
+
+    expect(result.answer).toBe(
+      'Gợi ý khóa học: Calculus [R1]. Khóa học phù hợp cho người mới bắt đầu.',
+    );
+    expect(result.content).not.toContain('COURSE_OFFICIAL');
+  });
+
   it('rejects references not present in authorized evidence', async () => {
     const fixture = createFixture({
       answer: 'Unsupported claim [R99].',
@@ -303,6 +319,12 @@ describe('FinalAnswerGenerationService', () => {
     );
     expect(RAPIDEIA_FINAL_ANSWER_PROMPT).toContain(
       'distinguish them using meaningful evidence',
+    );
+    expect(RAPIDEIA_FINAL_ANSWER_PROMPT).toContain(
+      'Never reproduce these labels or any other internal enum value',
+    );
+    expect(RAPIDEIA_FINAL_ANSWER_PROMPT).toContain(
+      'Prefer concise bullet points for course recommendations',
     );
   });
 });

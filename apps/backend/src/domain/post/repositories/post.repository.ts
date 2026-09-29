@@ -1,5 +1,5 @@
 export interface PostRepository {
-    findGenerationContext(userId: string, fileIds: string[]): Promise<{ user: any; files: any[] }>;
+    findGenerationContext(userId: string, fileIds: string[], courseId?: string): Promise<{ user: any; files: any[]; course: any | null }>;
     create(userId: string, title?: string, content?: any, courseId?: string, isPreview?: boolean): Promise<any>;
     deleteById(id: string, userId: string): Promise<any>;
     updateById(id: string, userId: string, title?: string, content?: any, isPreview?: boolean, courseId?: string | null): Promise<any>;

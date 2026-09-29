@@ -6,8 +6,8 @@ import { PostRepository } from '../../../domain/post/repositories/post.repositor
 export class PrismaPostRepository implements PostRepository {
     constructor(private prisma: PrismaService) {}
 
-    async findGenerationContext(userId: string, fileIds: string[]) {
-        const [user, files] = await Promise.all([
+    async findGenerationContext(userId: string, fileIds: string[], courseId?: string) {
+        const [user, files, course] = await Promise.all([
             this.prisma.users.findUnique({
                 where: { id: userId },
                 select: { creatorPrompt: true },
@@ -16,8 +16,14 @@ export class PrismaPostRepository implements PostRepository {
                 where: { id: { in: fileIds }, userId },
                 include: { transcript: true, tags: { include: { tag: true } } },
             }),
+            courseId
+                ? this.prisma.course.findFirst({
+                      where: { id: courseId, userId },
+                      select: { title: true },
+                  })
+                : Promise.resolve(null),
         ]);
-        return { user, files };
+        return { user, files, course };
     }
 
     async create(
