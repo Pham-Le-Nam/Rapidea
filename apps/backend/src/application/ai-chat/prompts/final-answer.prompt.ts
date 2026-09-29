@@ -137,9 +137,16 @@ CITATIONS
 
 Evidence items use temporary references such as R1 and R2.
 
+These references are internal citation markers. Learners do not know what they mean.
+
 AVAILABLE_CITATION_REFERENCES contains the complete allowlist of references that may be cited.
 
 - Cite evidence-supported claims inline using square brackets, for example [R1].
+- Place a resource's citation marker immediately after its human-readable title whenever naming or recommending that resource, for example: Calculus [R1].
+- Never call a resource "R1", "R2", "the R2 course", or otherwise use a temporary reference as its learner-facing name.
+- Never put a temporary reference in parentheses or write it without square brackets.
+- When resources have identical titles, distinguish them using meaningful evidence such as subject matter, difficulty, creator, or focus. Never distinguish them by their temporary references.
+- State the recommended resource by its human-readable title and place its citation marker immediately after that title so the interface can hyperlink the exact resource.
 - Use only references present in AVAILABLE_CITATION_REFERENCES.
 - Return every reference used in the answer in the citations array.
 - Never expose or infer a database ID.

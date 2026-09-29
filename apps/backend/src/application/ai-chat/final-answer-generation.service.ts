@@ -59,10 +59,10 @@ export class FinalAnswerGenerationService {
       failureLabel: 'Rapideia final answer generation',
     });
     const parsed = this.parse(response);
-    const answer = (
+    const answer = this.normalizeReferenceMarkers(
       available.size === 0
         ? this.withoutReferences(parsed.answer)
-        : parsed.answer
+        : parsed.answer,
     ).trim();
     if (!answer) throw this.invalidOutput();
     const mentionedReferences = this.referencesIn(answer);
@@ -161,6 +161,14 @@ export class FinalAnswerGenerationService {
 
   private referencesIn(answer: string): string[] {
     return [...answer.matchAll(/\bR[1-9]\d*\b/g)].map((match) => match[0]);
+  }
+
+  private normalizeReferenceMarkers(answer: string): string {
+    return answer.replace(
+      /\[(R[1-9]\d*(?:\s*,\s*R[1-9]\d*)*)\]|\(\s*(R[1-9]\d*)\s*\)|\b(R[1-9]\d*)\b/g,
+      (_match, bracketed: string, parenthesized: string, bare: string) =>
+        `[${bracketed ?? parenthesized ?? bare}]`,
+    );
   }
 
   private withoutReferences(answer: string): string {

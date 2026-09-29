@@ -27,6 +27,7 @@ type Candidate = {
   authority: EvidenceAuthority;
   sourceType: EvidenceResourceType;
   sourceLabel: string | null;
+  sourceDescription: string | null;
   internalSource: { type: EvidenceResourceType; id: string } | null;
   data: unknown;
 };
@@ -101,7 +102,13 @@ export class RapideiaEvidenceService {
       citationMap.push({
         reference,
         source: candidate.internalSource
-          ? { ...candidate.internalSource, label: candidate.sourceLabel }
+          ? {
+              ...candidate.internalSource,
+              label: candidate.sourceLabel,
+              ...(candidate.sourceDescription
+                ? { description: candidate.sourceDescription }
+                : {}),
+            }
           : null,
       });
     }
@@ -215,6 +222,7 @@ export class RapideiaEvidenceService {
       authority: this.authority(kind, sourceType),
       sourceType,
       sourceLabel: this.sourceLabel(record),
+      sourceDescription: this.sourceDescription(record),
       internalSource,
       data,
     };
@@ -347,6 +355,25 @@ export class RapideiaEvidenceService {
       this.string(metadata?.name) ??
       null
     );
+  }
+
+  private sourceDescription(
+    record: Record<string, unknown> | null,
+  ): string | null {
+    if (!record) return null;
+    const metadata = this.record(record.metadata);
+    const profile = this.record(record.profile);
+    const description =
+      this.string(record.description) ??
+      this.string(record.summary) ??
+      this.string(profile?.summary) ??
+      this.string(metadata?.description) ??
+      this.string(metadata?.summary) ??
+      null;
+    if (!description) return null;
+    return description.length <= 240
+      ? description
+      : `${description.slice(0, 237).trimEnd()}...`;
   }
 
   private countPackage(evidence: RapideiaEvidencePackage): number {

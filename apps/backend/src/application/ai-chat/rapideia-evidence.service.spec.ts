@@ -131,6 +131,35 @@ describe('RapideiaEvidenceService', () => {
     });
   });
 
+  it('adds a short authorized description to citation metadata', () => {
+    const service = createService();
+    const result = service.build({
+      intent: LearnerIntent.FIND_COURSE,
+      query: { ...baseQuery, intent: LearnerIntent.FIND_COURSE },
+      warnings: [],
+      evidence: [
+        {
+          kind: IntentEvidenceKind.COURSE_SEARCH_RESULTS,
+          data: [
+            {
+              id: 'course-1',
+              title: 'Calculus',
+              description:
+                'Limits, derivatives, integrals, and their applications.',
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.citationMap[0].source).toEqual({
+      type: 'COURSE',
+      id: 'course-1',
+      label: 'Calculus',
+      description: 'Limits, derivatives, integrals, and their applications.',
+    });
+  });
+
   it('splits discussion comments into separately referenceable evidence', () => {
     const service = createService();
     const result = service.build({

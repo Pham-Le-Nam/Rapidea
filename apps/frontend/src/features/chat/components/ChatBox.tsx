@@ -21,7 +21,7 @@ import {
     XIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import toast from "react-hot-toast";
 import type {
     AiChatCitation,
@@ -719,28 +719,163 @@ function AiMessageBubble({ message }: { message: AiChatMessage }) {
     const resourceCitations = getUniqueResourceCitations(citations);
     return (
         <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[86%] rounded-xl px-3 py-2 text-sm ${isUser ? "bg-main text-white" : "bg-gray-100 text-gray-900"}`}>
+            <div
+                className={`max-w-[86%] rounded-xl px-3 py-2 text-sm ${isUser ? "bg-main text-white" : "bg-gray-100 text-gray-900"}`}
+            >
                 <p className="whitespace-pre-wrap break-words leading-5">
-                    {isUser ? message.content : withoutCitationReferences(message.content)}
+                    {isUser ? (
+                        message.content
+                    ) : (
+                        <AssistantMessageContent
+                            content={message.content}
+                            citations={citations}
+                        />
+                    )}
                 </p>
                 {!isUser && resourceCitations.length > 0 && (
                     <div className="mt-3 space-y-2 border-t border-gray-200 pt-2">
                         {resourceCitations.map((citation) => (
-                            <CitationResourceLink key={`${citation.source!.type}:${citation.source!.id}`} citation={citation} />
+                            <CitationResourceLink
+                                key={`${citation.source!.type}:${citation.source!.id}`}
+                                citation={citation}
+                                citations={resourceCitations}
+                            />
                         ))}
                     </div>
                 )}
-                <p className={`mt-1 text-[0.68rem] ${isUser ? "text-white/75" : "text-gray-400"}`}>{new Date(message.createdAt).toLocaleString()}</p>
+                <p
+                    className={`mt-1 text-[0.68rem] ${isUser ? "text-white/75" : "text-gray-400"}`}
+                >
+                    {new Date(message.createdAt).toLocaleString()}
+                </p>
             </div>
         </div>
     );
 }
 
-function withoutCitationReferences(content: string) {
-    return content
-        .replace(/\s*\[(?:R\d+)(?:\s*,\s*R\d+)*\]/g, "")
-        .replace(/[ \t]+\n/g, "\n")
-        .trim();
+const INLINE_CITATION_PATTERN =
+    /\[(R[1-9]\d*(?:\s*,\s*R[1-9]\d*)*)\]|\(\s*(R[1-9]\d*)\s*\)|\b(R[1-9]\d*)\b/g;
+
+function AssistantMessageContent({
+    content,
+    citations,
+}: {
+    content: string;
+    citations: AiChatCitation[];
+}) {
+    const citationsByReference = new Map(
+        citations.map((citation) => [citation.reference, citation]),
+    );
+    const nodes: ReactNode[] = [];
+    let cursor = 0;
+    let key = 0;
+
+    for (const match of content.matchAll(INLINE_CITATION_PATTERN)) {
+        const index = match.index ?? 0;
+        const leadingText = content.slice(cursor, index);
+        const references = (match[1] ?? match[2] ?? match[3] ?? "")
+            .split(",")
+            .map((reference) => reference.trim());
+        const linkedCitations = references
+            .map((reference) => citationsByReference.get(reference))
+            .filter((citation): citation is AiChatCitation =>
+                Boolean(citation && getCitationUrl(citation)),
+            );
+
+        if (linkedCitations.length === 1) {
+            const citation = linkedCitations[0];
+            const label = getCitationLabel(citation);
+            const labelRange = trailingSourceLabelRange(leadingText, label);
+            if (labelRange) {
+                nodes.push(leadingText.slice(0, labelRange.start));
+                nodes.push(
+                    <InlineCitationLink
+                        key={`citation-${key++}`}
+                        citation={citation}
+                    >
+                        {leadingText.slice(labelRange.start, labelRange.end)}
+                    </InlineCitationLink>,
+                );
+                nodes.push(leadingText.slice(labelRange.end));
+            } else {
+                nodes.push(leadingText);
+                const isBareReference = Boolean(match[3]);
+                const isParenthesizedReference = Boolean(match[2]);
+                if (!isBareReference) {
+                    nodes.push(
+                        isParenthesizedReference
+                            ? "("
+                            : `${/\s$/.test(leadingText) ? "" : " "}[`,
+                    );
+                }
+                nodes.push(
+                    <InlineCitationLink
+                        key={`citation-${key++}`}
+                        citation={citation}
+                    >
+                        {label}
+                    </InlineCitationLink>,
+                );
+                if (!isBareReference)
+                    nodes.push(isParenthesizedReference ? ")" : "]");
+            }
+        } else {
+            nodes.push(leadingText);
+            if (linkedCitations.length > 0) {
+                nodes.push(`${/\s$/.test(leadingText) ? "" : " "}[`);
+                linkedCitations.forEach((citation, citationIndex) => {
+                    if (citationIndex > 0) nodes.push(", ");
+                    nodes.push(
+                        <InlineCitationLink
+                            key={`citation-${key++}`}
+                            citation={citation}
+                        >
+                            {getCitationLabel(citation)}
+                        </InlineCitationLink>,
+                    );
+                });
+                nodes.push("]");
+            }
+        }
+        cursor = index + match[0].length;
+    }
+
+    nodes.push(content.slice(cursor));
+    return <>{nodes}</>;
+}
+
+function InlineCitationLink({
+    citation,
+    children,
+}: {
+    citation: AiChatCitation;
+    children: ReactNode;
+}) {
+    const url = getCitationUrl(citation)!;
+    return (
+        <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-main underline decoration-main/40 underline-offset-2 hover:decoration-main"
+            title={`Open ${getCitationLabel(citation)}`}
+        >
+            {children}
+        </a>
+    );
+}
+
+function trailingSourceLabelRange(text: string, label: string) {
+    if (!label) return null;
+    const start = text
+        .toLocaleLowerCase()
+        .lastIndexOf(label.toLocaleLowerCase());
+    if (start < 0) return null;
+    const end = start + label.length;
+    const trailingText = text.slice(end);
+    return /^\s*(?:course|post|file|material|resource)?\s*$/i.test(trailingText)
+        ? { start, end }
+        : null;
 }
 
 function getUniqueResourceCitations(citations: AiChatCitation[]) {
@@ -769,26 +904,68 @@ function getCitationUrl(citation: AiChatCitation) {
     }
 }
 
-function CitationResourceLink({ citation }: { citation: AiChatCitation }) {
+function getCitationLabel(citation: AiChatCitation) {
+    const source = citation.source!;
+    return (
+        source.label ||
+        (source.type === "COURSE" ? "Course" : "Learning material")
+    );
+}
+
+function getCitationCardTitle(
+    citation: AiChatCitation,
+    citations: AiChatCitation[],
+) {
+    const source = citation.source!;
+    const label = getCitationLabel(citation);
+    const duplicates = citations.filter(
+        (candidate) =>
+            candidate.source?.type === source.type &&
+            getCitationLabel(candidate) === label,
+    );
+    if (duplicates.length <= 1) return label;
+    const position =
+        duplicates.findIndex(
+            (candidate) => candidate.source?.id === source.id,
+        ) + 1;
+    const resourceType = source.type === "COURSE" ? "Course" : "Resource";
+    return `${label} - ${resourceType} ${position}`;
+}
+
+function CitationResourceLink({
+    citation,
+    citations,
+}: {
+    citation: AiChatCitation;
+    citations: AiChatCitation[];
+}) {
     const url = getCitationUrl(citation)!;
     const source = citation.source!;
-    const resourceName = source.label || (source.type === "COURSE" ? "Course material" : "Learning material");
-    const actionLabel = source.type === "COURSE" ? "Open course" : "Open material";
-    const displayUrl = typeof window === "undefined" ? url : new URL(url, window.location.origin).href;
+    const resourceName = getCitationCardTitle(citation, citations);
+    const actionLabel =
+        source.type === "COURSE" ? "Open course" : "Open material";
 
     return (
         <div className="rounded-lg border border-gray-200 bg-white p-2.5">
-            <p className="truncate text-xs font-semibold text-gray-900">{resourceName}</p>
             <a
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-0.5 block truncate text-[0.68rem] text-main hover:underline"
-                title={displayUrl}
+                className="flex items-center gap-1 text-xs font-semibold text-main hover:underline"
             >
-                {displayUrl}
+                <span className="truncate">{resourceName}</span>
+                <ExternalLinkIcon className="size-3 shrink-0" />
             </a>
-            <Button asChild size="xs" className="mt-2 bg-main hover:bg-main-hover">
+            {source.description && (
+                <p className="mt-1 line-clamp-2 text-[0.68rem] leading-4 text-gray-500">
+                    {source.description}
+                </p>
+            )}
+            <Button
+                asChild
+                size="xs"
+                className="mt-2 bg-main hover:bg-main-hover"
+            >
                 <a href={url} target="_blank" rel="noopener noreferrer">
                     {actionLabel}
                     <ExternalLinkIcon className="size-3" />

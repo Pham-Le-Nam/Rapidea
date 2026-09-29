@@ -52,6 +52,7 @@ export type AiChatCitation = {
         type: "COURSE" | "POST" | "FILE" | "DISCUSSION" | "REVIEW" | "LEARNER";
         id: string;
         label?: string | null;
+        description?: string | null;
     } | null;
 };
 

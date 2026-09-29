@@ -163,6 +163,26 @@ describe('FinalAnswerGenerationService', () => {
     expect(result.citedReferences).toEqual(['R1']);
   });
 
+  it('canonicalizes temporary references so the interface can render source links', async () => {
+    const fixture = createFixture({
+      answer:
+        'Choose the R2 post after reviewing the Architecture.pdf file (R1).',
+      citations: ['R2', 'R1'],
+      followUpQuestion: 'Would you like a guided example?',
+    });
+
+    const result = await fixture.service.generate({
+      ...generationInput(),
+      learnerMessage: 'Which resource should I use?',
+    });
+
+    expect(result.answer).toBe(
+      'Choose the [R2] post after reviewing the Architecture.pdf file [R1].',
+    );
+    expect(result.content).not.toContain('(R1)');
+    expect(result.content).not.toContain('the R2 post');
+  });
+
   it('rejects references not present in authorized evidence', async () => {
     const fixture = createFixture({
       answer: 'Unsupported claim [R99].',
@@ -275,5 +295,14 @@ describe('FinalAnswerGenerationService', () => {
         learnerMessage: 'Explain it.',
       }),
     ).rejects.toBeInstanceOf(InternalServerErrorException);
+  });
+
+  it('instructs the response model to keep internal references out of learner-facing names', () => {
+    expect(RAPIDEIA_FINAL_ANSWER_PROMPT).toContain(
+      'Never call a resource "R1", "R2", "the R2 course"',
+    );
+    expect(RAPIDEIA_FINAL_ANSWER_PROMPT).toContain(
+      'distinguish them using meaningful evidence',
+    );
   });
 });

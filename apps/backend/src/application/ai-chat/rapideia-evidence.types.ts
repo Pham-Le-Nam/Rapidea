@@ -60,6 +60,7 @@ export type EvidenceCitationTarget = {
     type: EvidenceResourceType;
     id: string;
     label: string | null;
+    description?: string;
   } | null;
 };
 
