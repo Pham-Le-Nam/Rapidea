@@ -45,7 +45,7 @@ export class PrismaConversationMemoryRepository implements ConversationMemoryRep
   ): Promise<ConversationMemoryState> {
     const conversation = await this.prisma.aiChatConversation.findFirst({
       where: { id: conversationId, userId },
-      select: { id: true, summary: { select: summarySelect } },
+      select: { id: true, mode: true, summary: { select: summarySelect } },
     });
     if (!conversation) throw new NotFoundException('AI conversation not found');
 
@@ -95,6 +95,7 @@ export class PrismaConversationMemoryRepository implements ConversationMemoryRep
     });
 
     return {
+      assistantMode: conversation.mode,
       summary: summary ? this.toStoredSummary(summary) : null,
       messages,
     };

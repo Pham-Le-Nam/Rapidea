@@ -1,6 +1,7 @@
 import {
     getAiChatMessagesApi,
     getAiChatTrustedSourcesApi,
+    hasInstructorAiAccessApi,
     getChatConversationApi,
     removeAiChatTrustedSourceApi,
     searchApi,
@@ -34,10 +35,14 @@ import type {
 } from "../model/types";
 import { getAiTrustedSourceLabel, getChatAvatarUrl, getChatUserName, getRelationshipLabels } from "../model/types";
 import { ChatPanelFrame } from "./ChatPanelFrame";
+import { InstructorSourcePicker } from "./InstructorSourcePicker";
+import { InstructorProposalCard } from "./InstructorProposalCard";
+import type { AiAssistantMode } from "../model/types";
 
 type ChatBoxProps = { onMessageSent?: () => void };
 type ActivePanel = { type: "search" } | { type: "chat"; userId: string } | { type: "ai" } | null;
 type AiSession = {
+    mode: AiAssistantMode;
     key: string;
     conversationId?: string;
     pendingSources: AiChatTrustedSourceInput[];
@@ -72,8 +77,17 @@ export function ChatBox({ onMessageSent }: ChatBoxProps) {
     const [chatUsers, setChatUsers] = useState<ChatUser[]>([]);
     const [aiSession, setAiSession] = useState<AiSession | null>(null);
     const [activePanel, setActivePanel] = useState<ActivePanel>(null);
+    const [canUseInstructor, setCanUseInstructor] = useState(false);
 
-    const openChat = (user: ChatUser) => {
+    useEffect(() => {
+        let active = true;
+        setCanUseInstructor(false);
+        if (!isLoggedIn) { setAiSession(null); return; }
+        void hasInstructorAiAccessApi().then(enabled => { if (active) setCanUseInstructor(enabled); });
+        return () => { active = false; };
+    }, [isLoggedIn]);
+
+    const openChat = useCallback((user: ChatUser) => {
         if (!user?.id) return;
         setChatUsers((currentUsers) => {
             const existingUser = currentUsers.find((currentUser) => currentUser.id === user.id);
@@ -83,18 +97,25 @@ export function ChatBox({ onMessageSent }: ChatBoxProps) {
             return nextUsers.slice(0, 3);
         });
         setActivePanel({ type: "chat", userId: user.id });
-    };
+    }, []);
 
-    const openAiChat = (detail: OpenAiChatEventDetail = {}) => {
+    const openAiChat = useCallback((detail: OpenAiChatEventDetail = {}) => {
+        const mode = detail.mode ?? (detail.reuseActiveConversation ? aiSession?.mode : undefined) ?? "LEARNER";
+        if (mode === "INSTRUCTOR" && !canUseInstructor) {
+            toast.error("Instructor mode is only available to instructor accounts.");
+            return;
+        }
         setAiSession((current) => {
-            const conversationId = detail.reuseActiveConversation
+            const reuse = detail.reuseActiveConversation && current?.mode === mode;
+            const conversationId = reuse
                 ? current?.conversationId
                 : detail.conversationId;
-            const isSameConversation = detail.reuseActiveConversation
+            const isSameConversation = reuse
                 ? !!current
-                : !!current && !!conversationId && current.conversationId === conversationId;
+                : !!current && current.mode === mode && !!conversationId && current.conversationId === conversationId;
             return {
                 key: isSameConversation && current ? current.key : crypto.randomUUID(),
+                mode,
                 conversationId,
                 pendingSources: mergePendingSources(
                     isSameConversation && current ? current.pendingSources : [],
@@ -103,7 +124,7 @@ export function ChatBox({ onMessageSent }: ChatBoxProps) {
             };
         });
         setActivePanel({ type: "ai" });
-    };
+    }, [canUseInstructor, aiSession?.mode]);
 
     const closeChat = (userId: string) => {
         setChatUsers((currentUsers) => currentUsers.filter((user) => user.id !== userId));
@@ -126,7 +147,7 @@ export function ChatBox({ onMessageSent }: ChatBoxProps) {
             window.removeEventListener(OPEN_CHAT_EVENT, handleOpenChat);
             window.removeEventListener(OPEN_AI_CHAT_EVENT, handleOpenAiChat);
         };
-    }, []);
+    }, [openChat, openAiChat]);
 
     if (!isLoggedIn) return null;
 
@@ -162,13 +183,16 @@ export function ChatBox({ onMessageSent }: ChatBoxProps) {
                     {activePanel?.type === "ai" && aiSession && (
                         <AiConversationPanel
                             key={aiSession.key}
+                            mode={aiSession.mode}
+                            canUseInstructor={canUseInstructor}
+                            onModeChange={mode => openAiChat({ mode })}
                             conversationId={aiSession.conversationId}
                             pendingSources={aiSession.pendingSources}
                             onConversationCreated={(conversationId) => {
-                                setAiSession((current) => current ? { ...current, conversationId } : current);
+                                setAiSession((current) => current?.key === aiSession.key ? { ...current, conversationId } : current);
                             }}
                             onPendingSourcesChange={(pendingSources) => {
-                                setAiSession((current) => current ? { ...current, pendingSources } : current);
+                                setAiSession((current) => current?.key === aiSession.key ? { ...current, pendingSources } : current);
                             }}
                             onClose={() => setActivePanel(null)}
                             onMessageSent={onMessageSent}
@@ -479,6 +503,9 @@ function ConversationPanel({
 }
 
 function AiConversationPanel({
+    mode,
+    canUseInstructor,
+    onModeChange,
     conversationId,
     pendingSources,
     onConversationCreated,
@@ -486,6 +513,9 @@ function AiConversationPanel({
     onClose,
     onMessageSent,
 }: {
+    mode: AiAssistantMode;
+    canUseInstructor: boolean;
+    onModeChange: (mode: AiAssistantMode) => void;
     conversationId?: string;
     pendingSources: AiChatTrustedSourceInput[];
     onConversationCreated: (conversationId: string) => void;
@@ -507,6 +537,8 @@ function AiConversationPanel({
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
     const shouldStickToBottomRef = useRef(true);
 
+    useEffect(() => { setFailedRequestId(null); }, [pendingSources]);
+
     useEffect(() => {
         if (!conversationId) {
             setMessages([]);
@@ -518,8 +550,8 @@ function AiConversationPanel({
             try {
                 setIsLoading(true);
                 const [messageResponse, sourceResponse] = await Promise.all([
-                    getAiChatMessagesApi(conversationId, 20),
-                    getAiChatTrustedSourcesApi(conversationId),
+                    getAiChatMessagesApi(conversationId, 20, undefined, mode),
+                    getAiChatTrustedSourcesApi(conversationId, mode),
                 ]);
                 if (!isActive) return;
                 setMessages(messageResponse.messages);
@@ -534,7 +566,7 @@ function AiConversationPanel({
         };
         load();
         return () => { isActive = false; };
-    }, [conversationId]);
+    }, [conversationId, mode]);
 
     useEffect(() => {
         if (shouldStickToBottomRef.current) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -547,7 +579,7 @@ function AiConversationPanel({
         try {
             shouldStickToBottomRef.current = false;
             setIsLoadingOlder(true);
-            const response = await getAiChatMessagesApi(conversationId, 20, nextCursor);
+            const response = await getAiChatMessagesApi(conversationId, 20, nextCursor, mode);
             setMessages((current) => {
                 const ids = new Set(current.map((message) => message.id));
                 return [...response.messages.filter((message) => !ids.has(message.id)), ...current];
@@ -582,7 +614,7 @@ function AiConversationPanel({
                 conversationId,
                 content,
                 trustedSourcesToAdd: pendingSources.length > 0 ? pendingSources : undefined,
-            });
+            }, mode);
             setMessages((current) => {
                 const byId = new Map(current.map((message) => [message.id, message]));
                 byId.set(response.userMessage.id, response.userMessage);
@@ -609,7 +641,7 @@ function AiConversationPanel({
     const removeTrustedSource = async (source: AiChatTrustedSource) => {
         if (!conversationId) return;
         try {
-            await removeAiChatTrustedSourceApi(conversationId, source.id);
+            await removeAiChatTrustedSourceApi(conversationId, source.id, mode);
             setTrustedSources((current) => current.filter((item) => item.id !== source.id));
         } catch (error: unknown) {
             toast.error(apiErrorMessage(error, "Couldn't remove the trusted source"));
@@ -623,8 +655,8 @@ function AiConversationPanel({
                 <button type="button" className="flex min-w-0 items-center gap-2 text-left" onClick={onClose}>
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-main text-white"><SparklesIcon className="size-4" /></span>
                     <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold">Rapideia AI</span>
-                        <span className="block truncate text-xs text-gray-500">{conversationId ? "Your learning assistant" : "New conversation"}</span>
+                        <span className="block truncate text-sm font-semibold">{mode === "INSTRUCTOR" ? "Rapideia Instructor AI" : "Rapideia AI"}</span>
+                        <span className="block truncate text-xs text-gray-500">{conversationId ? mode === "INSTRUCTOR" ? "Your teaching assistant" : "Your learning assistant" : "New conversation"}</span>
                     </span>
                 </button>
                 <Button type="button" variant="ghost" size="icon" className="size-8" onClick={onClose}><XIcon className="size-4" /></Button>
@@ -635,7 +667,7 @@ function AiConversationPanel({
                         <textarea
                             value={messageText}
                             className="max-h-28 min-h-10 flex-1 resize-none rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-main"
-                            placeholder="Ask about courses, content, or your learning path"
+                            placeholder={mode === "INSTRUCTOR" ? "Draft a lesson, review your course, or analyze discussions" : "Ask about courses, content, or your learning path"}
                             maxLength={4000}
                             disabled={isSending}
                             onChange={(event) => { setMessageText(event.target.value); setFailedRequestId(null); }}
@@ -651,10 +683,25 @@ function AiConversationPanel({
                     <div className="mt-1 px-1 text-[0.68rem] text-gray-400">
                         {isSending ? "Finding authorized evidence and preparing an answer..." : "Shift + Enter for a new line"}
                     </div>
+                    <div className="mt-2 flex items-center justify-between border-t border-gray-100 pt-2 text-xs">
+                        <span className="text-gray-500">{mode === "INSTRUCTOR" ? "Instructor mode" : "Learner mode"}</span>
+                        {canUseInstructor && <Button
+                            type="button" variant="outline" size="sm"
+                            disabled={isSending || isLoading}
+                            title="Switch mode by starting a new chat. Saved conversations remain in your history."
+                            onClick={() => {
+                                if ((messageText.trim() || pendingSources.length) && !window.confirm("Switch modes and start a new chat? Your unsent message and pending sources will be discarded. Saved conversations remain in history.")) return;
+                                onModeChange(mode === "LEARNER" ? "INSTRUCTOR" : "LEARNER");
+                            }}
+                        >Switch to {mode === "LEARNER" ? "instructor" : "learner"}</Button>}
+                    </div>
                 </form>
             }
         >
             <div className="flex h-full min-h-0 flex-col">
+                {mode === "INSTRUCTOR" && <InstructorSourcePicker onSelect={source => {
+                    if (!trustedSources.some(s => s.sourceType === source.sourceType && s.source.id === source.sourceId)) onPendingSourcesChange(mergePendingSources(pendingSources, [source]).slice(0, 10));
+                }} />}
                 {allSourcesCount > 0 && (
                     <div className="flex gap-1.5 overflow-x-auto border-b border-gray-100 px-3 py-2">
                         {trustedSources.map((source) => (
@@ -688,10 +735,19 @@ function AiConversationPanel({
                     ) : messages.length === 0 ? (
                         <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                             <span className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-main/10 text-main"><BotIcon className="size-6" /></span>
-                            <p className="text-sm font-semibold text-gray-900">What would you like to learn?</p>
-                            <p className="mt-1 text-xs leading-5 text-gray-500">Ask for a course, an explanation, a comparison, or help planning your next learning step.</p>
+                            <p className="text-sm font-semibold text-gray-900">{mode === "INSTRUCTOR" ? "What would you like to teach?" : "What would you like to learn?"}</p>
+                            <p className="mt-1 text-xs leading-5 text-gray-500">{mode === "INSTRUCTOR" ? "Attach your sources to design a course, draft posts, review coverage or understand learner questions. Nothing is published without your approval." : "Ask for a course, an explanation, a comparison, or help planning your next learning step."}</p>
                         </div>
-                    ) : messages.map((message) => <AiMessageBubble key={message.id} message={message} />)}
+                    ) : messages.map((message) => <div key={message.id}>
+                        <AiMessageBubble message={message} />
+                        {mode === "INSTRUCTOR" && message.role === "ASSISTANT" && <InstructorProposalCard message={message} onApplied={proposal => {
+                            setMessages(current => current.map(m => m.id === message.id ? { ...m, metadata: { ...(m.metadata as Record<string, unknown>), proposal } } : m));
+                            if (conversationId) void getAiChatMessagesApi(conversationId, 20, undefined, mode).then(page => {
+                                setMessages(current => [...new Map([...current, ...page.messages].map(m => [m.id, m])).values()].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+                            }).catch(() => { /* The saved receipt remains visible; history can be reloaded later. */ });
+                            onMessageSent?.();
+                        }} />}
+                    </div>)}
                     {pendingContent && (
                         <div className="flex justify-end">
                             <div className="max-w-[86%] rounded-xl bg-main px-3 py-2 text-sm text-white">

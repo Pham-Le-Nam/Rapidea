@@ -7,6 +7,8 @@ export {
 
 import { apiClient } from "@/shared/api/client";
 import type {
+    AiAssistantMode,
+    InstructorProposal,
     AiChatConversationPage,
     AiChatMessagePage,
     AiChatTrustedSource,
@@ -14,11 +16,25 @@ import type {
     SendAiChatMessageResponse,
 } from "../model/types";
 
+function aiPath(mode: AiAssistantMode) { return mode === "INSTRUCTOR" ? "api/instructor-ai" : "api/ai-chat"; }
+export async function hasInstructorAiAccessApi(): Promise<boolean> {
+    try { return (await apiClient.get("api/instructor-ai/capabilities")).data.enabled === true; }
+    catch { return false; }
+}
+export async function getInstructorSourcesApi(query = ""): Promise<AiChatTrustedSourceInput[]> {
+    return (await apiClient.get("api/instructor-ai/sources", { params: { query } })).data;
+}
+export async function applyInstructorProposalApi(messageId: string, proposal: InstructorProposal): Promise<{ resultId: string; appliedAt: string; replay: boolean }> {
+    const { kind, title, body, items } = proposal;
+    return (await apiClient.post(`api/instructor-ai/proposals/${messageId}/apply`, { confirmed: true, proposal: { kind, title, body, items } })).data;
+}
+
 export async function getAiChatConversationsApi(
     limit = 20,
     before?: string,
+    mode: AiAssistantMode = "LEARNER",
 ): Promise<AiChatConversationPage> {
-    const response = await apiClient.get("api/ai-chat/conversations", {
+    const response = await apiClient.get(`${aiPath(mode)}/conversations`, {
         params: { limit, before },
     });
 
@@ -29,9 +45,10 @@ export async function getAiChatMessagesApi(
     conversationId: string,
     limit = 20,
     before?: string,
+    mode: AiAssistantMode = "LEARNER",
 ): Promise<AiChatMessagePage> {
     const response = await apiClient.get(
-        `api/ai-chat/conversations/${conversationId}/messages`,
+        `${aiPath(mode)}/conversations/${conversationId}/messages`,
         { params: { limit, before } },
     );
 
@@ -43,8 +60,8 @@ export async function sendAiChatMessageApi(input: {
     conversationId?: string;
     content: string;
     trustedSourcesToAdd?: AiChatTrustedSourceInput[];
-}): Promise<SendAiChatMessageResponse> {
-    const response = await apiClient.post("api/ai-chat/messages", {
+}, mode: AiAssistantMode = "LEARNER"): Promise<SendAiChatMessageResponse> {
+    const response = await apiClient.post(`${aiPath(mode)}/messages`, {
         ...input,
         trustedSourcesToAdd: input.trustedSourcesToAdd?.map(({ sourceType, sourceId }) => ({
             sourceType,
@@ -57,9 +74,10 @@ export async function sendAiChatMessageApi(input: {
 
 export async function getAiChatTrustedSourcesApi(
     conversationId: string,
+    mode: AiAssistantMode = "LEARNER",
 ): Promise<{ trustedSources: AiChatTrustedSource[] }> {
     const response = await apiClient.get(
-        `api/ai-chat/conversations/${conversationId}/trusted-sources`,
+        `${aiPath(mode)}/conversations/${conversationId}/trusted-sources`,
     );
 
     return response.data;
@@ -68,9 +86,10 @@ export async function getAiChatTrustedSourcesApi(
 export async function removeAiChatTrustedSourceApi(
     conversationId: string,
     trustedSourceId: string,
+    mode: AiAssistantMode = "LEARNER",
 ) {
     const response = await apiClient.delete(
-        `api/ai-chat/conversations/${conversationId}/trusted-sources/${trustedSourceId}`,
+        `${aiPath(mode)}/conversations/${conversationId}/trusted-sources/${trustedSourceId}`,
     );
 
     return response.data;

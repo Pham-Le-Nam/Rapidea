@@ -14,6 +14,7 @@ export enum AiTextModelPurpose {
 
 export type LearningAssistantResponseRequest = {
   input: string;
+  assistantMode?: 'LEARNER' | 'INSTRUCTOR';
   failureLabel: string;
   modelPurpose: AiTextModelPurpose;
   maxOutputTokens?: number;

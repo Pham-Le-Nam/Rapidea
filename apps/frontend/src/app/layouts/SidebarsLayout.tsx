@@ -4,6 +4,7 @@ import { useState } from "react";
 import { LeftSidebar } from "../components/LeftSidebar";
 import { RightSidebar } from "../components/RightSidebar";
 import { ChatBox, OPEN_AI_CHAT_EVENT, OPEN_CHAT_EVENT, type ChatUser } from "@/features/chat";
+import type { AiAssistantMode } from "@/features/chat/model/types";
 
 import {
   SidebarProvider,
@@ -41,9 +42,9 @@ export default function Layout() {
         }));
     };
 
-    const openAiChat = (conversationId?: string) => {
+    const openAiChat = (conversationId?: string, mode: AiAssistantMode = "LEARNER") => {
         window.dispatchEvent(new CustomEvent(OPEN_AI_CHAT_EVENT, {
-            detail: { conversationId },
+            detail: { conversationId, mode },
         }));
     };
 

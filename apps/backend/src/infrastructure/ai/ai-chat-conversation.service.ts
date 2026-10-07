@@ -3,8 +3,9 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { Prisma } from '../../../generated/prisma/client';
 import { AiChatMessageRole } from '../../../generated/prisma/enums';
 import { AiChatOrchestrationService } from '../../application/ai-chat/ai-chat-orchestration.service';
@@ -16,8 +17,11 @@ import { PrismaService } from '../database/prisma/prisma.service';
 import { AiModelEnvironmentVariable } from './ai-model-config';
 import { AiChatTrustedSourceService } from './ai-chat-trusted-source.service';
 import { IntentClassificationService } from './intent-classification.service';
+import { AiAssistantMode } from '../../application/ai-chat/ai-assistant-mode';
+import { InstructorAssistantService } from '../../application/instructor-ai/instructor-assistant.service';
 
 type SendMessageInput = {
+  mode?: AiAssistantMode;
   clientRequestId: string;
   conversationId?: string;
   content: string;
@@ -46,17 +50,22 @@ export class AiChatConversationService {
     private readonly intentClassification: IntentClassificationService,
     private readonly orchestration: AiChatOrchestrationService,
     private readonly conversationMemory: ConversationMemoryService,
+    @Optional() private readonly instructor?: InstructorAssistantService,
   ) {}
 
-  async sendMessage(userId: string, input: SendMessageInput) {
-    const replay = await this.findReplay(userId, input.clientRequestId);
+  async sendMessage(userId: string, input: SendMessageInput, mode: AiAssistantMode = AiAssistantMode.LEARNER) {
+    input = { ...input, mode };
+    const replay = await this.findReplay(userId, input.clientRequestId, mode);
     if (replay) {
+      if (input.conversationId && input.conversationId !== replay.conversation.id) throw new ConflictException('clientRequestId belongs to a different conversation');
+      this.assertReplayMatches(input, replay.userMessage);
       return this.completeMessage(userId, input, replay);
     }
 
     const sourceData = await this.trustedSources.validateSources(
       userId,
       input.trustedSourcesToAdd ?? [],
+      mode,
     );
 
     let result: Awaited<ReturnType<typeof this.createUserMessage>>;
@@ -67,8 +76,11 @@ export class AiChatConversationService {
       const concurrentReplay = await this.findReplay(
         userId,
         input.clientRequestId,
+        mode,
       );
       if (concurrentReplay) {
+        if (input.conversationId && input.conversationId !== concurrentReplay.conversation.id) throw new ConflictException('clientRequestId belongs to a different conversation');
+        this.assertReplayMatches(input, concurrentReplay.userMessage);
         return this.completeMessage(userId, input, concurrentReplay);
       }
       throw error;
@@ -88,9 +100,10 @@ export class AiChatConversationService {
     return this.prisma.$transaction(async (transaction) => {
       const conversation = input.conversationId
         ? await transaction.aiChatConversation.findFirst({
-            where: { id: input.conversationId, userId },
+            where: { id: input.conversationId, userId, mode: input.mode },
             select: {
               id: true,
+              mode: true,
               title: true,
               lastMessageAt: true,
               createdAt: true,
@@ -100,10 +113,12 @@ export class AiChatConversationService {
         : await transaction.aiChatConversation.create({
             data: {
               userId,
+              mode: input.mode,
               title: this.initialTitle(input.content),
             },
             select: {
               id: true,
+              mode: true,
               title: true,
               lastMessageAt: true,
               createdAt: true,
@@ -132,6 +147,7 @@ export class AiChatConversationService {
           clientRequestId: input.clientRequestId,
           role: AiChatMessageRole.USER,
           content: input.content,
+          metadata: { requestSignature: this.requestSignature(input) },
         },
         select: messageSelect,
       });
@@ -140,6 +156,7 @@ export class AiChatConversationService {
         data: { lastMessageAt: userMessage.createdAt },
         select: {
           id: true,
+          mode: true,
           title: true,
           lastMessageAt: true,
           createdAt: true,
@@ -155,16 +172,17 @@ export class AiChatConversationService {
     });
   }
 
-  async listConversations(userId: string, limit: number, before?: string) {
-    if (before) await this.assertConversationOwner(userId, before);
+  async listConversations(userId: string, limit: number, before?: string, mode: AiAssistantMode = AiAssistantMode.LEARNER) {
+    if (before) await this.assertConversationOwner(userId, before, mode);
 
     const conversations = await this.prisma.aiChatConversation.findMany({
-      where: { userId },
+      where: { userId, mode },
       ...(before ? { cursor: { id: before }, skip: 1 } : {}),
       take: limit + 1,
       orderBy: [{ lastMessageAt: 'desc' }, { id: 'desc' }],
       select: {
         id: true,
+        mode: true,
         title: true,
         lastMessageAt: true,
         createdAt: true,
@@ -180,6 +198,7 @@ export class AiChatConversationService {
     const hasMore = conversations.length > limit;
     const page = conversations.slice(0, limit).map((conversation) => ({
       id: conversation.id,
+      mode: conversation.mode,
       title: conversation.title,
       lastMessageAt: conversation.lastMessageAt,
       createdAt: conversation.createdAt,
@@ -196,11 +215,12 @@ export class AiChatConversationService {
     };
   }
 
-  async getConversation(userId: string, conversationId: string) {
+  async getConversation(userId: string, conversationId: string, mode: AiAssistantMode = AiAssistantMode.LEARNER) {
     const conversation = await this.prisma.aiChatConversation.findFirst({
-      where: { id: conversationId, userId },
+      where: { id: conversationId, userId, mode },
       select: {
         id: true,
+        mode: true,
         title: true,
         lastMessageAt: true,
         createdAt: true,
@@ -217,6 +237,7 @@ export class AiChatConversationService {
 
     return {
       id: conversation.id,
+      mode: conversation.mode,
       title: conversation.title,
       lastMessageAt: conversation.lastMessageAt,
       createdAt: conversation.createdAt,
@@ -232,8 +253,9 @@ export class AiChatConversationService {
     conversationId: string,
     limit: number,
     before?: string,
+    mode: AiAssistantMode = AiAssistantMode.LEARNER,
   ) {
-    await this.assertConversationOwner(userId, conversationId);
+    await this.assertConversationOwner(userId, conversationId, mode);
     if (before) {
       const cursor = await this.prisma.aiChatMessage.findFirst({
         where: { id: before, conversationId },
@@ -260,7 +282,7 @@ export class AiChatConversationService {
     };
   }
 
-  private async findReplay(userId: string, clientRequestId: string) {
+  private async findReplay(userId: string, clientRequestId: string, mode: AiAssistantMode) {
     const existing = await this.prisma.aiChatMessage.findUnique({
       where: { clientRequestId },
       select: {
@@ -268,6 +290,7 @@ export class AiChatConversationService {
         conversation: {
           select: {
             id: true,
+            mode: true,
             userId: true,
             title: true,
             lastMessageAt: true,
@@ -278,7 +301,7 @@ export class AiChatConversationService {
       },
     });
     if (!existing) return null;
-    if (existing.conversation.userId !== userId) {
+    if (existing.conversation.userId !== userId || (existing.conversation.mode ?? AiAssistantMode.LEARNER) !== mode) {
       throw new ConflictException('clientRequestId has already been used');
     }
 
@@ -288,6 +311,7 @@ export class AiChatConversationService {
       {
         conversation: {
           id: conversation.id,
+          mode: conversation.mode,
           title: conversation.title,
           lastMessageAt: conversation.lastMessageAt,
           createdAt: conversation.createdAt,
@@ -305,6 +329,7 @@ export class AiChatConversationService {
     result: {
       conversation: {
         id: string;
+        mode?: 'LEARNER' | 'INSTRUCTOR';
         title: string | null;
         lastMessageAt: Date;
         createdAt: Date;
@@ -335,6 +360,7 @@ export class AiChatConversationService {
       trustedSources: await this.trustedSources.list(
         userId,
         result.conversation.id,
+        (result.conversation.mode ?? AiAssistantMode.LEARNER) as AiAssistantMode,
       ),
       assistantMessage,
     };
@@ -355,6 +381,15 @@ export class AiChatConversationService {
       assistantMessage: unknown;
     },
   >(userId: string, input: SendMessageInput, response: T) {
+    if (input.mode === AiAssistantMode.INSTRUCTOR) {
+      if (response.assistantMessage) return response;
+      if (!this.instructor) throw new Error('Instructor assistant is not configured');
+      const sources = await this.trustedSources.getLearnerQueryContext(userId, response.conversation.id, input.trustedSourcesToAdd ?? [], AiAssistantMode.INSTRUCTOR);
+      const generated = await this.instructor.respond({ userId, conversationId: response.conversation.id, currentMessageId: response.userMessage.id, message: response.userMessage.content, sources });
+      const assistantMessage = await this.persistAssistantMessage(response.conversation.id, response.userMessage.id, generated.query, generated);
+      void this.refreshConversationMemory(userId, response.conversation.id);
+      return { ...response, assistantMessage, instructorQuery: generated.query, conversation: { ...response.conversation, lastMessageAt: assistantMessage.createdAt } };
+    }
     let learnerQuery = this.storedLearnerQuery(response.userMessage.metadata);
     let userMessage = response.userMessage;
     if (!learnerQuery) {
@@ -415,8 +450,8 @@ export class AiChatConversationService {
   private async persistAssistantMessage(
     conversationId: string,
     responseToMessageId: string,
-    learnerQuery: LearnerQuery,
-    generated: Awaited<ReturnType<AiChatOrchestrationService['respond']>>,
+    learnerQuery: { intent: string },
+    generated: Awaited<ReturnType<AiChatOrchestrationService['respond']>> | Awaited<ReturnType<InstructorAssistantService['respond']>>,
   ) {
     try {
       return await this.prisma.$transaction(async (transaction) => {
@@ -436,6 +471,7 @@ export class AiChatConversationService {
               citedReferences: generated.citedReferences,
               retrievalWarnings: generated.retrievalWarnings,
               evidenceTokenCount: generated.evidenceTokenCount,
+              ...('proposal' in generated ? { proposal: generated.proposal as unknown as Prisma.InputJsonValue, instructorQuery: generated.query as unknown as Prisma.InputJsonValue } : {}),
             } satisfies Prisma.InputJsonObject,
           },
           select: messageSelect,
@@ -494,9 +530,9 @@ export class AiChatConversationService {
     }
   }
 
-  private async assertConversationOwner(userId: string, id: string) {
+  private async assertConversationOwner(userId: string, id: string, mode: AiAssistantMode = AiAssistantMode.LEARNER) {
     const conversation = await this.prisma.aiChatConversation.findFirst({
-      where: { id, userId },
+      where: { id, userId, mode },
       select: { id: true },
     });
     if (!conversation) throw new NotFoundException('AI conversation not found');
@@ -507,5 +543,16 @@ export class AiChatConversationService {
     return normalized.length <= 80
       ? normalized
       : `${normalized.slice(0, 77)}...`;
+  }
+
+  private requestSignature(input: SendMessageInput) {
+    return createHash('sha256').update(JSON.stringify({ mode: input.mode, content: input.content,
+      sources: [...new Set((input.trustedSourcesToAdd ?? []).map(s => `${s.sourceType}:${s.sourceId}`))].sort() })).digest('hex');
+  }
+  private assertReplayMatches(input: SendMessageInput, message: { content: string; metadata: unknown }) {
+    const metadata = message.metadata as { requestSignature?: string } | null;
+    if (message.content !== input.content || (metadata?.requestSignature && metadata.requestSignature !== this.requestSignature(input))) {
+      throw new ConflictException('clientRequestId belongs to a different message or source selection');
+    }
   }
 }

@@ -4,6 +4,7 @@ import {
   LearnerQuery,
 } from '../../application/ai-chat/learner-query.types';
 import { AiChatConversationService } from './ai-chat-conversation.service';
+import { AiAssistantMode } from '../../application/ai-chat/ai-assistant-mode';
 
 const createdAt = new Date('2026-09-21T00:00:00.000Z');
 
@@ -122,6 +123,34 @@ function setup() {
 }
 
 describe('AiChatConversationService', () => {
+  it('creates an instructor conversation on first send, dispatches only the instructor pipeline and persists proposals', async () => {
+    const f = setup();
+    f.transaction.aiChatConversation.create.mockResolvedValue({ ...conversation(), mode: 'INSTRUCTOR' } as any);
+    f.transaction.aiChatConversation.update.mockResolvedValue({ ...conversation(), mode: 'INSTRUCTOR' } as any);
+    const trustedSources = { ...f.trustedSources, getLearnerQueryContext: jest.fn().mockResolvedValue([]) };
+    const instructor = { respond: jest.fn().mockResolvedValue({ content: 'Draft lesson', answer: 'Draft lesson', followUpQuestion: 'Review it?', query: { intent: 'DRAFT_POST' }, citations: [], citedReferences: [], proposal: { kind: 'POST_DRAFT', title: 'Limits', body: 'Explanation', items: [] }, retrievalWarnings: [], evidenceTokenCount: 0, assistantTokenCount: 5 }) };
+    const service = new AiChatConversationService(f.prisma as any, trustedSources as any, f.intentClassification as any, f.orchestration as any, f.conversationMemory as any, instructor as any);
+    await service.sendMessage('owner', { clientRequestId: 'request', content: 'Draft a lesson' }, AiAssistantMode.INSTRUCTOR);
+    expect(f.transaction.aiChatConversation.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ mode: 'INSTRUCTOR' }) }));
+    expect(f.intentClassification.classify).not.toHaveBeenCalled();
+    expect(f.orchestration.respond).not.toHaveBeenCalled();
+    expect(instructor.respond).toHaveBeenCalledTimes(1);
+    expect(trustedSources.list).toHaveBeenCalledWith('owner', 'conversation-1', AiAssistantMode.INSTRUCTOR);
+    expect(f.transaction.aiChatMessage.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ role: 'ASSISTANT', metadata: expect.objectContaining({ proposal: expect.objectContaining({ kind: 'POST_DRAFT' }) }) }) }));
+  });
+  it('does not replay an instructor message through the learner endpoint', async () => {
+    const f = setup();
+    f.prisma.aiChatMessage.findUnique.mockResolvedValue({ ...message(), conversation: { ...conversation(), userId: 'owner', mode: 'INSTRUCTOR' } });
+    const service = new AiChatConversationService(f.prisma as any, f.trustedSources as any, f.intentClassification as any, f.orchestration as any, f.conversationMemory as any);
+    await expect(service.sendMessage('owner', { clientRequestId: 'request', content: 'Explain this post' })).rejects.toThrow('already been used');
+    expect(f.orchestration.respond).not.toHaveBeenCalled();
+  });
+  it('rejects retry keys reused for different content', async () => {
+    const f = setup();
+    f.prisma.aiChatMessage.findUnique.mockResolvedValueOnce({ ...message(), conversation: { ...conversation(), userId: 'owner' } }).mockResolvedValueOnce(null);
+    const service = new AiChatConversationService(f.prisma as any, f.trustedSources as any, f.intentClassification as any, f.orchestration as any, f.conversationMemory as any);
+    await expect(service.sendMessage('owner', { clientRequestId: 'request', content: 'Different question' })).rejects.toThrow('different message');
+  });
   it('creates a conversation only when the first message is sent', async () => {
     const {
       transaction,
@@ -448,7 +477,7 @@ describe('AiChatConversationService', () => {
 
     expect(prisma.aiChatConversation.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'conversation-1', userId: 'learner-1' },
+        where: { id: 'conversation-1', userId: 'learner-1', mode: 'LEARNER' },
       }),
     );
     expect(result).toEqual(

@@ -69,6 +69,8 @@ const courseSummarySelect = {
   tags: {
     select: { tag: { select: { name: true } } },
   },
+  learningOutcomes: { orderBy: { sequence: 'asc' as const }, select: { text: true } },
+  prerequisiteSkills: { select: { reason: true, skill: { select: { id: true, name: true } } } },
 } as const;
 
 type CourseSummaryRecord = Prisma.CourseGetPayload<{
@@ -287,6 +289,8 @@ export class CourseRetrievalService {
         importance: item.importance,
       })),
       tags: course.tags.map((item) => item.tag.name),
+      learningOutcomes: (course.learningOutcomes ?? []).map(o => o.text),
+      prerequisites: (course.prerequisiteSkills ?? []).map(p => ({ ...p.skill, reason: p.reason })),
       semanticScore: ranking.semanticScore,
       keywordScore: ranking.keywordScore,
       combinedScore: ranking.combinedScore,

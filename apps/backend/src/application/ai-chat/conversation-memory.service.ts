@@ -24,6 +24,7 @@ import {
   ConversationSummaryData,
 } from './conversation-memory.types';
 import { RAPIDEIA_CONVERSATION_SUMMARY_PROMPT } from './prompts/conversation-summary.prompt';
+import { INSTRUCTOR_MEMORY_POLICY } from '../instructor-ai/instructor-ai.prompts';
 
 @Injectable()
 export class ConversationMemoryService {
@@ -90,13 +91,22 @@ export class ConversationMemoryService {
 
     const response = await this.learningAssistant.createResponse({
       modelPurpose: AiTextModelPurpose.PROCESSING,
-      additionalPolicyLayers: [RAPIDEIA_CONVERSATION_SUMMARY_PROMPT],
+      assistantMode: state.assistantMode,
+      additionalPolicyLayers: [RAPIDEIA_CONVERSATION_SUMMARY_PROMPT, ...(state.assistantMode === 'INSTRUCTOR' ? [INSTRUCTOR_MEMORY_POLICY] : [])],
       input: this.summaryInput(state, messages),
       structuredOutput: CONVERSATION_SUMMARY_OUTPUT,
       maxOutputTokens: this.options.summaryMaxOutputTokens,
       failureLabel: 'AI conversation summary generation',
     });
     const summary = this.parseSummary(response);
+    if (state.assistantMode === 'INSTRUCTOR') {
+      // Teaching context must never become an inferred learner skill/profile.
+      summary.currentLearningPath = [];
+      summary.interests = [];
+      summary.learningGoals = [];
+      summary.learnerPreferences = [];
+      summary.skills = [];
+    }
 
     return this.repository.saveSummary({
       userId,

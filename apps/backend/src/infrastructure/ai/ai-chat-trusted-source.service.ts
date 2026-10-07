@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { AiAssistantMode } from '../../application/ai-chat/ai-assistant-mode';
+import { InstructorContentAuthorizationService } from './instructor-content-authorization.service';
 import {
     AiChatTrustedSourceCreateData,
     AiChatTrustedSourceInput,
@@ -79,11 +81,13 @@ export class AiChatTrustedSourceService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly authorization: AiContentAuthorizationService,
+        @Optional() private readonly instructorAuthorization?: InstructorContentAuthorizationService,
     ) {}
 
     async validateSources(
         userId: string,
         inputs: readonly AiChatTrustedSourceInput[],
+        mode: AiAssistantMode = AiAssistantMode.LEARNER,
     ): Promise<AiChatTrustedSourceCreateData[]> {
         const uniqueInputs = Array.from(
             new Map(
@@ -95,22 +99,24 @@ export class AiChatTrustedSourceService {
         );
         await Promise.all(
             uniqueInputs.map((input) =>
-                this.assertSourceAccessible(userId, input),
+                mode === AiAssistantMode.INSTRUCTOR
+                    ? this.instructorAuthorization!.assertCanAccess(userId, input.sourceType, input.sourceId)
+                    : this.assertSourceAccessible(userId, input),
             ),
         );
         return uniqueInputs.map((input) => this.sourceField(input));
     }
 
-    async list(userId: string, conversationId: string) {
-        await this.assertConversationOwner(userId, conversationId);
+    async list(userId: string, conversationId: string, mode: AiAssistantMode = AiAssistantMode.LEARNER) {
+        await this.assertConversationOwner(userId, conversationId, mode);
 
         const sources = await this.prisma.aiChatTrustedSource.findMany({
             where: {
                 conversationId,
                 OR: [
-                    { courseId: { not: null } },
-                    { post: { is: this.authorization.postWhere(userId) } },
-                    { file: { is: this.authorization.fileWhere(userId) } },
+                    mode === AiAssistantMode.INSTRUCTOR ? { course: { is: { userId } } } : { courseId: { not: null } },
+                    { post: { is: mode === AiAssistantMode.INSTRUCTOR ? this.instructorAuthorization!.postWhere(userId) : this.authorization.postWhere(userId) } },
+                    { file: { is: mode === AiAssistantMode.INSTRUCTOR ? this.instructorAuthorization!.fileWhere(userId) : this.authorization.fileWhere(userId) } },
                 ],
             },
             select: trustedSourceSelect,
@@ -123,13 +129,14 @@ export class AiChatTrustedSourceService {
         userId: string,
         conversationId: string,
         currentSources: readonly AiChatTrustedSourceInput[] = [],
+        mode: AiAssistantMode = AiAssistantMode.LEARNER,
     ): Promise<LearnerQueryTrustedContext[]> {
         const currentKeys = new Set(
             currentSources.map(
                 (source) => `${source.sourceType}:${source.sourceId}`,
             ),
         );
-        const sources = await this.list(userId, conversationId);
+        const sources = await this.list(userId, conversationId, mode);
 
         return sources.map((source) => {
             const key = `${source.sourceType}:${source.source.id}`;
@@ -162,8 +169,8 @@ export class AiChatTrustedSourceService {
         });
     }
 
-    async remove(userId: string, conversationId: string, sourceId: string) {
-        await this.assertConversationOwner(userId, conversationId);
+    async remove(userId: string, conversationId: string, sourceId: string, mode: AiAssistantMode = AiAssistantMode.LEARNER) {
+        await this.assertConversationOwner(userId, conversationId, mode);
         const source = await this.prisma.aiChatTrustedSource.findFirst({
             where: { id: sourceId, conversationId },
             select: { id: true },
@@ -179,9 +186,10 @@ export class AiChatTrustedSourceService {
     private async assertConversationOwner(
         userId: string,
         conversationId: string,
+        mode: AiAssistantMode = AiAssistantMode.LEARNER,
     ): Promise<void> {
         const conversation = await this.prisma.aiChatConversation.findFirst({
-            where: { id: conversationId, userId },
+            where: { id: conversationId, userId, mode },
             select: { id: true },
         });
         if (!conversation) {

@@ -49,6 +49,7 @@ export type StoredConversationSummary = ConversationSummaryData & {
 };
 
 export type ConversationMemoryState = {
+  assistantMode?: 'LEARNER' | 'INSTRUCTOR';
   summary: StoredConversationSummary | null;
   messages: ConversationMemoryMessage[];
 };

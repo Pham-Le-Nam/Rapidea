@@ -16,7 +16,7 @@ export class LearningAssistantAiService implements LearningAssistantResponsePort
   async createResponse(
     input: LearningAssistantResponseRequest,
   ): Promise<string> {
-    const { additionalPolicyLayers, structuredOutput, ...responseInput } =
+    const { additionalPolicyLayers, structuredOutput, assistantMode, ...responseInput } =
       input;
     return this.openAiClient.createTextResponse({
       ...responseInput,
@@ -32,7 +32,7 @@ export class LearningAssistantAiService implements LearningAssistantResponsePort
         : {}),
       // Responses API instructions are not inherited by later responses,
       // so rebuild and send the complete policy stack on every call.
-      instructions: this.prompt.build(additionalPolicyLayers),
+      instructions: this.prompt.build(additionalPolicyLayers, assistantMode),
     });
   }
 }

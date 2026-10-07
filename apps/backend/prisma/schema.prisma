@@ -328,12 +328,13 @@ model ChatMessage {
 }
 
 model AiChatConversation {
-  id            String   @id @default(uuid())
+  id            String          @id @default(uuid())
   userId        String
+  mode          AiAssistantMode @default(LEARNER)
   title         String?
-  lastMessageAt DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  lastMessageAt DateTime        @default(now())
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   user           Users                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages       AiChatMessage[]
@@ -341,7 +342,13 @@ model AiChatConversation {
   trustedSources AiChatTrustedSource[]
 
   @@index([userId, lastMessageAt])
+  @@index([userId, mode, lastMessageAt])
   @@map("ai_chat_conversation")
+}
+
+enum AiAssistantMode {
+  LEARNER
+  INSTRUCTOR
 }
 
 model AiChatMessage {
@@ -473,6 +480,9 @@ model Course {
   contentChunks        ContentChunk[]
   aiProfile            CourseAIProfile?
   skills               CourseSkill[]
+  learningOutcomes     CourseLearningOutcome[]
+  prerequisiteSkills   CoursePrerequisiteSkill[]
+  teachingPlan         CourseTeachingPlan?
   aiChatTrustedSources AiChatTrustedSource[]
 
   @@unique([userId, title]) // Prevent 2 courses having the same name
@@ -505,10 +515,11 @@ model Skill {
   embedding      Unsupported("vector")?
   embeddingModel String?
 
-  courses CourseSkill[]
-  posts   PostSkill[]
-  users   UserSkill[]
-  aliases SkillAlias[]
+  courses             CourseSkill[]
+  posts               PostSkill[]
+  users               UserSkill[]
+  aliases             SkillAlias[]
+  prerequisiteCourses CoursePrerequisiteSkill[]
 
   @@map("skill")
 }
@@ -526,10 +537,11 @@ model SkillAlias {
 }
 
 model CourseSkill {
-  courseId   String
-  skillId    Int
-  outcome    String
-  importance Float  @default(1)
+  courseId            String
+  skillId             Int
+  outcome             String
+  importance          Float   @default(1)
+  instructorConfirmed Boolean @default(false)
 
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
   skill  Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
@@ -537,6 +549,39 @@ model CourseSkill {
   @@id([courseId, skillId])
   @@index([skillId])
   @@map("course_skill")
+}
+
+model CourseLearningOutcome {
+  id       String @id @default(uuid())
+  courseId String
+  text     String
+  sequence Int
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, sequence])
+  @@map("course_learning_outcome")
+}
+
+model CoursePrerequisiteSkill {
+  courseId String
+  skillId  Int
+  reason   String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  skill    Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, skillId])
+  @@index([skillId])
+  @@map("course_prerequisite_skill")
+}
+
+// Reviewed teaching plan, not an automatic module/publishing system.
+model CourseTeachingPlan {
+  courseId  String   @id
+  structure Json
+  updatedAt DateTime @updatedAt
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("course_teaching_plan")
 }
 
 model PostSkill {

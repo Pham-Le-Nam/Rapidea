@@ -1,4 +1,6 @@
-import { getAiChatConversationsApi, getChatConversationsApi } from "@/features/chat/api";
+import { getAiChatConversationsApi, getChatConversationsApi, hasInstructorAiAccessApi } from "@/features/chat/api";
+import type { AiAssistantMode } from "@/features/chat/model/types";
+import { mergeAiConversationHistory } from "@/features/chat/model/ai-conversations";
 import { useAuth } from "@/providers";
 import type { AiChatConversationSummary, ChatConversationSummary, ChatUser } from "@/features/chat";
 import { getChatAvatarUrl, getChatUserName, getRelationshipLabels, hasChatRelationship } from "@/features/chat";
@@ -16,7 +18,7 @@ import {
 
 type RightSidebarProps = {
     onSelectChat?: (user: ChatUser) => void;
-    onSelectAiChat?: (conversationId?: string) => void;
+    onSelectAiChat?: (conversationId?: string, mode?: AiAssistantMode) => void;
     refreshKey?: number;
 };
 
@@ -106,7 +108,7 @@ function AiConversationSection({
     hasMore: boolean;
     isLoadingMore: boolean;
     onNewConversation?: () => void;
-    onSelectConversation?: (conversationId: string) => void;
+    onSelectConversation?: (conversationId: string, mode?: AiAssistantMode) => void;
     onLoadMore: () => void;
 }) {
     return (
@@ -136,14 +138,14 @@ function AiConversationSection({
                     onClick={onNewConversation}
                 >
                     <SparklesIcon className="size-4 shrink-0 text-main" />
-                    Start a conversation with your learning assistant
+                    Start a conversation with Rapideia AI
                 </button>
             ) : conversations.map((conversation) => (
                 <button
                     key={conversation.id}
                     type="button"
                     className="flex w-full gap-2 rounded-md px-2 py-2 text-left hover:bg-gray-100"
-                    onClick={() => onSelectConversation?.(conversation.id)}
+                    onClick={() => onSelectConversation?.(conversation.id, conversation.mode ?? "LEARNER")}
                 >
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-main text-white">
                         <SparklesIcon className="size-4" />
@@ -156,7 +158,7 @@ function AiConversationSection({
                             {conversation.lastMessage?.content || "No messages yet"}
                         </span>
                         <span className="mt-1 block text-[0.7rem] text-gray-400">
-                            {new Date(conversation.lastMessageAt).toLocaleDateString()}
+                            {conversation.mode === "INSTRUCTOR" ? "Instructor" : "Learner"} · {new Date(conversation.lastMessageAt).toLocaleDateString()}
                         </span>
                     </span>
                 </button>
@@ -180,10 +182,18 @@ export function RightSidebar({ onSelectChat, onSelectAiChat, refreshKey = 0 }: R
     const { isLoggedIn } = useAuth();
     const [conversations, setConversations] = useState<ChatConversationSummary[]>([]);
     const [aiConversations, setAiConversations] = useState<AiChatConversationSummary[]>([]);
+    const [instructorConversations, setInstructorConversations] = useState<AiChatConversationSummary[]>([]);
+    const [instructorEnabled, setInstructorEnabled] = useState(false);
+    const [instructorCursor, setInstructorCursor] = useState<string | null>(null);
+    const [instructorHasMore, setInstructorHasMore] = useState(false);
     const [aiNextCursor, setAiNextCursor] = useState<string | null>(null);
     const [hasMoreAiConversations, setHasMoreAiConversations] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isLoadingMoreAi, setIsLoadingMoreAi] = useState(false);
+    const combinedAiConversations = useMemo(
+        () => mergeAiConversationHistory(aiConversations, instructorConversations, instructorEnabled),
+        [aiConversations, instructorConversations, instructorEnabled],
+    );
 
     const sortedConversations = useMemo(() => {
         return [...conversations].sort((a, b) => {
@@ -203,6 +213,8 @@ export function RightSidebar({ onSelectChat, onSelectAiChat, refreshKey = 0 }: R
         if (!isLoggedIn) {
             setConversations([]);
             setAiConversations([]);
+            setInstructorEnabled(false);
+            setInstructorConversations([]);
             return;
         }
 
@@ -210,14 +222,20 @@ export function RightSidebar({ onSelectChat, onSelectAiChat, refreshKey = 0 }: R
             if (showLoading) {
                 setIsLoading(true);
             }
-            const [chatResponse, aiResponse] = await Promise.all([
+            const enabled = await hasInstructorAiAccessApi();
+            setInstructorEnabled(enabled);
+            const [chatResponse, aiResponse, instructorResponse] = await Promise.all([
                 getChatConversationsApi(false),
                 getAiChatConversationsApi(),
+                enabled ? getAiChatConversationsApi(20, undefined, "INSTRUCTOR") : null,
             ]);
             setConversations(chatResponse.conversations ?? []);
             setAiConversations(aiResponse.conversations ?? []);
             setHasMoreAiConversations(aiResponse.hasMore);
             setAiNextCursor(aiResponse.nextCursor);
+            setInstructorConversations(instructorResponse?.conversations ?? []);
+            setInstructorHasMore(instructorResponse?.hasMore ?? false);
+            setInstructorCursor(instructorResponse?.nextCursor ?? null);
         } catch (error) {
             console.error("Couldn't load recent messages", error);
             setConversations([]);
@@ -229,20 +247,30 @@ export function RightSidebar({ onSelectChat, onSelectAiChat, refreshKey = 0 }: R
     }, [isLoggedIn]);
 
     const loadMoreAiConversations = async () => {
-        if (!aiNextCursor || isLoadingMoreAi) return;
+        if (isLoadingMoreAi) return;
+        const learnerCursor = hasMoreAiConversations ? aiNextCursor : null;
+        const teacherCursor = instructorEnabled && instructorHasMore ? instructorCursor : null;
+        if (!learnerCursor && !teacherCursor) return;
 
         try {
             setIsLoadingMoreAi(true);
-            const response = await getAiChatConversationsApi(20, aiNextCursor);
-            setAiConversations((current) => {
-                const ids = new Set(current.map((conversation) => conversation.id));
-                return [
-                    ...current,
-                    ...response.conversations.filter((conversation) => !ids.has(conversation.id)),
-                ];
-            });
-            setHasMoreAiConversations(response.hasMore);
-            setAiNextCursor(response.nextCursor);
+            const [learnerPage, instructorPage] = await Promise.allSettled([
+                learnerCursor ? getAiChatConversationsApi(20, learnerCursor) : Promise.resolve(null),
+                teacherCursor ? getAiChatConversationsApi(20, teacherCursor, "INSTRUCTOR") : Promise.resolve(null),
+            ]);
+            if (learnerPage.status === "fulfilled" && learnerPage.value) {
+                const page = learnerPage.value;
+                setAiConversations(current => [...new Map([...current, ...page.conversations].map(c => [c.id, c])).values()]);
+                setHasMoreAiConversations(page.hasMore);
+                setAiNextCursor(page.nextCursor);
+            }
+            if (instructorPage.status === "fulfilled" && instructorPage.value) {
+                const page = instructorPage.value;
+                setInstructorConversations(current => [...new Map([...current, ...page.conversations].map(c => [c.id, c])).values()]);
+                setInstructorHasMore(page.hasMore);
+                setInstructorCursor(page.nextCursor);
+            }
+            if (learnerPage.status === "rejected" || instructorPage.status === "rejected") console.error("Couldn't load some older AI conversations");
         } catch (error) {
             console.error("Couldn't load older AI conversations", error);
         } finally {
@@ -295,8 +323,8 @@ export function RightSidebar({ onSelectChat, onSelectAiChat, refreshKey = 0 }: R
                     ) : (
                         <>
                             <AiConversationSection
-                                conversations={aiConversations}
-                                hasMore={hasMoreAiConversations}
+                                conversations={combinedAiConversations}
+                                hasMore={hasMoreAiConversations || (instructorEnabled && instructorHasMore)}
                                 isLoadingMore={isLoadingMoreAi}
                                 onNewConversation={() => onSelectAiChat?.()}
                                 onSelectConversation={onSelectAiChat}

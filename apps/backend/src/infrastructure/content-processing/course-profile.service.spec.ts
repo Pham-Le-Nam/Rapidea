@@ -51,9 +51,10 @@ describe('CourseProfileService', () => {
             },
         });
         expect(transaction.courseSkill.deleteMany).toHaveBeenCalledWith({
-            where: { courseId: 'course-1' },
+            where: { courseId: 'course-1', instructorConfirmed: false },
         });
         expect(transaction.courseSkill.createMany).toHaveBeenCalledWith({
+            skipDuplicates: true,
             data: [
                 {
                     courseId: 'course-1',

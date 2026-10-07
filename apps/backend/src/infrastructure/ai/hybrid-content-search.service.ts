@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
+import { InstructorContentAuthorizationService } from './instructor-content-authorization.service';
 import { Prisma } from '../../../generated/prisma/client';
 import { reciprocalRankFuse } from '../../application/ai-chat/reciprocal-rank-fusion';
 import {
@@ -41,6 +42,7 @@ export class HybridContentSearchService {
     private readonly prisma: PrismaService,
     private readonly queryEmbedding: QueryEmbeddingService,
     private readonly authorization: AiContentAuthorizationService,
+    @Optional() private readonly instructorAuthorization?: InstructorContentAuthorizationService,
   ) {}
 
   async search(
@@ -56,7 +58,8 @@ export class HybridContentSearchService {
       MAX_CANDIDATE_LIMIT,
     );
     const { embedding, model } = await this.queryEmbedding.create(query);
-    const scope = this.scopeSql(input);
+    if (input.instructorOnly && !this.instructorAuthorization) throw new Error('Instructor authorization is not configured');
+    const scope = Prisma.sql`${this.scopeSql(input)} ${input.instructorOnly ? this.instructorAuthorization!.chunkOwnershipSql(userId) : Prisma.empty}`;
 
     const [semantic, keyword] = await Promise.all([
       this.semanticCandidates(embedding, model, scope, candidateLimit),
@@ -68,6 +71,7 @@ export class HybridContentSearchService {
       userId,
       fused,
       input.accessMode ?? AiContentAccessMode.DETAILS,
+      input.instructorOnly,
     );
     return authorized.slice(0, limit).map((result) => {
       const {
@@ -97,7 +101,7 @@ export class HybridContentSearchService {
                 "tokenCount",
                 "metadata",
                 1 - ("embedding" <=> ${vector}::vector) AS "score"
-            FROM "content_chunk"
+            FROM "content_chunk" AS "chunk"
             WHERE "embedding" IS NOT NULL
               AND "embeddingModel" = ${embeddingModel}
               ${scope}
@@ -173,13 +177,14 @@ export class HybridContentSearchService {
     userId: string,
     candidates: readonly FusedChunk[],
     mode: AiContentAccessMode,
+    instructorOnly = false,
   ): Promise<FusedChunk[]> {
     const decisions = new Map<string, Promise<boolean>>();
     const checks = candidates.map(async (candidate) => {
       const sourceKey = `${candidate.sourceType}:${candidate.sourceId}`;
       let decision = decisions.get(sourceKey);
       if (!decision) {
-        decision = this.authorization.canAccess(
+        decision = instructorOnly ? this.instructorAuthorization!.canAccess(userId, this.authorizationType(candidate.sourceType), candidate.sourceId) : this.authorization.canAccess(
           userId,
           {
             type: this.authorizationType(candidate.sourceType),

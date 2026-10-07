@@ -31,9 +31,10 @@ export class CourseProfileService {
             },
         });
 
-        await transaction.courseSkill.deleteMany({ where: { courseId } });
+        await transaction.courseSkill.deleteMany({ where: { courseId, instructorConfirmed: false } });
         if (profile.skills.length > 0) {
             await transaction.courseSkill.createMany({
+                skipDuplicates: true,
                 data: profile.skills.map((skill) => ({
                     courseId,
                     skillId: skill.skillId,

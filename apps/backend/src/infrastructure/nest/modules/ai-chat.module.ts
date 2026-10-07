@@ -1,4 +1,12 @@
 import { Module } from '@nestjs/common';
+import { InstructorAiController } from '../../../adapters/http/controllers/ai-chat/instructor-ai.controller';
+import { InstructorAiGuard } from '../../../adapters/http/guards/auth/instructor-ai.guard';
+import { InstructorAssistantService } from '../../../application/instructor-ai/instructor-assistant.service';
+import { InstructorIntentRetrievalRouterService } from '../../../application/instructor-ai/instructor-intent-retrieval-router.service';
+import { INSTRUCTOR_CONTENT_PORT } from '../../../application/ports/instructor-content.port';
+import { InstructorContentAuthorizationService } from '../../ai/instructor-content-authorization.service';
+import { PrismaInstructorContentRepository } from '../../ai/prisma-instructor-content.repository';
+import { PrismaInstructorProposalRepository } from '../../ai/prisma-instructor-proposal.repository';
 import { AiChatOrchestrationService } from '../../../application/ai-chat/ai-chat-orchestration.service';
 import { IntentRetrievalRouterService } from '../../../application/ai-chat/intent-retrieval-router.service';
 import { FinalAnswerGenerationService } from '../../../application/ai-chat/final-answer-generation.service';
@@ -30,8 +38,15 @@ import { ContentProcessingModule } from './content-processing.module';
 
 @Module({
   imports: [AiModule, ContentProcessingModule],
-  controllers: [AiChatController, AiChatTrustedSourceController],
+  controllers: [AiChatController, AiChatTrustedSourceController, InstructorAiController],
   providers: [
+    InstructorAiGuard,
+    InstructorAssistantService,
+    InstructorIntentRetrievalRouterService,
+    InstructorContentAuthorizationService,
+    PrismaInstructorContentRepository,
+    PrismaInstructorProposalRepository,
+    { provide: INSTRUCTOR_CONTENT_PORT, useExisting: PrismaInstructorContentRepository },
     AiChatConversationService,
     AiChatOrchestrationService,
     AiContentAuthorizationService,

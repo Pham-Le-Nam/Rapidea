@@ -22,7 +22,7 @@ it('sends the complete system policy on every learning-assistant response', asyn
     }),
   ).resolves.toBe('answer');
 
-  expect(prompt.build).toHaveBeenCalledWith(undefined);
+  expect(prompt.build).toHaveBeenCalledWith(undefined, undefined);
   expect(openAiClient.createTextResponse).toHaveBeenCalledWith({
     modelPurpose: AiTextModelPurpose.PROCESSING,
     instructions: RAPIDEIA_LEARNING_ASSISTANT_SYSTEM_PROMPT,

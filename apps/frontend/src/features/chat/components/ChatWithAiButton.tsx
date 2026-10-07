@@ -3,18 +3,20 @@ import type { ComponentProps, MouseEvent } from "react";
 
 import { Button } from "@/shared/components/ui/button";
 import { openAiChat } from "../events";
-import type { AiChatTrustedSourceType } from "../model/types";
+import type { AiAssistantMode, AiChatTrustedSourceType } from "../model/types";
 
 type ChatWithAiButtonProps = Omit<ComponentProps<typeof Button>, "onClick"> & {
     sourceType: AiChatTrustedSourceType;
     sourceId: string;
     sourceLabel?: string;
+    mode?: AiAssistantMode;
 };
 
 export function ChatWithAiButton({
     sourceType,
     sourceId,
     sourceLabel,
+    mode,
     children = "Chat with AI",
     ...buttonProps
 }: ChatWithAiButtonProps) {
@@ -22,6 +24,7 @@ export function ChatWithAiButton({
         event.preventDefault();
         event.stopPropagation();
         openAiChat({
+            mode,
             reuseActiveConversation: true,
             trustedSourcesToAdd: [{ sourceType, sourceId, label: sourceLabel }],
         });

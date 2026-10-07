@@ -2,6 +2,8 @@ import { NotFoundException } from '@nestjs/common';
 import { AiChatTrustedSourceType } from '../../application/ai-chat/ai-chat-trusted-source.types';
 import { AiContentAuthorizationService } from './ai-content-authorization.service';
 import { AiChatTrustedSourceService } from './ai-chat-trusted-source.service';
+import { InstructorContentAuthorizationService } from './instructor-content-authorization.service';
+import { AiAssistantMode } from '../../application/ai-chat/ai-assistant-mode';
 
 function createPrismaMock() {
     return {
@@ -27,6 +29,21 @@ function createService(prisma: ReturnType<typeof createPrismaMock>) {
 }
 
 describe('AiChatTrustedSourceService', () => {
+    it('requires ownership for an instructor course source instead of allowing any public course summary', async () => {
+        const prisma = createPrismaMock();
+        prisma.course.findFirst.mockResolvedValue(null);
+        const service = new AiChatTrustedSourceService(prisma as any, new AiContentAuthorizationService(prisma as any), new InstructorContentAuthorizationService(prisma as any));
+        await expect(service.validateSources('owner', [{ sourceType: AiChatTrustedSourceType.COURSE, sourceId: 'foreign-course' }], AiAssistantMode.INSTRUCTOR)).rejects.toThrow('Owned instructor source not found');
+        expect(prisma.course.findFirst).toHaveBeenCalledWith({ where: { id: 'foreign-course', userId: 'owner' }, select: { id: true } });
+    });
+    it('keeps source deletion scoped to instructor mode and the owned conversation', async () => {
+        const prisma = createPrismaMock();
+        prisma.aiChatConversation.findFirst.mockResolvedValue({ id: 'chat' });
+        prisma.aiChatTrustedSource.findFirst.mockResolvedValue({ id: 'source' });
+        const service = new AiChatTrustedSourceService(prisma as any, new AiContentAuthorizationService(prisma as any), new InstructorContentAuthorizationService(prisma as any));
+        await service.remove('owner', 'chat', 'source', AiAssistantMode.INSTRUCTOR);
+        expect(prisma.aiChatConversation.findFirst).toHaveBeenCalledWith({ where: { id: 'chat', userId: 'owner', mode: 'INSTRUCTOR' }, select: { id: true } });
+    });
     it('validates and deduplicates sources before message creation', async () => {
         const prisma = createPrismaMock();
         prisma.course.findFirst.mockResolvedValue({ id: 'course-1' });
@@ -140,7 +157,7 @@ describe('AiChatTrustedSourceService', () => {
             ),
         ).resolves.toEqual({ id: 'trusted-1' });
         expect(prisma.aiChatConversation.findFirst).toHaveBeenCalledWith({
-            where: { id: 'chat-1', userId: 'learner-1' },
+            where: { id: 'chat-1', userId: 'learner-1', mode: 'LEARNER' },
             select: { id: true },
         });
         expect(prisma.aiChatTrustedSource.findFirst).toHaveBeenCalledWith({

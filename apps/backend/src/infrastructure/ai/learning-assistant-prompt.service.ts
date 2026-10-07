@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { INSTRUCTOR_SYSTEM_PROMPT } from '../../application/instructor-ai/instructor-ai.prompts';
 import {
     RAPIDEIA_LEARNING_ASSISTANT_SYSTEM_PROMPT,
     RAPIDEIA_TRUSTED_SOURCE_POLICY,
@@ -10,9 +11,9 @@ export class LearningAssistantPromptService {
      * Only application-controlled policy text belongs in additionalPolicyLayers.
      * User messages and retrieved content must be sent as model input/data instead.
      */
-    build(additionalPolicyLayers: readonly string[] = []): string {
+    build(additionalPolicyLayers: readonly string[] = [], mode: 'LEARNER' | 'INSTRUCTOR' = 'LEARNER'): string {
         return [
-            RAPIDEIA_LEARNING_ASSISTANT_SYSTEM_PROMPT,
+            mode === 'INSTRUCTOR' ? INSTRUCTOR_SYSTEM_PROMPT : RAPIDEIA_LEARNING_ASSISTANT_SYSTEM_PROMPT,
             RAPIDEIA_TRUSTED_SOURCE_POLICY,
             ...additionalPolicyLayers,
         ]

@@ -45,6 +45,18 @@ export type ChatConversationSummary = {
 };
 
 export type AiChatMessageRole = "USER" | "ASSISTANT" | "SYSTEM";
+export type AiAssistantMode = "LEARNER" | "INSTRUCTOR";
+export type InstructorProposal = {
+    kind: "COURSE_STRUCTURE" | "LEARNING_OUTCOMES" | "COURSE_SKILLS" | "PREREQUISITES" | "POST_DRAFT" | "POST_REVISION";
+    title: string;
+    body: string;
+    items: { title: string; details: string }[];
+    courseId?: string | null;
+    postId?: string | null;
+    appliedAt?: string;
+    resultId?: string;
+    canonicalSkills?: { suggestedName: string; canonicalName: string | null; skillId: number | null }[];
+};
 
 export type AiChatCitation = {
     reference: string;
@@ -69,6 +81,7 @@ export type AiChatMessage = {
 };
 
 export type AiChatConversationSummary = {
+    mode?: AiAssistantMode;
     id: string;
     title: string | null;
     lastMessageAt: string;

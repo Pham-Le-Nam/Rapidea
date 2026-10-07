@@ -40,6 +40,8 @@ export type CourseSearchResult = {
     importance: number;
   }>;
   tags: string[];
+  learningOutcomes?: string[];
+  prerequisites?: { id: number; name: string; reason: string }[];
   semanticScore: number | null;
   keywordScore: number | null;
   combinedScore: number;

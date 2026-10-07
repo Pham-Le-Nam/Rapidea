@@ -102,6 +102,15 @@ function createFixture(response = generatedSummary) {
 }
 
 describe('ConversationMemoryService', () => {
+  it('uses instructor memory policy and does not store inferred learner skills or progress', async () => {
+    const fixture = createFixture();
+    fixture.repository.load.mockResolvedValue({ assistantMode: 'INSTRUCTOR', summary: null, messages: messages(4) });
+    await fixture.service.refreshAfterAssistantResponse('owner', 'conversation');
+    const request = fixture.learningAssistant.createResponse.mock.calls[0][0] as any;
+    expect(request.assistantMode).toBe('INSTRUCTOR');
+    expect(request.additionalPolicyLayers.join(' ')).toContain('PROPOSED');
+    expect(fixture.repository.saveSummary).toHaveBeenCalledWith(expect.objectContaining({ summary: expect.objectContaining({ skills: [], currentLearningPath: [], learningGoals: [] }) }));
+  });
   beforeEach(() => {
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
   });
