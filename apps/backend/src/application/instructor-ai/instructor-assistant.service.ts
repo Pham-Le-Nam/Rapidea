@@ -44,6 +44,10 @@ import {
   INSTRUCTOR_PROPOSAL_KIND_BY_INTENT as proposalIntents,
 } from './instructor-proposal';
 import { InstructorIntentRetrievalRouterService } from './instructor-intent-retrieval-router.service';
+import {
+  courseStructurePlainText,
+  courseStructurePlainProposal,
+} from './course-structure-text';
 
 @Injectable()
 export class InstructorAssistantService {
@@ -178,6 +182,14 @@ export class InstructorAssistantService {
           JSON.parse(planning).proposal,
         );
         if (
+          query.intent === InstructorIntent.CREATE_COURSE_STRUCTURE &&
+          plannedProposal
+        ) {
+          plannedProposal = parseInstructorProposal(
+            courseStructurePlainProposal(plannedProposal),
+          );
+        }
+        if (
           plannedProposal &&
           plannedProposal.kind !== proposalIntents[query.intent]
         )
@@ -252,7 +264,13 @@ export class InstructorAssistantService {
             throw new Error('Unknown reference');
           normalizedRefs.push(...refs);
         }
-        const draft = parseInstructorProposal(parsed.proposal);
+        let draft = parseInstructorProposal(parsed.proposal);
+        if (
+          query.intent === InstructorIntent.CREATE_COURSE_STRUCTURE &&
+          draft
+        ) {
+          draft = parseInstructorProposal(courseStructurePlainProposal(draft));
+        }
         let proposal: StoredInstructorProposal | null = null;
         if (draft) {
           if (proposalIntents[query.intent] !== draft.kind)
@@ -286,17 +304,21 @@ export class InstructorAssistantService {
             .map((c) => [c.url!, c.ref]),
         );
         const linkText = (text: string) =>
-          text.replace(
-            /\[([^\]]+)\]\(([^)]+)\)/g,
-            (_match, label: string, url: string) => {
-              const ref = links.get(url);
-              if (!ref) throw new Error('Unknown resource hyperlink');
-              if (!refs.includes(ref)) refs.push(ref);
-              return `${label} [${ref}]`;
-            },
-          );
+          query.intent === InstructorIntent.CREATE_COURSE_STRUCTURE
+            ? courseStructurePlainText(text)
+            : text.replace(
+                /\[([^\]]+)\]\(([^)]+)\)/g,
+                (_match, label: string, url: string) => {
+                  const ref = links.get(url);
+                  if (!ref) throw new Error('Unknown resource hyperlink');
+                  if (!refs.includes(ref)) refs.push(ref);
+                  return `${label} [${ref}]`;
+                },
+              );
         const linkedAnswer = linkText(parsed.answer);
         const linkedFollowUp = linkText(parsed.followUpQuestion);
+        if (!linkedAnswer.trim() || !linkedFollowUp.trim())
+          throw new Error('Invalid answer/citation');
         if (/https?:\/\//i.test(`${linkedAnswer} ${linkedFollowUp}`))
           throw new Error('Unsupplied URL');
         const markers = [

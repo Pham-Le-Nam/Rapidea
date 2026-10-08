@@ -83,6 +83,149 @@ const input = {
 };
 
 describe('InstructorAssistantService', () => {
+  it.each([
+    '[Real analysis](#real-analysis)',
+    '[Real analysis](https://unapproved.example/math_(advanced) "Lecture title")',
+    '[Real analysis](javascript:alert(1))',
+    'Real analysis https://unapproved.example',
+  ])(
+    'returns a course outline instead of failing over the link %s',
+    async (lecture) => {
+      const f = fixture();
+      const plan = {
+        kind: InstructorProposalKind.COURSE_STRUCTURE,
+        title: '[Advanced math](#math)',
+        body: '',
+        items: [
+          {
+            title: lecture,
+            details: 'Limits and proofs. [Exercises](#exercises)',
+          },
+        ],
+      };
+      f.model.createResponse
+        .mockReset()
+        .mockResolvedValueOnce(
+          JSON.stringify({
+            ...query,
+            intent: InstructorIntent.CREATE_COURSE_STRUCTURE,
+          }),
+        )
+        .mockResolvedValueOnce(JSON.stringify({ proposal: plan }))
+        .mockResolvedValueOnce(
+          JSON.stringify({
+            ...answer,
+            answer: `Include ${lecture}.`,
+            followUpQuestion: 'Start with [Real analysis](#real-analysis)?',
+            proposal: plan,
+          }),
+        );
+      const result = await f.service.respond({
+        ...input,
+        message:
+          'I want to create a course teaching advanced math. Which lectures should I include?',
+      });
+      expect(result.answer).toBe('Include Real analysis.');
+      expect(result.followUpQuestion).toBe('Start with Real analysis?');
+      expect(result.proposal).toMatchObject({
+        title: 'Advanced math',
+        items: [
+          { title: 'Real analysis', details: 'Limits and proofs. Exercises' },
+        ],
+      });
+      expect(result.citations).toEqual([]);
+      expect(f.model.createResponse).toHaveBeenCalledTimes(3);
+      expect(f.content.applyProposal).not.toHaveBeenCalled();
+      expect(
+        JSON.parse((f.model.createResponse.mock.calls[2][0] as any).input)
+          .plannedProposal.title,
+      ).toBe('Advanced math');
+    },
+  );
+  it('keeps authorized course-outline citations separate without making lecture names into links', async () => {
+    const f = fixture();
+    f.content.retrieve.mockResolvedValue({
+      items: [
+        {
+          ref: 'R1',
+          authority: 'COURSE_OFFICIAL',
+          label: 'Calculus',
+          data: {},
+        },
+      ],
+      citations: [
+        {
+          ref: 'R1',
+          source: { type: 'COURSE', id: 'c1', label: 'Calculus' },
+          url: '/course/c1',
+        },
+      ],
+      warnings: [],
+      courseId: 'c1',
+      postId: null,
+      sourceHash: 'snapshot',
+      creatorStyle: null,
+    } as any);
+    const plan = {
+      kind: InstructorProposalKind.COURSE_STRUCTURE,
+      title: 'Advanced math',
+      body: '',
+      items: [{ title: 'Analysis', details: 'Limits and proofs.' }],
+    };
+    f.model.createResponse
+      .mockReset()
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          ...query,
+          intent: InstructorIntent.CREATE_COURSE_STRUCTURE,
+        }),
+      )
+      .mockResolvedValueOnce(JSON.stringify({ proposal: plan }))
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          ...answer,
+          answer: 'Build on [Calculus](/course/c1 "Calculus") with analysis.',
+          citedReferences: ['R1'],
+          proposal: plan,
+        }),
+      );
+    const result = await f.service.respond(input);
+    expect(result.answer).toBe('Build on Calculus with analysis.');
+    expect(result.citations).toEqual([
+      {
+        reference: 'R1',
+        source: { type: 'COURSE', id: 'c1', label: 'Calculus' },
+      },
+    ]);
+    expect(result.citedReferences).toEqual(['R1']);
+  });
+  it('still rejects invented references in a course outline', async () => {
+    const f = fixture();
+    const plan = {
+      kind: InstructorProposalKind.COURSE_STRUCTURE,
+      title: 'Advanced math',
+      body: '',
+      items: [{ title: 'Analysis', details: 'Limits.' }],
+    };
+    f.model.createResponse
+      .mockReset()
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          ...query,
+          intent: InstructorIntent.CREATE_COURSE_STRUCTURE,
+        }),
+      )
+      .mockResolvedValueOnce(JSON.stringify({ proposal: plan }))
+      .mockResolvedValue(
+        JSON.stringify({
+          ...answer,
+          citedReferences: ['R999'],
+          proposal: plan,
+        }),
+      );
+    await expect(f.service.respond(input)).rejects.toThrow('invalid response');
+    expect(f.content.applyProposal).not.toHaveBeenCalled();
+  });
   it('answers the reported calculus course-design question with no sources and no database writes', async () => {
     const f = fixture();
     const plan = {

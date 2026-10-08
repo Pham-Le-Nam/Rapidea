@@ -101,6 +101,12 @@ Proposal field lengths/counts now use `INSTRUCTOR_PROPOSAL_LIMITS` in the model 
 
 `InstructorAssistantService.validationReason()` logs a safe reason code and attempt number without logging prompts, answers or user identifiers. Validation retries receive that reason to correct the specific failure. If a deployed request still fails, capture the log line beginning `Instructor final answer validation failed` (for example, `reason=invalid_proposal` or `reason=unknown_link`); the generic toast alone does not identify the cause.
 
+### Plain-text course outlines
+
+`CREATE_COURSE_STRUCTURE` does not need lecture URLs. Its planning and final prompts request plain lecture names and descriptions, with any authorized supporting sources recorded separately in `citedReferences`.
+
+`course-structure-text.ts` provides two application-layer helpers: `courseStructurePlainText()` removes inline/reference-style Markdown link destinations, placeholder anchors and raw web URLs while retaining labels and ordinary formatting; `courseStructurePlainProposal()` immutably normalizes the proposal title, body and module fields. `InstructorAssistantService.respond()` applies them only for CREATE_COURSE_STRUCTURE, including the planning draft, answer and follow-up, and validates normalized required fields again. An optional hyperlink therefore cannot discard an otherwise useful course outline. Unknown citation references, unauthorized retrieval and unrequested actions still fail validation; non-course-structure intents retain their existing strict URL checks.
+
 Run the opt-in live checks with the existing API key:
 
 ```powershell
