@@ -56,7 +56,9 @@ const TEXT_GENERATION_PROFILE: Record<
     AiTextGenerationProfile
 > = {
     [AiTextModelPurpose.PROCESSING]: {
-        reasoningEffort: AiReasoningEffort.MINIMAL,
+        // GPT-6 does not support "minimal". Low is also compatible with
+        // the GPT-5 reasoning models previously used for this workload.
+        reasoningEffort: AiReasoningEffort.LOW,
         verbosity: AiTextVerbosity.LOW,
     },
     [AiTextModelPurpose.PLANNING]: {

@@ -149,15 +149,76 @@ export class OpenAiClientService {
             }),
         });
         if (!response.ok) {
-            this.logger.error(
-                `${input.failureLabel} HTTP failure: model=${model} status=${response.status}`,
+            const configurationError = await this.logHttpFailure(
+                response,
+                input,
+                model,
+                apiKey,
             );
             throw new InternalServerErrorException(
-                `${input.failureLabel} failed (${response.status})`,
+                `${input.failureLabel} failed (${response.status})${configurationError ? '. The AI model configuration was rejected; check the backend logs.' : ''}`,
             );
         }
 
         return (await response.json()) as OpenAiResponse;
+    }
+
+    private async logHttpFailure(
+        response: Response,
+        input: OpenAiTextResponseInput,
+        model: string,
+        apiKey: string,
+    ): Promise<boolean> {
+        let error: Record<string, unknown> = {};
+        try {
+            const body = (await response.json()) as { error?: unknown } | null;
+            if (
+                body?.error &&
+                typeof body.error === 'object' &&
+                !Array.isArray(body.error)
+            ) {
+                error = body.error as Record<string, unknown>;
+            }
+        } catch {
+            // Preserve the HTTP failure even when a proxy returns HTML/no JSON.
+        }
+        const safeField = (value: unknown): string =>
+            typeof value === 'string' &&
+            /^[a-zA-Z0-9_.:[\]-]{1,120}$/.test(value) &&
+            !value.includes(apiKey)
+                ? value
+                : 'unknown';
+        const code = safeField(error.code);
+        const param = safeField(error.param);
+        const configurationError =
+            response.status === 400 &&
+            [
+                'unsupported_value',
+                'unsupported_parameter',
+                'invalid_json_schema',
+            ].includes(code) &&
+            /^(model|reasoning(?:\.[a-z_]+)?|text\.(?:format|verbosity)(?:\.[a-z_.]+)?|max_output_tokens)$/.test(
+                param,
+            );
+        // Only allow provider message text for configuration/schema failures.
+        // Authentication and input errors may echo credentials or private content.
+        let detail = 'Provider error message omitted to protect request data.';
+        if (configurationError && typeof error.message === 'string') {
+            detail = error.message;
+            for (const secret of [apiKey, input.input, input.instructions]) {
+                if (secret) detail = detail.replaceAll(secret, '[REDACTED]');
+            }
+            detail = detail
+                .replace(/Bearer\s+\S+/gi, 'Bearer [REDACTED]')
+                .replace(/\bsk-[a-zA-Z0-9_-]+/g, '[REDACTED]')
+                .replace(/[\r\n\t]/g, ' ')
+                .slice(0, 500);
+        }
+        this.logger.error(
+            `${input.failureLabel} HTTP failure: model=${model} purpose=${input.modelPurpose} status=${response.status} ` +
+                `requestId=${safeField(response.headers?.get('x-request-id'))} code=${code} param=${param} detail=${detail}`,
+        );
+        return configurationError;
     }
 
     async createEmbeddings(input: string[]): Promise<number[][] | null> {

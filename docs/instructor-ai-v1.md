@@ -89,6 +89,22 @@ A read-only schema diff also reports existing manually managed index differences
 
 ## Verification and boundaries
 
+### GPT-6 Luna configuration
+
+Use `PROCESSING_MODEL=gpt-6-luna`, `PLANNING_MODEL=gpt-6-luna` and `RESPONSE_MODEL=gpt-6-luna`. The local configuration already uses these values, and `.env.example` now matches. The shared text profiles use `low` reasoning; GPT-6 Luna does not support `minimal`. This applies to both classifiers, conversation summaries, planning and final responses. Models remain required and independently configurable; embeddings and transcription are unchanged. See [official model documentation](https://developers.openai.com/api/docs/models/gpt-6-luna).
+
+`ai-model-config.ts` selects the compatible defaults. `OpenAiClientService.logHttpFailure()` retains provider error code, rejected parameter, request ID and safe configuration/schema details in backend logs. It redacts credentials and request text, omits authentication/input error messages, and never forwards raw provider details to the frontend. Malformed/non-JSON error responses preserve the original HTTP status.
+
+`instructorAnswerOutput()` narrows the final proposal schema to the classified intent. Examples, summaries, searches and analyses require `proposal: null`; a post draft is only permitted for DRAFT_POST, and each design/revision intent permits only its corresponding action kind. The same policy mapping is used for defensive validation, preventing a model from returning an unrequested draft that causes a validation toast.
+
+Run the opt-in live checks with the existing API key:
+
+```powershell
+node -r ts-node/register scripts/verify-ai-models.ts
+```
+
+These checks call the actual provider using the application request adapter and schemas. They test learner classification, two-course comparison, instructor classification, course planning and both final-answer formats. They send only synthetic input, use `store: false`, and do not create database conversations or resources. These are model/API compatibility checks, not a browser or database retrieval end-to-end test.
+
 Tests cover every enum intent and family routing, strict schemas/source indexes, UUID DTOs, role/ownership boundaries, prompt-injection data separation, valid/invalid citations, first-message mode routing, request replay, trusted-source handling, instructor memory, anonymous discussion sampling, taxonomy lookup, stale proposals and serialized concurrent approvals.
 
 `scripts/verify-instructor-ai.ts` is a **read-only localhost** PostgreSQL smoke check. It uses synthetic query embeddings, not a paid model call, and exercises source picking, vector/FTS ownership SQL, coverage, overlap candidates and review/discussion queries:
@@ -99,4 +115,4 @@ node -r ts-node/register scripts/verify-instructor-ai.ts
 
 Analysis is intentionally bounded: up to 200 post/file inventory entries, 12 outcome/skill support searches, 100 recent discussion comments/written reviews and 200 duplicate-query anchor excerpts. The evidence budget prioritizes selected sources and relevant support ahead of broad inventory. Results state sampling/truncation limitations. Similarity suggests an overlap candidate; it does not prove duplication, complete coverage or a misconception.
 
-V2 is still needed for native quizzes/exercises, persistent module ordering, live outdated-content/broken-link verification, scheduled scans and dashboards. No real model-response evaluation or browser end-to-end run was performed as part of these deterministic tests; test the configured PROCESSING/PLANNING/RESPONSE models with representative instructor queries before production rollout.
+V2 is still needed for native quizzes/exercises, persistent module ordering, live outdated-content/broken-link verification, scheduled scans and dashboards. Deterministic tests mock provider responses; live model/API compatibility is covered separately by the opt-in checks above. Browser and full database-retrieval end-to-end testing remain separate from those checks.

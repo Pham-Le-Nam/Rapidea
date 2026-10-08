@@ -1,5 +1,8 @@
 import { InstructorIntent } from './instructor-query';
-import { InstructorProposalKind } from './instructor-proposal';
+import {
+  InstructorProposalKind,
+  INSTRUCTOR_PROPOSAL_KIND_BY_INTENT,
+} from './instructor-proposal';
 const string = { type: 'string' };
 const strings = { type: 'array', items: string };
 const nullableString = { type: ['string', 'null'] };
@@ -32,23 +35,27 @@ export const INSTRUCTOR_QUERY_OUTPUT = {
     includeDiscussions: { type: 'boolean' },
   }),
 };
-const proposalSchema = {
-  anyOf: [
-    { type: 'null' },
-    object({
-      kind: { type: 'string', enum: Object.values(InstructorProposalKind) },
-      title: string,
-      body: string,
-      items: {
-        type: 'array',
-        items: object({ title: string, details: string }),
-      },
-    }),
-  ],
-};
+function proposalSchema(kinds: InstructorProposalKind[]) {
+  return {
+    anyOf: [
+      { type: 'null' },
+      object({
+        kind: { type: 'string', enum: kinds },
+        title: string,
+        body: string,
+        items: {
+          type: 'array',
+          items: object({ title: string, details: string }),
+        },
+      }),
+    ],
+  };
+}
 export const INSTRUCTOR_PLANNING_OUTPUT = {
   name: 'instructor_course_plan',
-  schema: object({ proposal: proposalSchema }),
+  schema: object({
+    proposal: proposalSchema(Object.values(InstructorProposalKind)),
+  }),
 };
 export const INSTRUCTOR_ANSWER_OUTPUT = {
   name: 'instructor_answer',
@@ -56,6 +63,20 @@ export const INSTRUCTOR_ANSWER_OUTPUT = {
     answer: string,
     followUpQuestion: string,
     citedReferences: strings,
-    proposal: proposalSchema,
+    proposal: proposalSchema(Object.values(InstructorProposalKind)),
   }),
 };
+
+/** The model cannot offer an unrelated write action for a read-only request. */
+export function instructorAnswerOutput(intent: InstructorIntent) {
+  const kind = INSTRUCTOR_PROPOSAL_KIND_BY_INTENT[intent];
+  return {
+    name: INSTRUCTOR_ANSWER_OUTPUT.name,
+    schema: object({
+      answer: string,
+      followUpQuestion: string,
+      citedReferences: strings,
+      proposal: kind ? proposalSchema([kind]) : { type: 'null' },
+    }),
+  };
+}

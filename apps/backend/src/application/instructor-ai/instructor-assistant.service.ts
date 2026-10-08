@@ -21,7 +21,7 @@ import {
 } from '../ports/token-counter.port';
 import {
   INSTRUCTOR_QUERY_OUTPUT,
-  INSTRUCTOR_ANSWER_OUTPUT,
+  instructorAnswerOutput,
   INSTRUCTOR_PLANNING_OUTPUT,
 } from './instructor-ai.schema';
 import {
@@ -40,19 +40,9 @@ import {
   InstructorProposalKind,
   parseInstructorProposal,
   StoredInstructorProposal,
+  INSTRUCTOR_PROPOSAL_KIND_BY_INTENT as proposalIntents,
 } from './instructor-proposal';
 import { InstructorIntentRetrievalRouterService } from './instructor-intent-retrieval-router.service';
-
-const proposalIntents: Partial<
-  Record<InstructorIntent, InstructorProposalKind>
-> = {
-  CREATE_COURSE_STRUCTURE: InstructorProposalKind.COURSE_STRUCTURE,
-  CREATE_LEARNING_OUTCOMES: InstructorProposalKind.LEARNING_OUTCOMES,
-  DEFINE_COURSE_SKILLS: InstructorProposalKind.COURSE_SKILLS,
-  DEFINE_PREREQUISITES: InstructorProposalKind.PREREQUISITES,
-  DRAFT_POST: InstructorProposalKind.POST_DRAFT,
-  IMPROVE_CONTENT: InstructorProposalKind.POST_REVISION,
-};
 
 @Injectable()
 export class InstructorAssistantService {
@@ -209,7 +199,7 @@ export class InstructorAssistantService {
               ]
             : []),
         ],
-        structuredOutput: INSTRUCTOR_ANSWER_OUTPUT,
+        structuredOutput: instructorAnswerOutput(query.intent),
         input: JSON.stringify({
           message: input.message,
           query,

@@ -1,3 +1,5 @@
+import { InstructorIntent } from './instructor-query';
+
 export enum InstructorProposalKind {
   COURSE_STRUCTURE = 'COURSE_STRUCTURE',
   LEARNING_OUTCOMES = 'LEARNING_OUTCOMES',
@@ -6,6 +8,17 @@ export enum InstructorProposalKind {
   POST_DRAFT = 'POST_DRAFT',
   POST_REVISION = 'POST_REVISION',
 }
+/** Single policy shared by generation schemas and defensive result validation. */
+export const INSTRUCTOR_PROPOSAL_KIND_BY_INTENT: Partial<
+  Record<InstructorIntent, InstructorProposalKind>
+> = {
+  CREATE_COURSE_STRUCTURE: InstructorProposalKind.COURSE_STRUCTURE,
+  CREATE_LEARNING_OUTCOMES: InstructorProposalKind.LEARNING_OUTCOMES,
+  DEFINE_COURSE_SKILLS: InstructorProposalKind.COURSE_SKILLS,
+  DEFINE_PREREQUISITES: InstructorProposalKind.PREREQUISITES,
+  DRAFT_POST: InstructorProposalKind.POST_DRAFT,
+  IMPROVE_CONTENT: InstructorProposalKind.POST_REVISION,
+};
 export type InstructorProposal = {
   kind: InstructorProposalKind;
   title: string;

@@ -1,6 +1,7 @@
 import {
   INSTRUCTOR_QUERY_OUTPUT,
   INSTRUCTOR_ANSWER_OUTPUT,
+  instructorAnswerOutput,
 } from './instructor-ai.schema';
 import {
   InstructorIntent,
@@ -12,6 +13,7 @@ import { InstructorIntentRetrievalRouterService } from './instructor-intent-retr
 import {
   InstructorProposalKind,
   parseInstructorProposal,
+  INSTRUCTOR_PROPOSAL_KIND_BY_INTENT,
 } from './instructor-proposal';
 
 export const instructorQuery = (
@@ -37,6 +39,23 @@ const source = {
 };
 
 describe('Instructor V1 query contracts and routing', () => {
+  it.each(Object.values(InstructorIntent))(
+    'constrains final proposals to the approved action for %s',
+    (intent) => {
+      const output = instructorAnswerOutput(intent);
+      const proposal = output.schema.properties.proposal as any;
+      const kind = INSTRUCTOR_PROPOSAL_KIND_BY_INTENT[intent];
+      if (kind) expect(proposal.anyOf[1].properties.kind.enum).toEqual([kind]);
+      else expect(proposal).toEqual({ type: 'null' });
+      expect(output.schema.additionalProperties).toBe(false);
+      expect(output.schema.required).toEqual([
+        'answer',
+        'followUpQuestion',
+        'citedReferences',
+        'proposal',
+      ]);
+    },
+  );
   it.each(Object.values(InstructorIntent))(
     'validates and routes %s',
     async (intent) => {

@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { AiTextModelPurpose } from '../../application/ports/learning-assistant-response.port';
 import { OpenAiClientService } from './openai-client.service';
 
@@ -79,7 +80,7 @@ describe('OpenAiClientService', () => {
             AiTextModelPurpose.PROCESSING,
             'PROCESSING_MODEL',
             'test-processing-model',
-            'minimal',
+            'low',
             'low',
         ],
         [
@@ -173,7 +174,7 @@ describe('OpenAiClientService', () => {
         );
         expect(firstBody.max_output_tokens).toBe(500);
         expect(retryBody.max_output_tokens).toBe(4_000);
-        expect(retryBody.reasoning).toEqual({ effort: 'minimal' });
+        expect(retryBody.reasoning).toEqual({ effort: 'low' });
     });
 
     it('retries a completed response that unexpectedly contains no content', async () => {
@@ -243,6 +244,127 @@ describe('OpenAiClientService', () => {
             }),
         ).rejects.toThrow('Classification was refused by the model');
         expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(Object.values(AiTextModelPurpose))(
+        'uses GPT-6 Luna-compatible reasoning for %s',
+        async (purpose) => {
+            process.env.PROCESSING_MODEL = 'gpt-6-luna';
+            process.env.PLANNING_MODEL = 'gpt-6-luna';
+            process.env.RESPONSE_MODEL = 'gpt-6-luna';
+            process.env.OPENAI_API_KEY = 'test-api-key';
+            const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+                ok: true,
+                json: jest
+                    .fn()
+                    .mockResolvedValue({
+                        status: 'completed',
+                        output_text: 'OK',
+                    }),
+            } as unknown as Response);
+            await service.createTextResponse({
+                modelPurpose: purpose,
+                instructions: 'Return OK.',
+                input: 'Test.',
+                failureLabel: 'Generation',
+            });
+            const body = JSON.parse(fetchMock.mock.calls[0][1]!.body as string);
+            expect(body.model).toBe('gpt-6-luna');
+            expect(body.reasoning).toEqual({ effort: 'low' });
+            expect(body).not.toHaveProperty('temperature');
+            expect(body).not.toHaveProperty('top_p');
+        },
+    );
+
+    it('logs actionable provider configuration details without secrets or private request text', async () => {
+        process.env.PROCESSING_MODEL = 'gpt-6-luna';
+        process.env.OPENAI_API_KEY = 'sk-proj-private-key';
+        const logger = jest
+            .spyOn(Logger.prototype, 'error')
+            .mockImplementation(() => undefined);
+        const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+            ok: false,
+            status: 400,
+            headers: new Headers({ 'x-request-id': 'req-test-123' }),
+            json: jest.fn().mockResolvedValue({
+                error: {
+                    code: 'unsupported_value',
+                    param: 'reasoning.effort',
+                    message:
+                        'Unsupported value: minimal. sk-proj-private-key Private course material Private instructions',
+                },
+            }),
+        } as unknown as Response);
+        await expect(
+            service.createTextResponse({
+                modelPurpose: AiTextModelPurpose.PROCESSING,
+                instructions: 'Private instructions',
+                input: 'Private course material',
+                failureLabel: 'Classification',
+            }),
+        ).rejects.toThrow('AI model configuration was rejected');
+        const logged = logger.mock.calls.flat().join(' ');
+        expect(logged).toContain(
+            'code=unsupported_value param=reasoning.effort',
+        );
+        expect(logged).toContain('requestId=req-test-123');
+        expect(logged).toContain('Unsupported value: minimal');
+        expect(logged).not.toContain('sk-proj-private-key');
+        expect(logged).not.toContain('Private course material');
+        expect(logged).not.toContain('Private instructions');
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not log provider authentication messages that could contain keys', async () => {
+        process.env.PROCESSING_MODEL = 'gpt-6-luna';
+        process.env.OPENAI_API_KEY = 'private-key';
+        const logger = jest
+            .spyOn(Logger.prototype, 'error')
+            .mockImplementation(() => undefined);
+        jest.spyOn(global, 'fetch').mockResolvedValue({
+            ok: false,
+            status: 401,
+            json: jest.fn().mockResolvedValue({
+                error: {
+                    code: 'invalid_api_key',
+                    param: null,
+                    message: 'Incorrect API key: private-key; secret input',
+                },
+            }),
+        } as unknown as Response);
+        await expect(
+            service.createTextResponse({
+                modelPurpose: AiTextModelPurpose.PROCESSING,
+                instructions: 'Classify.',
+                input: 'secret input',
+                failureLabel: 'Classification',
+            }),
+        ).rejects.toThrow('Classification failed (401)');
+        const logged = logger.mock.calls.flat().join(' ');
+        expect(logged).toContain('code=invalid_api_key');
+        expect(logged).not.toContain('private-key');
+        expect(logged).not.toContain('secret input');
+    });
+
+    it('preserves non-JSON HTTP errors instead of throwing a JSON parsing error', async () => {
+        process.env.PROCESSING_MODEL = 'gpt-6-luna';
+        process.env.OPENAI_API_KEY = 'test-api-key';
+        jest.spyOn(Logger.prototype, 'error').mockImplementation(
+            () => undefined,
+        );
+        jest.spyOn(global, 'fetch').mockResolvedValue({
+            ok: false,
+            status: 502,
+            json: jest.fn().mockRejectedValue(new SyntaxError('Not JSON')),
+        } as unknown as Response);
+        await expect(
+            service.createTextResponse({
+                modelPurpose: AiTextModelPurpose.PROCESSING,
+                instructions: 'Classify.',
+                input: 'Test.',
+                failureLabel: 'Classification',
+            }),
+        ).rejects.toThrow('Classification failed (502)');
     });
 
     it('rejects processing without PROCESSING_MODEL', async () => {
