@@ -14,6 +14,7 @@ import {
   InstructorProposalKind,
   parseInstructorProposal,
   INSTRUCTOR_PROPOSAL_KIND_BY_INTENT,
+  INSTRUCTOR_PROPOSAL_LIMITS,
 } from './instructor-proposal';
 
 export const instructorQuery = (
@@ -39,6 +40,36 @@ const source = {
 };
 
 describe('Instructor V1 query contracts and routing', () => {
+  it('restricts citations to actual evidence, including a source-free course outline', () => {
+    const empty = instructorAnswerOutput(
+      InstructorIntent.CREATE_COURSE_STRUCTURE,
+      [],
+    ).schema.properties.citedReferences as any;
+    expect(empty.maxItems).toBe(0);
+    const sourced = instructorAnswerOutput(InstructorIntent.REVIEW_COURSE, [
+      'R1',
+      'R2',
+      'R1',
+    ]).schema.properties.citedReferences as any;
+    expect(sourced.items.enum).toEqual(['R1', 'R2']);
+  });
+  it('matches proposal validator limits and prevents empty course outlines', () => {
+    const structure = instructorAnswerOutput(
+      InstructorIntent.CREATE_COURSE_STRUCTURE,
+    ).schema.properties.proposal as any;
+    const fields = structure.anyOf[1].properties;
+    expect(fields.title.maxLength).toBe(INSTRUCTOR_PROPOSAL_LIMITS.title);
+    expect(fields.body.maxLength).toBe(INSTRUCTOR_PROPOSAL_LIMITS.body);
+    expect(fields.items.minItems).toBe(1);
+    expect(fields.items.maxItems).toBe(INSTRUCTOR_PROPOSAL_LIMITS.items);
+    expect(fields.items.items.properties.details.maxLength).toBe(
+      INSTRUCTOR_PROPOSAL_LIMITS.itemDetails,
+    );
+    const post = instructorAnswerOutput(InstructorIntent.DRAFT_POST).schema
+      .properties.proposal as any;
+    expect(post.anyOf[1].properties.body.pattern).toBe('\\S');
+    expect(post.anyOf[1].properties.items.minItems).toBeUndefined();
+  });
   it.each(Object.values(InstructorIntent))(
     'constrains final proposals to the approved action for %s',
     (intent) => {

@@ -1,4 +1,5 @@
 import { InstructorAssistantService } from './instructor-assistant.service';
+import { Logger } from '@nestjs/common';
 import { InstructorIntent, InstructorQuery } from './instructor-query';
 import { InstructorIntentRetrievalRouterService } from './instructor-intent-retrieval-router.service';
 import { InstructorProposalKind } from './instructor-proposal';
@@ -82,6 +83,78 @@ const input = {
 };
 
 describe('InstructorAssistantService', () => {
+  it('answers the reported calculus course-design question with no sources and no database writes', async () => {
+    const f = fixture();
+    const plan = {
+      kind: InstructorProposalKind.COURSE_STRUCTURE,
+      title: 'Calculus',
+      body: '',
+      items: [
+        { title: 'Limits', details: 'Continuity and limit laws.' },
+        { title: 'Derivatives', details: 'Differentiation and applications.' },
+        { title: 'Integrals', details: 'Integration and applications.' },
+      ],
+    };
+    f.model.createResponse
+      .mockReset()
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          ...query,
+          intent: InstructorIntent.CREATE_COURSE_STRUCTURE,
+        }),
+      )
+      .mockResolvedValueOnce(JSON.stringify({ proposal: plan }))
+      .mockResolvedValueOnce(JSON.stringify({ ...answer, proposal: plan }));
+    const result = await f.service.respond({
+      ...input,
+      message:
+        'I want to create a course for calculus. What contents should I include?',
+    });
+    expect(result.proposal).toMatchObject({
+      kind: InstructorProposalKind.COURSE_STRUCTURE,
+      courseId: null,
+      items: plan.items,
+    });
+    expect(result.citations).toEqual([]);
+    expect(f.content.applyProposal).not.toHaveBeenCalled();
+    const request = f.model.createResponse.mock.calls[2][0] as any;
+    expect(
+      request.structuredOutput.schema.properties.citedReferences.maxItems,
+    ).toBe(0);
+    expect(
+      request.structuredOutput.schema.properties.proposal.anyOf[1].properties
+        .items.minItems,
+    ).toBe(1);
+  });
+  it('logs only a safe validation reason and supplies it to the retry', async () => {
+    const logger = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    try {
+      const f = fixture();
+      f.model.createResponse
+        .mockReset()
+        .mockResolvedValueOnce(JSON.stringify(query))
+        .mockResolvedValueOnce(
+          JSON.stringify({ ...answer, citedReferences: ['R999'] }),
+        )
+        .mockResolvedValueOnce(JSON.stringify(answer));
+      await f.service.respond({ ...input, message: 'PRIVATE QUESTION' });
+      expect(logger).toHaveBeenCalledWith(
+        expect.stringContaining('reason=unknown_reference'),
+      );
+      expect(logger.mock.calls.flat().join(' ')).not.toContain(
+        'PRIVATE QUESTION',
+      );
+      expect(
+        (
+          f.model.createResponse.mock.calls[2][0] as any
+        ).additionalPolicyLayers.join(' '),
+      ).toContain('unknown_reference');
+    } finally {
+      logger.mockRestore();
+    }
+  });
   it('recovers from one malformed final output without persisting or applying it', async () => {
     const f = fixture();
     f.model.createResponse

@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { ConversationMemoryService } from '../ai-chat/conversation-memory.service';
 import {
@@ -46,6 +47,7 @@ import { InstructorIntentRetrievalRouterService } from './instructor-intent-retr
 
 @Injectable()
 export class InstructorAssistantService {
+  private readonly logger = new Logger(InstructorAssistantService.name);
   constructor(
     @Inject(LEARNING_ASSISTANT_RESPONSE_PORT)
     private readonly model: LearningAssistantResponsePort,
@@ -187,6 +189,7 @@ export class InstructorAssistantService {
         );
       }
     }
+    let retryReason = '';
     for (let attempt = 0; attempt < 2; attempt++) {
       const response = await this.model.createResponse({
         assistantMode: 'INSTRUCTOR',
@@ -195,11 +198,13 @@ export class InstructorAssistantService {
           INSTRUCTOR_ANSWER_PROMPT,
           ...(attempt
             ? [
-                'Your previous output failed validation. Return only the supplied schema. Cite only supplied R-number references; use an empty list when no evidence supports a claim. Do not invent links, IDs or an unrequested proposal.',
+                `Your previous output failed validation (${retryReason}). Return only the supplied schema, with a nonempty answer and follow-up question. Cite only supplied R-number references; use an empty list when no evidence supports a claim. Do not invent links, IDs or an unrequested proposal. Structure/outcome/skill/prerequisite proposals need nonempty items, not just a body. Keep all fields within the schema limits.`,
               ]
             : []),
         ],
-        structuredOutput: instructorAnswerOutput(query.intent),
+        structuredOutput: instructorAnswerOutput(query.intent, [
+          ...availableRefs,
+        ]),
         input: JSON.stringify({
           message: input.message,
           query,
@@ -313,6 +318,10 @@ export class InstructorAssistantService {
           18000 - budget,
         );
       } catch (cause) {
+        retryReason = this.validationReason(cause);
+        this.logger.warn(
+          `Instructor final answer validation failed: intent=${query.intent} attempt=${attempt + 1} reason=${retryReason}`,
+        );
         if (attempt === 1)
           throw new InternalServerErrorException(
             'Instructor final answer returned an invalid response',
@@ -339,6 +348,24 @@ export class InstructorAssistantService {
 
   listSources(userId: string, query = '') {
     return this.content.listSources(userId, query.trim().slice(0, 200));
+  }
+
+  private validationReason(cause: unknown): string {
+    if (cause instanceof SyntaxError) return 'invalid_json';
+    const reasons: Record<string, string> = {
+      'Invalid answer/citation': 'invalid_content',
+      'Invalid citation type': 'invalid_citation_type',
+      'Unknown reference': 'unknown_reference',
+      'Invalid instructor proposal': 'invalid_proposal',
+      'Invalid proposal': 'invalid_proposal',
+      'Proposal does not match requested intent': 'unrequested_action',
+      'Unknown resource hyperlink': 'unknown_link',
+      'Unsupplied URL': 'unsupplied_url',
+      'Unknown inline citation': 'unknown_inline_reference',
+    };
+    return cause instanceof Error
+      ? (reasons[cause.message] ?? 'internal_dependency_error')
+      : 'unknown_error';
   }
 
   private result(

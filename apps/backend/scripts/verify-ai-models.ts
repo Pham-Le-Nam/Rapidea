@@ -5,6 +5,13 @@ import { OpenAiClientService } from '../src/infrastructure/ai/openai-client.serv
 import { LearningAssistantAiService } from '../src/infrastructure/ai/learning-assistant-ai.service';
 import { LearningAssistantPromptService } from '../src/infrastructure/ai/learning-assistant-prompt.service';
 import { IntentClassificationService } from '../src/infrastructure/ai/intent-classification.service';
+import { InstructorAssistantService } from '../src/application/instructor-ai/instructor-assistant.service';
+import { InstructorIntentRetrievalRouterService } from '../src/application/instructor-ai/instructor-intent-retrieval-router.service';
+import {
+  InstructorContentPort,
+  InstructorEvidence,
+} from '../src/application/ports/instructor-content.port';
+import { ConversationMemoryService } from '../src/application/ai-chat/conversation-memory.service';
 import { AiChatTrustedSourceService } from '../src/infrastructure/ai/ai-chat-trusted-source.service';
 import {
   LearnerIntent,
@@ -52,6 +59,55 @@ async function main() {
       getLearnerQueryContext: async () => sources,
     } as unknown as AiChatTrustedSourceService);
   const history = { summary: null, recentConversation: [] };
+  const emptyEvidence: InstructorEvidence = {
+    items: [],
+    citations: [],
+    warnings: [],
+    courseId: null,
+    postId: null,
+    sourceHash: 'synthetic',
+    creatorStyle: null,
+  };
+  const runCourseDesign = async (evidence: InstructorEvidence) => {
+    const content: InstructorContentPort = {
+      retrieve: async () => evidence,
+      resolveProposalSkills: async () => [],
+      listSources: async () => [],
+      applyProposal: async () => {
+        throw new Error('Database writes are disabled in the live check');
+      },
+    };
+    const memory = {
+      getContextForFinalResponse: async () => history,
+    } as unknown as ConversationMemoryService;
+    const service = new InstructorAssistantService(
+      assistant,
+      content,
+      memory,
+      {
+        count: (text) => Math.ceil(text.length / 4),
+        truncate: (text, budget) => text.slice(0, budget * 4),
+      },
+      new InstructorIntentRetrievalRouterService(content),
+    );
+    const result = await service.respond({
+      userId: 'synthetic-user',
+      conversationId: 'synthetic-conversation',
+      currentMessageId: 'synthetic-message',
+      message:
+        'I want to create a course for calculus. What contents should I include?',
+      sources: [],
+    });
+    if (
+      result.query.intent !== InstructorIntent.CREATE_COURSE_STRUCTURE ||
+      !result.answer.trim() ||
+      result.proposal?.kind !== 'COURSE_STRUCTURE' ||
+      !result.proposal.items.length
+    )
+      throw new Error(
+        'The complete course-design pipeline did not return an outline',
+      );
+  };
   const checks: [string, () => Promise<void>][] = [
     [
       'learner classification',
@@ -196,6 +252,41 @@ async function main() {
           );
       },
     ],
+    [
+      'complete calculus course-design pipeline without sources',
+      async () => {
+        await runCourseDesign({ ...emptyEvidence });
+      },
+    ],
+    [
+      'complete calculus course-design pipeline with synthetic owned-course evidence',
+      async () => {
+        const id = '00000000-0000-4000-8000-000000000003';
+        await runCourseDesign({
+          ...emptyEvidence,
+          courseId: id,
+          items: [
+            {
+              ref: 'R1',
+              authority: 'COURSE_OFFICIAL',
+              label: 'Calculus',
+              data: {
+                title: 'Calculus',
+                description:
+                  'An introductory course about limits and derivatives.',
+              },
+            },
+          ],
+          citations: [
+            {
+              ref: 'R1',
+              source: { type: 'COURSE', id, label: 'Calculus' },
+              url: `/course/${id}`,
+            },
+          ],
+        });
+      },
+    ],
   ];
   try {
     const results = await Promise.allSettled(
@@ -214,7 +305,7 @@ async function main() {
     });
     if (!process.exitCode)
       console.log(
-        'All six live GPT-6 Luna compatibility checks passed. No conversations or resources were created.',
+        `All ${checks.length} live GPT-6 Luna checks passed. No conversations or resources were created.`,
       );
   } finally {
     global.fetch = originalFetch;

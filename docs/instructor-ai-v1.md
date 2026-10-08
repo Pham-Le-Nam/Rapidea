@@ -97,13 +97,17 @@ Use `PROCESSING_MODEL=gpt-6-luna`, `PLANNING_MODEL=gpt-6-luna` and `RESPONSE_MOD
 
 `instructorAnswerOutput()` narrows the final proposal schema to the classified intent. Examples, summaries, searches and analyses require `proposal: null`; a post draft is only permitted for DRAFT_POST, and each design/revision intent permits only its corresponding action kind. The same policy mapping is used for defensive validation, preventing a model from returning an unrequested draft that causes a validation toast.
 
+Proposal field lengths/counts now use `INSTRUCTOR_PROPOSAL_LIMITS` in the model schema, parser and approval DTO. Non-post final proposals require nonempty items; final answers and follow-ups require nonblank text. Final citation arrays are restricted to references in the current authorized evidence, or an empty array when there is none. New course outlines can use general teaching knowledge without an attached source, but cannot invent claims about existing Rapideia resources.
+
+`InstructorAssistantService.validationReason()` logs a safe reason code and attempt number without logging prompts, answers or user identifiers. Validation retries receive that reason to correct the specific failure. If a deployed request still fails, capture the log line beginning `Instructor final answer validation failed` (for example, `reason=invalid_proposal` or `reason=unknown_link`); the generic toast alone does not identify the cause.
+
 Run the opt-in live checks with the existing API key:
 
 ```powershell
 node -r ts-node/register scripts/verify-ai-models.ts
 ```
 
-These checks call the actual provider using the application request adapter and schemas. They test learner classification, two-course comparison, instructor classification, course planning and both final-answer formats. They send only synthetic input, use `store: false`, and do not create database conversations or resources. These are model/API compatibility checks, not a browser or database retrieval end-to-end test.
+These eight checks call the actual provider using the application request adapter and schemas. They test learner classification, two-course comparison, instructor classification, course planning and both final-answer formats, plus the complete instructor application flow for “I want to create a course for calculus. What contents should I include?” with empty evidence and with synthetic owned-course evidence. They send only synthetic input, use `store: false`, and do not create database conversations or resources. These are model/application compatibility checks with stubbed retrieval and memory, not a browser or real-database retrieval end-to-end test.
 
 Tests cover every enum intent and family routing, strict schemas/source indexes, UUID DTOs, role/ownership boundaries, prompt-injection data separation, valid/invalid citations, first-message mode routing, request replay, trusted-source handling, instructor memory, anonymous discussion sampling, taxonomy lookup, stale proposals and serialized concurrent approvals.
 

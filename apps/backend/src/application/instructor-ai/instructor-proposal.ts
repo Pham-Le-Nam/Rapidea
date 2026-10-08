@@ -25,6 +25,13 @@ export type InstructorProposal = {
   body: string;
   items: { title: string; details: string }[];
 };
+export const INSTRUCTOR_PROPOSAL_LIMITS = {
+  title: 250,
+  body: 20000,
+  items: 40,
+  itemTitle: 500,
+  itemDetails: 2000,
+} as const;
 export type StoredInstructorProposal = InstructorProposal & {
   courseId: string | null;
   postId: string | null;
@@ -50,19 +57,19 @@ export function parseInstructorProposal(
     !Object.values(InstructorProposalKind).includes(p.kind) ||
     typeof p.title !== 'string' ||
     !p.title.trim() ||
-    p.title.length > 250 ||
+    p.title.length > INSTRUCTOR_PROPOSAL_LIMITS.title ||
     typeof p.body !== 'string' ||
-    p.body.length > 20000 ||
+    p.body.length > INSTRUCTOR_PROPOSAL_LIMITS.body ||
     !Array.isArray(p.items) ||
-    p.items.length > 40 ||
+    p.items.length > INSTRUCTOR_PROPOSAL_LIMITS.items ||
     p.items.some(
       (i) =>
         !i ||
         typeof i.title !== 'string' ||
         !i.title.trim() ||
-        i.title.length > 500 ||
+        i.title.length > INSTRUCTOR_PROPOSAL_LIMITS.itemTitle ||
         typeof i.details !== 'string' ||
-        i.details.length > 2000,
+        i.details.length > INSTRUCTOR_PROPOSAL_LIMITS.itemDetails,
     ) ||
     (p.kind === InstructorProposalKind.POST_DRAFT ||
     p.kind === InstructorProposalKind.POST_REVISION
