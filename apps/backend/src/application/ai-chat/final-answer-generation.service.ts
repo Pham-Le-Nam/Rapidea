@@ -22,6 +22,7 @@ import { RapideiaEvidenceService } from './rapideia-evidence.service';
 import { ConversationMemoryService } from './conversation-memory.service';
 import { ConversationMemoryContext } from './conversation-memory.types';
 import { EvidenceAuthority } from './rapideia-evidence.types';
+import { withoutTrailingFollowUp } from './answer-text';
 
 type ModelFinalAnswer = {
   answer: string;
@@ -69,13 +70,13 @@ export class FinalAnswerGenerationService {
       ...available.keys(),
     ]);
     const parsed = await this.generateValidatedAnswer(modelInput);
-    const answer = this.normalizeReferenceMarkers(
+    const answer = withoutTrailingFollowUp(this.normalizeReferenceMarkers(
       this.withoutInternalEvidenceLabels(
         available.size === 0
           ? this.withoutReferences(parsed.answer)
           : parsed.answer,
       ),
-    ).trim();
+    ), parsed.followUpQuestion);
     if (!answer) throw this.invalidOutput();
     const mentionedReferences = this.referencesIn(answer);
     const citedReferences = [

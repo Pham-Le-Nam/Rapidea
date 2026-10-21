@@ -83,6 +83,15 @@ const input = {
 };
 
 describe('InstructorAssistantService', () => {
+  it('returns a follow-up question once when the model also appends it to the answer', async () => {
+    const f = fixture();
+    f.model.createResponse.mockReset()
+      .mockResolvedValueOnce(JSON.stringify(query))
+      .mockResolvedValueOnce(JSON.stringify({ ...answer, answer: `${answer.answer}\n\n${answer.followUpQuestion}` }));
+    const result = await f.service.respond(input);
+    expect(result.answer).toBe(answer.answer);
+    expect(result.content.split(answer.followUpQuestion)).toHaveLength(2);
+  });
   it.each([
     '[Real analysis](#real-analysis)',
     '[Real analysis](https://unapproved.example/math_(advanced) "Lecture title")',

@@ -137,6 +137,9 @@ export class IntentRetrievalRouterService {
   ): Promise<CourseSearchResult[]> {
     const courses = await this.courses.searchSummaries({
       query: this.searchText(query),
+      courseNames: query.targets
+        .filter((target) => target.type === 'COURSE' && target.name?.trim())
+        .map((target) => target.name!.trim()),
       desiredSkills: query.desiredSkills,
       desiredOutcomes: query.desiredOutcomes,
       difficulty: query.difficulty?.value,
@@ -174,6 +177,8 @@ export class IntentRetrievalRouterService {
       result.warnings.push(
         'No trusted course ID was available for the course question.',
       );
+      // Names can discover public summaries; they never grant detail access.
+      await this.retrieveCourseSearch(query, result);
     }
 
     const details = await Promise.all(
@@ -285,6 +290,11 @@ export class IntentRetrievalRouterService {
       result.warnings.push(
         'No trusted source ID was available for the requested summary.',
       );
+      if (
+        query.targets.some((target) => target.type === 'COURSE' && target.name)
+      ) {
+        await this.retrieveCourseSearch(query, result);
+      }
     }
   }
 

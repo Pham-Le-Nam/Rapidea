@@ -1,0 +1,58 @@
+Rapideia AI
+Your learning assistant
+
+Find the course Triết. What does it teach?
+
+10/21/2026, 5:50:00 PM
+
+I couldn’t find a course titled “Triết” in the retrieved results. The closest result by name is *Calculus* [Calculus], but its supplied material focuses on product discovery, defining an early product concept, wireframing, and presentation planning—not philosophy. The search results don’t provide enough evidence to identify a “Triết” course or say what it teaches.
+
+Would you like me to look for a course on philosophy using another title or keyword?
+
+Calculus
+
+Bạn sẽ được học về đạo hàm, nguyên hàm.
+
+Open course
+
+10/21/2026, 5:50:12 PM
+
+Tôi muốn học triết học Mác-Lênin. Hãy tìm khóa Triết cho tôi.
+
+10/21/2026, 5:50:48 PM
+
+Trong các kết quả được truy xuất, chưa có khóa học phù hợp để học Triết học Mác-Lênin. Các khóa được tìm thấy nói về công nghệ thông tin, phát triển hệ thống thông tin, y khoa, quản trị quan hệ khách hàng và kế toán—không có nội dung nào được xác nhận là dạy triết học Mác-Lênin. [HIểu Biết Về CNTT Cơ Bản] [Information System Development Methodologies] [Medical] [CRM] [Management Accounting Assignments]
+
+Bạn có muốn thử tìm bằng từ khóa khác, chẳng hạn “chủ nghĩa Mác-Lênin” hoặc “triết học”?
+
+HIểu Biết Về CNTT Cơ Bản
+
+Tài Liệu Ôn Thi Tin Học Cơ Bản
+
+Open course
+Information System Development Methodologies
+
+Information System Development Methodologies
+
+Open course
+Medical
+
+This course is titled **Medical**, but no description, lessons, post summaries, learning objectives, prerequisites, or candidate skills were provided. As a result, there is not enough information to determine the course’s scope, progress...
+
+Open course
+CRM
+
+Customer Relationship Management
+
+Open course
+Management Accounting Assignments
+
+# Management Accounting Assignments This course material combines two assessment areas: **financial planning and analysis** and **auditing**. It is assignment- and exam-oriented, focusing on applying accounting concepts to structured pr...
+
+Open course
+
+10/21/2026, 5:50:55 PM
+
+Shift + Enter for a new line
+Learner mode
+Switch to instructor

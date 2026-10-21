@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import {
   ReciprocalRankFusionResult,
@@ -69,8 +69,13 @@ const courseSummarySelect = {
   tags: {
     select: { tag: { select: { name: true } } },
   },
-  learningOutcomes: { orderBy: { sequence: 'asc' as const }, select: { text: true } },
-  prerequisiteSkills: { select: { reason: true, skill: { select: { id: true, name: true } } } },
+  learningOutcomes: {
+    orderBy: { sequence: 'asc' as const },
+    select: { text: true },
+  },
+  prerequisiteSkills: {
+    select: { reason: true, skill: { select: { id: true, name: true } } },
+  },
 } as const;
 
 type CourseSummaryRecord = Prisma.CourseGetPayload<{
@@ -79,6 +84,8 @@ type CourseSummaryRecord = Prisma.CourseGetPayload<{
 
 @Injectable()
 export class CourseRetrievalService {
+  private readonly logger = new Logger(CourseRetrievalService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly queryEmbedding: QueryEmbeddingService,
@@ -93,24 +100,11 @@ export class CourseRetrievalService {
 
     const limit = this.limit(input.limit);
     const candidateLimit = limit * CANDIDATE_MULTIPLIER;
-    const { embedding, model: embeddingModel } =
-      await this.queryEmbedding.create(searchText);
-    const vector = `[${embedding.join(',')}]`;
     const difficultyConstraint =
       input.difficultyMode === 'CONSTRAINT' ? (input.difficulty ?? null) : null;
 
     const [semantic, keyword] = await Promise.all([
-      this.prisma.$queryRaw<RankedCourse[]>(Prisma.sql`
-                SELECT
-                    "profile"."courseId" AS "id",
-                    1 - ("profile"."embedding" <=> ${vector}::vector) AS "score"
-                FROM "course_ai_profile" AS "profile"
-                WHERE "profile"."embedding" IS NOT NULL
-                  AND "profile"."embeddingModel" = ${embeddingModel}
-                  AND (${difficultyConstraint}::"Difficulty" IS NULL OR "profile"."difficulty" = ${difficultyConstraint}::"Difficulty")
-                ORDER BY "profile"."embedding" <=> ${vector}::vector
-                LIMIT ${candidateLimit}
-            `),
+      this.semanticCandidates(searchText, difficultyConstraint, candidateLimit),
       this.prisma.$queryRaw<RankedCourse[]>(Prisma.sql`
                 WITH "query" AS (
                     SELECT websearch_to_tsquery('english', ${searchText}) AS "value"
@@ -131,7 +125,7 @@ export class CourseRetrievalService {
                         "query"."value"
                     ) AS "score"
                 FROM "course" AS "course"
-                INNER JOIN "course_ai_profile" AS "profile"
+                LEFT JOIN "course_ai_profile" AS "profile"
                     ON "profile"."courseId" = "course"."id"
                 CROSS JOIN "query"
                 WHERE to_tsvector(
@@ -150,15 +144,48 @@ export class CourseRetrievalService {
             `),
     ]);
 
-    const fused = this.fuse(semantic, keyword).slice(0, limit);
-    if (fused.length === 0) return [];
+    // Title matching does not depend on profile generation, query translation or
+    // English stemming. PostgreSQL's built-in normalization needs no extension.
+    const names = [
+      ...new Set(
+        [input.query, ...(input.courseNames ?? [])]
+          .map((name) => this.normalizeTitle(name))
+          .filter(Boolean),
+      ),
+    ];
+    const titleMatches = await this.prisma.$queryRaw<RankedCourse[]>(Prisma.sql`
+      WITH normalized_courses AS (
+        SELECT "course"."id",
+          trim(regexp_replace(translate(regexp_replace(
+            normalize(lower("course"."title"), NFD), ${'[\u0300-\u036f]'}, '', 'g'
+          ), 'đ', 'd'), '[^[:alnum:]]+', ' ', 'g')) AS title
+        FROM "course" AS "course"
+        LEFT JOIN "course_ai_profile" AS "profile" ON "profile"."courseId" = "course"."id"
+        WHERE (${difficultyConstraint}::"Difficulty" IS NULL OR "profile"."difficulty" = ${difficultyConstraint}::"Difficulty")
+      )
+      SELECT id, 1::float8 AS score FROM normalized_courses
+      WHERE title <> '' AND EXISTS (
+        SELECT 1 FROM unnest(${names}::text[]) AS requested(name)
+        WHERE title = requested.name
+          OR (length(title) >= 3 AND strpos(' ' || requested.name || ' ', ' ' || title || ' ') > 0)
+      )
+      ORDER BY id
+      LIMIT ${candidateLimit}
+    `);
+    const fused = this.fuse(semantic, keyword);
+    const titleIds = new Set(titleMatches.map((course) => course.id));
+    const ranked = [
+      ...this.fuse([], titleMatches),
+      ...fused.filter((ranking) => !titleIds.has(ranking.item.id)),
+    ].slice(0, limit);
+    if (ranked.length === 0) return [];
     const courses = await this.prisma.course.findMany({
-      where: { id: { in: fused.map(({ item }) => item.id) } },
+      where: { id: { in: ranked.map(({ item }) => item.id) } },
       select: courseSummarySelect,
     });
     const byId = new Map(courses.map((course) => [course.id, course]));
 
-    const results = fused.flatMap((ranking) => {
+    const results = ranked.flatMap((ranking) => {
       const course = byId.get(ranking.item.id);
       if (!course) return [];
       return [this.toSearchResult(course, ranking)];
@@ -172,6 +199,42 @@ export class CourseRetrievalService {
       const rightMatches = right.profile?.difficulty === input.difficulty;
       return Number(rightMatches) - Number(leftMatches);
     });
+  }
+
+  private normalizeTitle(text: string): string {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim();
+  }
+
+  private async semanticCandidates(
+    text: string,
+    difficulty: CourseSearchInput['difficulty'] | null,
+    limit: number,
+  ): Promise<RankedCourse[]> {
+    try {
+      const { embedding, model } = await this.queryEmbedding.create(text);
+      const vector = `[${embedding.join(',')}]`;
+      return await this.prisma.$queryRaw<RankedCourse[]>(Prisma.sql`
+        SELECT "profile"."courseId" AS "id",
+          1 - ("profile"."embedding" <=> ${vector}::vector) AS "score"
+        FROM "course_ai_profile" AS "profile"
+        WHERE "profile"."embedding" IS NOT NULL
+          AND "profile"."embeddingModel" = ${model}
+          AND (${difficulty}::"Difficulty" IS NULL OR "profile"."difficulty" = ${difficulty}::"Difficulty")
+        ORDER BY "profile"."embedding" <=> ${vector}::vector
+        LIMIT ${limit}
+      `);
+    } catch {
+      this.logger.warn(
+        'Semantic course search unavailable; using keyword and title search.',
+      );
+      return [];
+    }
   }
 
   async getSummary(userId: string, courseId: string) {
@@ -289,8 +352,11 @@ export class CourseRetrievalService {
         importance: item.importance,
       })),
       tags: course.tags.map((item) => item.tag.name),
-      learningOutcomes: (course.learningOutcomes ?? []).map(o => o.text),
-      prerequisites: (course.prerequisiteSkills ?? []).map(p => ({ ...p.skill, reason: p.reason })),
+      learningOutcomes: (course.learningOutcomes ?? []).map((o) => o.text),
+      prerequisites: (course.prerequisiteSkills ?? []).map((p) => ({
+        ...p.skill,
+        reason: p.reason,
+      })),
       semanticScore: ranking.semanticScore,
       keywordScore: ranking.keywordScore,
       combinedScore: ranking.combinedScore,

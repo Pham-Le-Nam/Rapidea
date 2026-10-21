@@ -179,6 +179,32 @@ describe('IntentRetrievalRouterService', () => {
     });
   });
 
+  it.each([LearnerIntent.ASK_COURSE, LearnerIntent.SUMMARIZE_CONTENT])(
+    'discovers public summaries for an unattached named course in %s',
+    async (intent) => {
+      const fixture = createFixture();
+      const found = { id: 'course-1', title: 'Triết' };
+      fixture.courses.searchSummaries.mockResolvedValue([found]);
+      const result = await fixture.service.retrieve(
+        'learner-1',
+        query(intent, [{ type: 'COURSE', id: null, name: 'Triết' }], {
+          searchQuery: 'Marxist philosophy',
+        }),
+      );
+      expect(fixture.courses.searchSummaries).toHaveBeenCalledWith(
+        expect.objectContaining({
+          courseNames: ['Triết'],
+        }),
+      );
+      expect(result.evidence).toContainEqual({
+        kind: IntentEvidenceKind.COURSE_SEARCH_RESULTS,
+        data: [found],
+      });
+      expect(fixture.courses.getDetails).not.toHaveBeenCalled();
+      expect(fixture.courses.getSummaries).not.toHaveBeenCalled();
+    },
+  );
+
   it('adds community evidence once when another intent requests it', async () => {
     const fixture = createFixture();
 

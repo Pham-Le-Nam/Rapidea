@@ -85,14 +85,12 @@ function fixture() {
         metadata = data.metadata;
         return Promise.resolve({});
       }),
-      create: jest
-        .fn()
-        .mockImplementation(({ data }) =>
-          Promise.resolve({
-            ...data,
-            id: data.role === 'USER' ? 'approval' : 'acknowledgment',
-          }),
-        ),
+      create: jest.fn().mockImplementation(({ data }) =>
+        Promise.resolve({
+          ...data,
+          id: data.role === 'USER' ? 'approval' : 'acknowledgment',
+        }),
+      ),
     },
     aiChatConversation: { update: jest.fn() },
     $queryRaw: jest.fn().mockResolvedValue([]),
@@ -154,6 +152,62 @@ const edited = {
 };
 
 describe('PrismaInstructorContentRepository', () => {
+  it('grounds course authoring in readable posts even before indexed passages are ready', async () => {
+    const f = fixture();
+    f.db.post.findMany.mockResolvedValue([{
+      id: 'post', courseId: 'course', title: 'Matter and consciousness',
+      content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Material conditions influence consciousness.' }] }] },
+      summary: null, aiStatus: 'PENDING', files: [], skills: [],
+    }]);
+    const evidence = await f.router.retrieve('owner', { ...query, intent: InstructorIntent.DRAFT_POST }, [source]);
+    expect(evidence.items).toContainEqual(expect.objectContaining({
+      label: 'Matter and consciousness', data: expect.objectContaining({ content: expect.stringContaining('Material conditions influence consciousness.') }),
+    }));
+    expect(evidence.warnings.join(' ')).toContain('still processing');
+    // A draft does not trigger an expensive course-wide outcome coverage audit.
+    expect(f.search.search).toHaveBeenCalledTimes(1);
+  });
+  it('loads summary evidence and a snapshot for an owned file resolved by name', async () => {
+    const f = fixture();
+    const file = {
+      id: 'file',
+      name: 'Philosophy.pdf',
+      summary: 'Marxist philosophy',
+      aiStatus: 'READY',
+      size: 100,
+    };
+    f.db.file.findMany.mockResolvedValue([file]);
+    f.db.file.findFirst.mockResolvedValue(file);
+    const evidence = await f.router.retrieve(
+      'owner',
+      {
+        ...query,
+        intent: InstructorIntent.SUMMARIZE_SOURCE_FOR_CONTENT,
+        targetSourceIndex: null,
+        targetName: 'Philosophy.pdf',
+      },
+      [],
+    );
+    expect(evidence.sourceFileIds).toEqual(['file']);
+    expect(evidence.items).toContainEqual(
+      expect.objectContaining({
+        label: 'Philosophy.pdf',
+        data: file,
+      }),
+    );
+    expect(f.db.file.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'file', userId: 'owner' },
+      }),
+    );
+    expect(f.search.search).toHaveBeenCalledWith(
+      'owner',
+      expect.objectContaining({
+        instructorOnly: true,
+        sources: [{ sourceType: 'FILE', sourceId: 'file' }],
+      }),
+    );
+  });
   it('searches each declared outcome/skill with the shared owner-scoped hybrid engine', async () => {
     const f = fixture();
     const evidence = await f.router.retrieve('owner', query, [source]);

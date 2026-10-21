@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConversationMemoryService } from '../ai-chat/conversation-memory.service';
+import { withoutTrailingFollowUp } from '../ai-chat/answer-text';
 import {
   AiTextModelPurpose,
   LEARNING_ASSISTANT_RESPONSE_PORT,
@@ -315,8 +316,8 @@ export class InstructorAssistantService {
                   return `${label} [${ref}]`;
                 },
               );
-        const linkedAnswer = linkText(parsed.answer);
         const linkedFollowUp = linkText(parsed.followUpQuestion);
+        const linkedAnswer = withoutTrailingFollowUp(linkText(parsed.answer), linkedFollowUp);
         if (!linkedAnswer.trim() || !linkedFollowUp.trim())
           throw new Error('Invalid answer/citation');
         if (/https?:\/\//i.test(`${linkedAnswer} ${linkedFollowUp}`))

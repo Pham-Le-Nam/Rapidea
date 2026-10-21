@@ -1,0 +1,47 @@
+[Nest] 14768  - 10/21/2026, 5:32:00 PM    WARN [CourseRetrievalService] Semantic course search unavailable; using keyword and title search.
+{
+  "scope": "Local PostgreSQL; synthetic CTE metadata; actual retrieval SQL; no writes or model calls",
+  "checks": [
+    {
+      "name": "Unindexed course: Triết",
+      "status": "passed"
+    },
+    {
+      "name": "Unindexed course: triet",
+      "status": "passed"
+    },
+    {
+      "name": "Unindexed course: TRIẾT",
+      "status": "passed"
+    },
+    {
+      "name": "Unindexed course: Tôi muốn học khóa Triết",
+      "status": "passed"
+    },
+    {
+      "name": "Unindexed course: Marxist philosophy",
+      "status": "passed"
+    },
+    {
+      "name": "Translated topic preserves named title",
+      "status": "passed"
+    },
+    {
+      "name": "Embedding outage retains title discovery",
+      "status": "passed"
+    },
+    {
+      "name": "Absent course returns no fabricated result",
+      "status": "passed"
+    },
+    {
+      "name": "Unknown difficulty does not satisfy a hard constraint",
+      "status": "passed"
+    },
+    {
+      "name": "Difficulty preference retains unindexed course",
+      "status": "passed"
+    }
+  ],
+  "sqlStatements": 29
+}

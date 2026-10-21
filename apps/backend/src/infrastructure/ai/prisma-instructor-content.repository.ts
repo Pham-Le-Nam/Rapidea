@@ -163,9 +163,16 @@ export class PrismaInstructorContentRepository implements InstructorContentPort 
       where: { id: userId },
       select: { creatorPrompt: true },
     });
-    const sourceFileIds = sources
-      .filter((s) => s.type === 'FILE')
-      .map((s) => s.id);
+    // A file resolved by its owned name must supply the same metadata and
+    // proposal snapshot as one explicitly attached in the source picker.
+    const fileSources = [
+      ...new Map(
+        [...sources, ...(target ? [target] : [])]
+          .filter((s) => s.type === 'FILE')
+          .map((s) => [s.id, s]),
+      ).values(),
+    ];
+    const sourceFileIds = fileSources.map((s) => s.id);
     const evidence: InstructorEvidence = {
       items: [],
       citations: [],
@@ -214,7 +221,6 @@ export class PrismaInstructorContentRepository implements InstructorContentPort 
         this.safePost(post, userId),
         { type: 'POST', id: post.id, label: post.title ?? 'Untitled post' },
       );
-    const fileSources = sources.filter((s) => s.type === 'FILE');
     for (const source of fileSources) {
       const file = await this.prisma.file.findFirst({
         where: { id: source.id, userId },
@@ -227,7 +233,7 @@ export class PrismaInstructorContentRepository implements InstructorContentPort 
           label: file.name,
         });
     }
-    if (course && plan.inventory) {
+    if (course && plan.inventory && (plan.coverage || target?.type === 'COURSE')) {
       const posts = await this.prisma.post.findMany({
         where: { courseId: course.id },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -281,7 +287,7 @@ export class PrismaInstructorContentRepository implements InstructorContentPort 
     }
     if (query.intent !== InstructorIntent.GENERAL) {
       const narrowTarget =
-        target && target.type !== 'COURSE' && !plan.inventory;
+        target && target.type !== 'COURSE' && !plan.coverage;
       const selectedResources =
         narrowTarget && target
           ? [target]

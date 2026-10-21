@@ -110,6 +110,7 @@ function setup() {
     }),
   };
   const conversationMemory = {
+    getContextForFinalResponse: jest.fn().mockResolvedValue({ summary: null, recentConversation: [] }),
     refreshAfterAssistantResponse: jest.fn().mockResolvedValue(false),
   };
   return {

@@ -393,11 +393,17 @@ export class AiChatConversationService {
     let learnerQuery = this.storedLearnerQuery(response.userMessage.metadata);
     let userMessage = response.userMessage;
     if (!learnerQuery) {
+      const conversationContext = await this.conversationMemory.getContextForFinalResponse(
+        userId,
+        response.conversation.id,
+        response.userMessage.id,
+      );
       learnerQuery = await this.intentClassification.classify(
         userId,
         response.conversation.id,
         response.userMessage.content,
         input.trustedSourcesToAdd ?? [],
+        conversationContext,
       );
       const existingMetadata =
         response.userMessage.metadata &&

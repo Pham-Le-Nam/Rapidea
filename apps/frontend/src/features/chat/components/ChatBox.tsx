@@ -36,6 +36,7 @@ import type {
 import { getAiTrustedSourceLabel, getChatAvatarUrl, getChatUserName, getRelationshipLabels } from "../model/types";
 import { ChatPanelFrame } from "./ChatPanelFrame";
 import { InstructorSourcePicker } from "./InstructorSourcePicker";
+import { ChatMarkdown, formatChatInlineText } from "./ChatMarkdown";
 import { InstructorProposalCard } from "./InstructorProposalCard";
 import type { AiAssistantMode } from "../model/types";
 
@@ -778,7 +779,7 @@ function AiMessageBubble({ message }: { message: AiChatMessage }) {
             <div
                 className={`max-w-[86%] rounded-xl px-3 py-2 text-sm ${isUser ? "bg-main text-white" : "bg-gray-100 text-gray-900"}`}
             >
-                <p className="whitespace-pre-wrap break-words leading-5">
+                <div className="whitespace-pre-wrap break-words leading-5">
                     {isUser ? (
                         message.content
                     ) : (
@@ -787,7 +788,7 @@ function AiMessageBubble({ message }: { message: AiChatMessage }) {
                             citations={citations}
                         />
                     )}
-                </p>
+                </div>
                 {!isUser && resourceCitations.length > 0 && (
                     <div className="mt-3 space-y-2 border-t border-gray-200 pt-2">
                         {resourceCitations.map((citation) => (
@@ -838,6 +839,10 @@ function AssistantMessageContent({
     citations: AiChatCitation[];
 }) {
     const learnerContent = withoutInternalEvidenceLabels(content);
+    return <ChatMarkdown content={learnerContent} renderInline={(text) => <AssistantInlineContent content={text} citations={citations} />} />;
+}
+
+function AssistantInlineContent({ content: learnerContent, citations }: { content: string; citations: AiChatCitation[] }) {
     const citationsByReference = new Map(
         citations.map((citation) => [citation.reference, citation]),
     );
@@ -868,7 +873,7 @@ function AssistantMessageContent({
                         key={`citation-${key++}`}
                         citation={citation}
                     >
-                        {leadingText.slice(labelRange.start, labelRange.end)}
+                        {formatChatInlineText(leadingText.slice(labelRange.start, labelRange.end))}
                     </InlineCitationLink>,
                 );
                 nodes.push(leadingText.slice(labelRange.end));
@@ -916,7 +921,7 @@ function AssistantMessageContent({
     }
 
     nodes.push(learnerContent.slice(cursor));
-    return <>{nodes}</>;
+    return <>{nodes.map((node, index) => typeof node === "string" ? <span key={`text-${index}`}>{formatChatInlineText(node)}</span> : node)}</>;
 }
 
 function InlineCitationLink({
@@ -942,11 +947,16 @@ function InlineCitationLink({
 
 function trailingSourceLabelRange(text: string, label: string) {
     if (!label) return null;
-    const start = text
+    let start = text
         .toLocaleLowerCase()
         .lastIndexOf(label.toLocaleLowerCase());
     if (start < 0) return null;
-    const end = start + label.length;
+    let end = start + label.length;
+    const emphasis = text.slice(0, start).match(/(\*\*|__|\*|_)$/)?.[0];
+    if (emphasis && text.slice(end).startsWith(emphasis)) {
+        start -= emphasis.length;
+        end += emphasis.length;
+    }
     const trailingText = text.slice(end);
     return /^\s*(?:course|post|file|material|resource)?\s*$/i.test(trailingText)
         ? { start, end }

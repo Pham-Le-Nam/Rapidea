@@ -3,6 +3,7 @@ import { LearnerDifficultyMode, LearnerLevel } from './learner-query.types';
 
 export type CourseSearchInput = {
   query: string;
+  courseNames?: readonly string[];
   desiredSkills?: readonly string[];
   desiredOutcomes?: readonly string[];
   difficulty?: LearnerLevel;

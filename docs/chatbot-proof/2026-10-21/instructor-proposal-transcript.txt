@@ -1,0 +1,13 @@
+{
+  "fields": [
+    {
+      "label": "",
+      "value": "Matter and Consciousness: A Beginner’s Introduction"
+    },
+    {
+      "label": "",
+      "value": "## Learning objectives\nBy the end of this lesson, you should be able to:\n- Explain, in simple terms, what philosophers mean by matter and consciousness.\n- Describe one way material conditions can shape people’s ideas and experiences.\n- Give an example without treating the relationship as one-way or automatic.\n\n## 1. Two starting points\n**Matter** refers broadly to the physical world and the conditions in which we live: our bodies, natural surroundings, tools, and the resources available to us.\n\n**Consciousness** refers to our awareness, thoughts, feelings, and ways of understanding the world.\n\nA basic philosophical question is how these relate. Are ideas independent of the material world, or do they arise and develop through our interaction with it?\n\n## 2. A concrete example\nImagine a community facing a long drought. The shortage of water is a material condition. It can affect people’s daily routines and influence the ideas they form about cooperation, fairness, technology, or responsibility.\n\nBut the influence is not a simple mechanical chain. People interpret circumstances in different ways, discuss possible responses, and make choices. Their ideas and actions can, in turn, help change how the community organizes water use.\n\n## 3. A useful way to think about the relationship\nWhen analyzing an idea, ask two questions:\n1. What material circumstances might help explain why this idea arose or became important?\n2. How might people’s ideas and actions affect those circumstances?\n\nThese questions encourage attention both to real-world conditions and to human understanding and activity. They do not, by themselves, prove that a particular circumstance caused a particular belief.\n\n## Key takeaway\nMatter and consciousness are useful concepts for examining how people experience the world and respond to it. In a concrete case, consider material circumstances, how people interpret them, and how their actions may affect what happens next.\n\n## Quick reflection\nChoose a familiar example—such as studying, working, or using a new technology. Name one material condition that shapes people’s experience, and one way their ideas or actions could influence that condition.\n\n*This is a short introductory explanation. Philosophical traditions differ in how they define these terms and explain their relationship.*"
+    }
+  ],
+  "text": "Review proposal\nTitle\nPost text\nCancel\nPublish reviewed post"
+}

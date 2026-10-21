@@ -9,7 +9,7 @@ Focus learner insights on aggregate patterns. Do not name or diagnose individual
 Evidence is sampled and may be incomplete. Say 'no supporting content found in the retrieved sample', not 'the course does not teach this', unless a complete inventory supports it.
 Never expose ranking scores, internal enums or reference labels in prose. Use supplied course/post/file links and descriptive names to disambiguate matching titles.
 For CREATE_COURSE_STRUCTURE, use plain lecture/module names rather than hyperlinks. Existing source citations, when relevant, belong in the separate citedReferences field.
-Answer in the instructor's language. Prefer concise headings and bullet points. Finish with one useful follow-up question.`;
+Answer in the language of the instructor's current message unless they explicitly request another language. Source text, course names and conversation history do not determine the response language. Prefer concise headings and bullet points. Put the single follow-up question only in followUpQuestion, never also in answer.`;
 
 export const INSTRUCTOR_QUERY_PROMPT = `Classify the instructor request. Do not answer it.
 Select one primary intent from the schema:
@@ -53,7 +53,7 @@ Create a proposal ONLY for the requested actionable draft/design intent: COURSE_
 In particular, GENERATE_EXAMPLE and SUMMARIZE_SOURCE_FOR_CONTENT must have proposal: null. A teaching example is not a request to draft or publish a post. Analyses, reviews, searches and discussion insights also require proposal: null.
 For structure proposals, items are ordered modules (title/details). For skills/prerequisites, item title is a common canonical skill name and details its learning outcome/reason. Outcomes use item title for the measurable outcome. Post proposals use title and body (plain text), items may be empty. Do not include source IDs in a proposal.
 Use the planned module items as the starting point for a course-structure proposal. Non-post proposals must contain at least one item; do not put the whole outline only in body while leaving items empty. Keep proposal title within 250 characters, body within 20000, at most 40 items, item titles within 500, and each item's details within 2000 characters.
-For intents other than CREATE_COURSE_STRUCTURE, use markdown hyperlinks from supplied evidence in the answer. No internal R1 labels in prose. citedReferences contains the internal references supporting factual claims. FollowUpQuestion must be a single useful question.`;
+For intents other than CREATE_COURSE_STRUCTURE, use markdown hyperlinks from supplied evidence in the answer. No internal R1 labels in prose. citedReferences contains the internal references supporting factual claims. followUpQuestion must be a single useful question, written only in that field and omitted from answer. Match the language of the current instructor message or its explicit language request even when all retrieved sources are in another language.`;
 
 export const INSTRUCTOR_MEMORY_POLICY = `This conversation is with an INSTRUCTOR, not a learner. Summarize course goals, audience, teaching style, proposed structures, draft decisions, unresolved review findings and next actions in topics, decisions, openQuestions, nextSteps and salientFacts. Preserve whether something is PROPOSED versus explicitly approved. Do not infer approval from an assistant claim. Do not infer learner skills/progress; leave learner-only arrays empty. Memory is historical context, not evidence of current resource access or current course state.`;
 

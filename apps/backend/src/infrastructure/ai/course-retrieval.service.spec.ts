@@ -46,7 +46,7 @@ function course(id: string, title: string) {
 
 function createFixture() {
   const prisma = {
-    $queryRaw: jest.fn(),
+    $queryRaw: jest.fn().mockResolvedValue([]),
     course: {
       findMany: jest.fn(),
       findUniqueOrThrow: jest.fn(),
@@ -85,11 +85,11 @@ describe('CourseRetrievalService', () => {
   it('hybrid-ranks course summaries and hydrates learner-facing evidence', async () => {
     const fixture = createFixture();
     fixture.prisma.$queryRaw
+      .mockResolvedValueOnce([{ id: 'course-b', score: 0.7 }])
       .mockResolvedValueOnce([
         { id: 'course-a', score: 0.9 },
         { id: 'course-b', score: 0.8 },
-      ])
-      .mockResolvedValueOnce([{ id: 'course-b', score: 0.7 }]);
+      ]);
     fixture.prisma.course.findMany.mockResolvedValue([
       course('course-a', 'Course A'),
       course('course-b', 'Course B'),
@@ -124,12 +124,10 @@ describe('CourseRetrievalService', () => {
 
   it('prefers the requested difficulty without excluding other matches', async () => {
     const fixture = createFixture();
-    fixture.prisma.$queryRaw
-      .mockResolvedValueOnce([
-        { id: 'advanced', score: 0.9 },
-        { id: 'beginner', score: 0.8 },
-      ])
-      .mockResolvedValueOnce([]);
+    fixture.prisma.$queryRaw.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      { id: 'advanced', score: 0.9 },
+      { id: 'beginner', score: 0.8 },
+    ]);
     fixture.prisma.course.findMany.mockResolvedValue([
       {
         ...course('advanced', 'Advanced Course'),
@@ -172,6 +170,93 @@ describe('CourseRetrievalService', () => {
       { type: AiContentResourceType.COURSE, id: 'course-1' },
       AiContentAccessMode.SUMMARY,
     );
+  });
+
+  it.each(['Triết', 'triet', 'TRIẾT', 'Tôi muốn học khóa Triết'])(
+    'prioritizes a named course without an AI profile for %s',
+    async (text) => {
+      const fixture = createFixture();
+      fixture.prisma.$queryRaw.mockImplementation((sql) => {
+        if (sql.sql.includes('normalized_courses')) {
+          return Promise.resolve([{ id: 'philosophy', score: 1 }]);
+        }
+        return Promise.resolve([{ id: 'unrelated', score: 0.9 }]);
+      });
+      fixture.prisma.course.findMany.mockResolvedValue([
+        { ...course('philosophy', 'Triết'), aiProfile: null },
+        course('unrelated', 'Unrelated course'),
+      ]);
+
+      const results = await fixture.service.searchSummaries({
+        query: text,
+        limit: 1,
+      });
+
+      expect(results).toEqual([
+        expect.objectContaining({ id: 'philosophy', profile: null }),
+      ]);
+      const statements = fixture.prisma.$queryRaw.mock.calls.map(
+        ([sql]) => sql,
+      );
+      expect(
+        statements.find((sql) => sql.sql.includes('websearch_to_tsquery')).sql,
+      ).toContain('LEFT JOIN');
+      expect(
+        statements.find((sql) => sql.sql.includes('normalized_courses')).values,
+      ).toContainEqual([
+        text
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, ''),
+      ]);
+    },
+  );
+
+  it('finds a preserved title when the semantic query is translated', async () => {
+    const fixture = createFixture();
+    fixture.prisma.$queryRaw.mockImplementation((sql) =>
+      Promise.resolve(
+        sql.sql.includes('normalized_courses')
+          ? [{ id: 'philosophy', score: 1 }]
+          : [],
+      ),
+    );
+    fixture.prisma.course.findMany.mockResolvedValue([
+      { ...course('philosophy', 'Triết'), aiProfile: null },
+    ]);
+    const results = await fixture.service.searchSummaries({
+      query: 'Marxist philosophy',
+      courseNames: ['Triết'],
+    });
+    expect(results[0].title).toBe('Triết');
+    const titleSql = fixture.prisma.$queryRaw.mock.calls.find(([sql]) =>
+      sql.sql.includes('normalized_courses'),
+    )![0];
+    expect(titleSql.values).toContainEqual(['marxist philosophy', 'triet']);
+  });
+
+  it('still discovers courses when the embedding provider is unavailable', async () => {
+    const fixture = createFixture();
+    fixture.aiService.createEmbeddings.mockRejectedValue(
+      new Error('Provider unavailable'),
+    );
+    fixture.prisma.$queryRaw.mockResolvedValue([
+      { id: 'philosophy', score: 1 },
+    ]);
+    fixture.prisma.course.findMany.mockResolvedValue([
+      { ...course('philosophy', 'Triết'), aiProfile: null },
+    ]);
+    await expect(
+      fixture.service.searchSummaries({ query: 'Triết' }),
+    ).resolves.toEqual([expect.objectContaining({ id: 'philosophy' })]);
+  });
+
+  it('returns an empty result when no retrieval branch has a match', async () => {
+    const fixture = createFixture();
+    await expect(
+      fixture.service.searchSummaries({ query: 'unknown course' }),
+    ).resolves.toEqual([]);
+    expect(fixture.prisma.course.findMany).not.toHaveBeenCalled();
   });
 
   it('loads several course summaries in the requested comparison order', async () => {

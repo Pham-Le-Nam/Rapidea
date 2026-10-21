@@ -20,15 +20,17 @@ export class InstructorIntentRetrievalRouterService {
   ) {}
   plan(query: InstructorQuery): InstructorRetrievalPlan {
     const family = instructorIntentFamily(query.intent);
-    const inventory = [
+    const coverage = [
       InstructorIntentFamily.COURSE_DESIGN,
       InstructorIntentFamily.CONTENT_ANALYSIS,
       InstructorIntentFamily.COURSE_IMPROVEMENT,
     ].includes(family);
+    const inventory = coverage || family === InstructorIntentFamily.AUTHORING ||
+      query.intent === InstructorIntent.ASK_ABOUT_OWN_COURSE;
     return {
       query,
       inventory,
-      coverage: inventory,
+      coverage,
       community:
         query.includeDiscussions ||
         [

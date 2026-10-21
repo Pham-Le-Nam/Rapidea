@@ -116,7 +116,7 @@ describe('Instructor V1 query contracts and routing', () => {
     });
     expect(
       router.plan(instructorQuery(InstructorIntent.DRAFT_POST)),
-    ).toMatchObject({ inventory: false, community: false });
+    ).toMatchObject({ inventory: true, coverage: false, community: false });
   });
   it.each([-1, 1, 123, 0.5, 'invented-uuid'])(
     'rejects invented/out-of-context source index %s',

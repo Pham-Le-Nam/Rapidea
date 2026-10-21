@@ -106,6 +106,12 @@ function generationInput() {
 }
 
 describe('FinalAnswerGenerationService', () => {
+  it('returns a follow-up question once when it is also in the model answer', async () => {
+    const f = createFixture({ answer: 'A useful explanation.\n\nWould you like an example?', followUpQuestion: 'Would you like an example?', citations: [] });
+    const result = await f.service.generate(generationInput());
+    expect(result.answer).toBe('A useful explanation.');
+    expect(result.content).toBe('A useful explanation.\n\nWould you like an example?');
+  });
   it('generates a grounded answer, validates citations, and appends the follow-up question', async () => {
     const fixture = createFixture({
       answer: 'Dependency injection separates construction from use [R1, R2].',

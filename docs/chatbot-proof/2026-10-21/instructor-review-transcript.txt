@@ -1,0 +1,52 @@
+Rapideia Instructor AI
+Your teaching assistant
+Attach your course, post or file
+
+Review my course Triết. What philosophy topics does it cover, and what gaps should I address?
+
+10/21/2026, 5:51:24 PM
+
+## Các chủ đề đang được đề cập
+
+Trong mẫu nội dung được truy xuất, khóa học tập trung vào triết học Mác–Lênin và có trình tự khá rõ:
+
+- **Nhập môn:** vấn đề cơ bản của triết học, thế giới quan, phương pháp luận và sự ra đời của triết học Mác–Lênin. (Nhập môn Triết học Mác – Lênin )
+- **Vật chất và ý thức:** quan hệ giữa điều kiện khách quan, ý thức và hoạt động thực tiễn. (Vật chất, Ý thức và Mối quan hệ Biện chứng )
+- **Phép biện chứng duy vật:** mối liên hệ, phát triển, các quy luật và phạm trù; vận dụng tư duy toàn diện, lịch sử–cụ thể. (Phép biện chứng duy vật: Mối liên hệ, Phát triển và Quy luật )
+- **Nhận thức và chân lý:** vai trò của thực tiễn, các bước nhận thức, kiểm chứng tri thức và giới hạn của dữ liệu. (Thực tiễn, Nhận thức và Chân lý )
+- **Duy vật lịch sử:** sản xuất, lực lượng sản xuất, quan hệ sản xuất, cơ sở hạ tầng, kiến trúc thượng tầng và hình thái kinh tế–xã hội. (Chủ nghĩa duy vật lịch sử và Hình thái Kinh tế–Xã hội )
+- **Giai cấp, nhà nước, con người và tổng kết vận dụng:** phân tích điều kiện lịch sử, các chủ thể và giới hạn lập luận. (Giai cấp, Nhà nước, Con người và Bài tổng kết )
+
+## Khoảng trống nên cân nhắc
+
+- **Chưa có kết quả hỗ trợ cho việc đánh giá độ bao phủ theo từng mục tiêu hoặc kỹ năng.** Vì vậy, đây là nhận xét về phần có thể xác minh trong mẫu, không phải khẳng định các chủ đề còn thiếu trong toàn khóa học.
+- **Làm rõ mục tiêu và cách đánh giá:** phần tổng quan chưa liệt kê kết quả học tập, kỹ năng hay điều kiện tiên quyết. Có thể bổ sung mục tiêu đo lường được và gắn mỗi mục tiêu với bài tập hoặc tiêu chí đánh giá cụ thể.
+- **Bổ sung đối chiếu và phản biện:** các bài hiện có nhấn mạnh trình bày và vận dụng hệ khái niệm. Có thể thêm hoạt động so sánh cách tiếp cận hoặc yêu cầu nêu phản biện, bằng chứng và giới hạn khi áp dụng vào tình huống thực tế.
+- **Kiểm tra mức độ bao phủ trước khi thêm chủ đề mới:** phần tổng quan nêu rộng về triết học, nhưng các tài liệu bài học được truy xuất tập trung vào Mác–Lênin. Nếu phạm vi khóa học rộng hơn, hãy xác nhận xem còn nội dung về các truyền thống hoặc lĩnh vực triết học khác cần thể hiện hay không.
+
+**Ưu tiên đề xuất:** trước tiên lập ma trận “mục tiêu → bài học → hoạt động/đánh giá”, rồi quyết định có cần thêm nội dung hay chỉ cần làm rõ cách đánh giá và phạm vi. Một số tài liệu vẫn đang được xử lý, nên nội dung mẫu có thể chưa đầy đủ.
+
+Bạn muốn tôi phác thảo ma trận mục tiêu–bài học–đánh giá cho khóa học này không?
+
+Bạn muốn tôi phác thảo ma trận mục tiêu–bài học–đánh giá cho khóa học này không?
+
+Triết
+Open course
+Nhập môn Triết học Mác – Lênin
+Open material
+Vật chất, Ý thức và Mối quan hệ Biện chứng
+Open material
+Phép biện chứng duy vật: Mối liên hệ, Phát triển và Quy luật
+Open material
+Thực tiễn, Nhận thức và Chân lý
+Open material
+Chủ nghĩa duy vật lịch sử và Hình thái Kinh tế–Xã hội
+Open material
+Giai cấp, Nhà nước, Con người và Bài tổng kết
+Open material
+
+10/21/2026, 5:51:49 PM
+
+Shift + Enter for a new line
+Instructor mode
+Switch to learner

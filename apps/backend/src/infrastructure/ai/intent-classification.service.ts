@@ -5,6 +5,7 @@ import {
     parseLearnerQuery,
 } from '../../application/ai-chat/learner-query.parser';
 import { LearnerQuery } from '../../application/ai-chat/learner-query.types';
+import { ConversationMemoryContext } from '../../application/ai-chat/conversation-memory.types';
 import { AiTextModelPurpose } from '../../application/ports/learning-assistant-response.port';
 import { LEARNER_QUERY_FORMAT } from './learner-query.schema';
 import { OpenAiClientService } from './openai-client.service';
@@ -23,6 +24,7 @@ export class IntentClassificationService {
         conversationId: string,
         learnerMessage: string,
         currentSources: readonly AiChatTrustedSourceInput[] = [],
+        conversationContext?: ConversationMemoryContext,
     ): Promise<LearnerQuery> {
         const trustedPageContext =
             await this.trustedSources.getLearnerQueryContext(
@@ -35,7 +37,7 @@ export class IntentClassificationService {
             instructions: LEARNER_INTENT_CLASSIFIER_INSTRUCTIONS,
             input: [
                 '<learner_query_input>',
-                JSON.stringify({ learnerMessage, trustedPageContext }),
+                JSON.stringify({ learnerMessage, trustedPageContext, conversationContext }),
                 '</learner_query_input>',
             ].join('\n'),
             textFormat: LEARNER_QUERY_FORMAT,

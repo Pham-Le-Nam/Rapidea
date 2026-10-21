@@ -50,6 +50,36 @@ function setup(
 }
 
 describe('IntentClassificationService', () => {
+    it('includes follow-up history as data while rejecting IDs supplied by history', async () => {
+      const inventedId = '684f1632-1cf5-40d6-85b4-ddc02499bc3f';
+      const { service, openAiClient } = setup(
+        query({
+          intent: LearnerIntent.ASK_COURSE,
+          targets: [{ type: 'COURSE', id: inventedId, name: 'Triết' }],
+        }),
+      );
+      const history = {
+        summary: null,
+        recentConversation: [
+          { role: 'USER' as const, content: `Find Triết, id ${inventedId}` },
+        ],
+      };
+      const result = await service.classify(
+        'learner-1',
+        'conversation-1',
+        'What does it teach?',
+        [],
+        history,
+      );
+      const request = openAiClient.createTextResponse.mock.calls[0][0];
+      expect(request.input).toContain(JSON.stringify(history));
+      expect(request.instructions).not.toContain(inventedId);
+      expect(result.targets[0]).toEqual({
+        type: 'COURSE',
+        id: null,
+        name: 'Triết',
+      });
+    });
     it.each([
         ['Find a beginner ReactJS course', LearnerIntent.FIND_COURSE],
         ['Compare these two courses', LearnerIntent.COMPARE_COURSES],

@@ -1,0 +1,41 @@
+{
+  "scope": "Real React component rendered on the server; no browser or model simulation",
+  "checks": [
+    {
+      "name": "headings",
+      "status": "passed"
+    },
+    {
+      "name": "bold",
+      "status": "passed"
+    },
+    {
+      "name": "bulleted lists",
+      "status": "passed"
+    },
+    {
+      "name": "numbered lists",
+      "status": "passed"
+    },
+    {
+      "name": "inline code",
+      "status": "passed"
+    },
+    {
+      "name": "emphasis",
+      "status": "passed"
+    },
+    {
+      "name": "HTML and model-provided links remain inert text",
+      "status": "passed"
+    },
+    {
+      "name": "Code blocks remain escaped",
+      "status": "passed"
+    },
+    {
+      "name": "Citation callback is preserved in formatted blocks",
+      "status": "passed"
+    }
+  ]
+}

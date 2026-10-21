@@ -1,0 +1,16 @@
+Rapideia AI
+Your learning assistant
+
+Find a course titled QA-ZZ-482910. If it is not found, say so without recommending unrelated courses.
+
+10/21/2026, 5:59:06 PM
+
+I couldn’t find a course titled “QA-ZZ-482910” in the retrieved results.
+
+Would you like to try another course title?
+
+10/21/2026, 5:59:11 PM
+
+Shift + Enter for a new line
+Learner mode
+Switch to instructor
