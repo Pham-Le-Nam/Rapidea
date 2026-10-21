@@ -19,6 +19,7 @@ export const INSTRUCTOR_QUERY_OUTPUT = {
   name: 'instructor_query',
   schema: object({
     intent: { type: 'string', enum: Object.values(InstructorIntent) },
+    responseLanguage: { type: 'string', pattern: '^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$', maxLength: 35 },
     targetSourceIndex: { type: ['integer', 'null'] },
     targetName: nullableString,
     topic: string,

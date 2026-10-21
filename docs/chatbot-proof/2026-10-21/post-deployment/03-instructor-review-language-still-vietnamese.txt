@@ -1,0 +1,49 @@
+Rapideia Instructor AI
+Your teaching assistant
+Attach your course, post or file
+Review my course Triết. What philosophy topics does it cover, and what gaps should I address?
+
+10/21/2026, 6:17:35 PM
+
+Các chủ đề được đề cập
+
+Theo phần nội dung đã truy xuất, khóa học tập trung vào triết học Mác–Lênin và bao gồm:
+
+Nhập môn triết học: vấn đề cơ bản của triết học, thế giới quan, phương pháp luận; phân biệt duy vật/duy tâm và biện chứng/siêu hình. (Nhập môn Triết học Mác – Lênin )
+Vật chất và ý thức: quan hệ giữa điều kiện khách quan, ý thức và hoạt động thực tiễn. (Vật chất, Ý thức và Mối quan hệ Biện chứng )
+Phép biện chứng duy vật: mối liên hệ, phát triển, các quy luật và phạm trù biện chứng. (Phép biện chứng duy vật: Mối liên hệ, Phát triển và Quy luật )
+Nhận thức và chân lý: vai trò của thực tiễn, quá trình nhận thức và các tính chất của chân lý. (Thực tiễn, Nhận thức và Chân lý )
+Duy vật lịch sử: sản xuất, lực lượng và quan hệ sản xuất, cơ sở hạ tầng, kiến trúc thượng tầng và hình thái kinh tế–xã hội. (Chủ nghĩa duy vật lịch sử và Hình thái Kinh tế–Xã hội )
+Giai cấp, nhà nước, cách mạng xã hội và con người, cùng bài tổng kết vận dụng phân tích vấn đề thực tiễn. (Giai cấp, Nhà nước, Con người và Bài tổng kết )
+Khoảng trống cần xem xét
+Chưa xác định được thiếu hụt nội dung cụ thể: tìm kiếm hỗ trợ độ bao phủ không tìm thấy nội dung đối chiếu cho câu hỏi này. Vì vậy, đây là các điểm cần kiểm tra thêm, không phải kết luận rằng khóa học chắc chắn thiếu chúng.
+Mở rộng đối chiếu với các truyền thống triết học khác: nội dung đã truy xuất chủ yếu xoay quanh triết học Mác–Lênin. Có thể cân nhắc một phần ngắn so sánh các truyền thống hoặc quan điểm khác để người học đặt khái niệm vào bối cảnh rộng hơn.
+Làm rõ phạm vi và cách đánh giá: phần tổng quan chưa nêu chuẩn đầu ra, kỹ năng hay điều kiện tiên quyết. Có thể xác định rõ người học cần làm được gì và dùng tiêu chí nào để đánh giá lập luận, việc sử dụng bằng chứng và khả năng nhận diện giới hạn kết luận.
+Kiểm tra độ sâu theo chủ đề: lộ trình đã liệt kê các chủ đề chính, nhưng mẫu truy xuất chưa đủ để xác nhận mỗi chủ đề được dạy với mức độ chi tiết hoặc thời lượng tương xứng. Nên đối chiếu từng mục với bài học, hoạt động và đánh giá tương ứng.
+
+Đây là đánh giá dựa trên mẫu nội dung được truy xuất; một số tài nguyên vẫn đang xử lý, nên các khoảng trống nêu trên cần được xác minh trước khi chỉnh sửa khóa học.
+
+Bạn muốn tôi đề xuất chuẩn đầu ra và tiêu chí đánh giá cụ thể cho các phần hiện có không?
+
+Triết
+Open course
+Lộ trình học Triết học Mác – Lênin
+Open material
+Nhập môn Triết học Mác – Lênin
+Open material
+Vật chất, Ý thức và Mối quan hệ Biện chứng
+Open material
+Phép biện chứng duy vật: Mối liên hệ, Phát triển và Quy luật
+Open material
+Thực tiễn, Nhận thức và Chân lý
+Open material
+Chủ nghĩa duy vật lịch sử và Hình thái Kinh tế–Xã hội
+Open material
+Giai cấp, Nhà nước, Con người và Bài tổng kết
+Open material
+
+10/21/2026, 6:17:58 PM
+
+Shift + Enter for a new line
+Instructor mode
+Switch to learner

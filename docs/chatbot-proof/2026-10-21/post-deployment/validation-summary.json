@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-21",
+  "production": "Both modes retested after deployment",
+  "mainCourseDiscovery": "passed for exact, unaccented, Vietnamese and follow-up queries",
+  "instructorGroundingFormattingAndDeduplication": "passed",
+  "automaticInstructorLanguage": "still fails in production; follow-up patch verified locally, not deployed",
+  "localPatchTestSuitesPassed": 60,
+  "localPatchTestsPassed": 429,
+  "localPatchTestsFailed": 0,
+  "localPatchBackendBuild": "passed",
+  "localPatchRealModelLanguageChecksPassed": 3,
+  "screenshots": 12
+}

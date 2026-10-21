@@ -108,6 +108,11 @@ export class InstructorAssistantService {
       input.sources,
     );
     const family = instructorIntentFamily(query.intent);
+    // Resolve language before loading source-heavy generation context. Only a
+    // validated language tag can enter this application-controlled policy layer.
+    const responseLanguagePolicy = query.responseLanguage
+      ? [`Write the answer, followUpQuestion and all proposed teaching text in response language ${query.responseLanguage}. Preserve original resource names and citation destinations. This language selection takes precedence over source language, history and creator style preferences.`]
+      : [];
     // Course-scoped analyses need a selected owned course; a broad corpus search
     // cannot truthfully stand in for a review of an unspecified course.
     if (
@@ -166,7 +171,7 @@ export class InstructorAssistantService {
       const planning = await this.model.createResponse({
         assistantMode: 'INSTRUCTOR',
         modelPurpose: AiTextModelPurpose.PLANNING,
-        additionalPolicyLayers: [INSTRUCTOR_COURSE_PLANNING_PROMPT],
+        additionalPolicyLayers: [INSTRUCTOR_COURSE_PLANNING_PROMPT, ...responseLanguagePolicy],
         structuredOutput: INSTRUCTOR_PLANNING_OUTPUT,
         input: JSON.stringify({
           message: input.message,
@@ -209,6 +214,7 @@ export class InstructorAssistantService {
         modelPurpose: AiTextModelPurpose.RESPONSE,
         additionalPolicyLayers: [
           INSTRUCTOR_ANSWER_PROMPT,
+          ...responseLanguagePolicy,
           ...(attempt
             ? [
                 `Your previous output failed validation (${retryReason}). Return only the supplied schema, with a nonempty answer and follow-up question. Cite only supplied R-number references; use an empty list when no evidence supports a claim. Do not invent links, IDs or an unrequested proposal. Structure/outcome/skill/prerequisite proposals need nonempty items, not just a body. Keep all fields within the schema limits.`,

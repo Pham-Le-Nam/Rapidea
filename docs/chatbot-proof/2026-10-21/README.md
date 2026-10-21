@@ -2,6 +2,8 @@
 
 Production: https://main.d3ny40c8g1pbmw.amplifyapp.com/
 
+Update: the user subsequently deployed these changes. See [post-deployment retest](post-deployment/README.md) for verified production results and the remaining language fix. The sections below preserve the original pre-deployment investigation.
+
 Status: production tested in both learner and instructor modes after sign-in. Reproduced the “Triết” discovery failure and additional output/grounding issues. Backend and frontend fixes are implemented and verified locally. Changes have not been deployed; the screenshots document the current production behavior.
 
 ## Evidence

@@ -12,6 +12,7 @@ For CREATE_COURSE_STRUCTURE, use plain lecture/module names rather than hyperlin
 Answer in the language of the instructor's current message unless they explicitly request another language. Source text, course names and conversation history do not determine the response language. Prefer concise headings and bullet points. Put the single follow-up question only in followUpQuestion, never also in answer.`;
 
 export const INSTRUCTOR_QUERY_PROMPT = `Classify the instructor request. Do not answer it.
+Set responseLanguage to the BCP 47 language tag for the requested response. An explicit language request takes precedence; otherwise identify the language of the current message's instructions, ignoring quoted course/resource titles, retrieved text and earlier turns. For example, "Review my course Triết. What topics does it cover?" requires en, while "Hãy đánh giá khóa Triết" requires vi. A Vietnamese course title in an English sentence does not make the request Vietnamese.
 Select one primary intent from the schema:
 CREATE_COURSE_STRUCTURE: propose ordered course modules/lessons.
 CREATE_LEARNING_OUTCOMES: propose measurable learning results.

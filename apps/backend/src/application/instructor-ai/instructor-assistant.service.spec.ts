@@ -83,6 +83,14 @@ const input = {
 };
 
 describe('InstructorAssistantService', () => {
+  it('adds the classified response language as policy independently of source and style text', async () => {
+    const f = fixture();
+    f.model.createResponse.mockReset()
+      .mockResolvedValueOnce(JSON.stringify({ ...query, responseLanguage: 'en' }))
+      .mockResolvedValueOnce(JSON.stringify(answer));
+    await f.service.respond({ ...input, message: 'Draft a lesson for Triết.' });
+    expect(f.model.createResponse.mock.calls[1][0].additionalPolicyLayers).toContainEqual(expect.stringContaining('response language en'));
+  });
   it('returns a follow-up question once when the model also appends it to the answer', async () => {
     const f = fixture();
     f.model.createResponse.mockReset()

@@ -1,0 +1,26 @@
+{
+  "command": "node -r ts-node/register scripts/verify-instructor-language.ts",
+  "exitCode": 0,
+  "scope": "Actual configured model provider; synthetic Vietnamese course evidence and style preference; no database or publishing",
+  "validation": "Classified language tags and follow-up language assertions passed; returned answers manually inspected",
+  "checks": [
+    {
+      "message": "Review my course Triết. What philosophy topics does it cover, and what gaps should I address?",
+      "expectedLanguage": "en",
+      "actualLanguage": "en",
+      "status": "passed"
+    },
+    {
+      "message": "Hãy đánh giá khóa Triết. Khóa học bao gồm những chủ đề nào?",
+      "expectedLanguage": "vi",
+      "actualLanguage": "vi",
+      "status": "passed"
+    },
+    {
+      "message": "Hãy đánh giá khóa Triết. Please reply in English.",
+      "expectedLanguage": "en",
+      "actualLanguage": "en",
+      "status": "passed"
+    }
+  ]
+}

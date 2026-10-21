@@ -86,6 +86,8 @@ export type InstructorSource = {
 };
 export type InstructorQuery = {
   intent: InstructorIntent;
+  /** Optional for historical queries; new classifier output always supplies a language tag. */
+  responseLanguage?: string;
   // An index into backend-authorized context, never a model-generated resource ID.
   targetSourceIndex: number | null;
   targetName: string | null;
@@ -121,6 +123,7 @@ export function parseInstructorQuery(
   const q = value as InstructorQuery;
   const allowedKeys = [
     'intent',
+    'responseLanguage',
     'targetSourceIndex',
     'targetName',
     'topic',
@@ -132,12 +135,16 @@ export function parseInstructorQuery(
     'includeDiscussions',
   ];
   if (
-    Object.keys(q).length !== allowedKeys.length ||
+    Object.keys(q).length !== allowedKeys.length - (q.responseLanguage === undefined ? 1 : 0) ||
     Object.keys(q).some((k) => !allowedKeys.includes(k))
   )
     throw new Error('Unexpected instructor query fields');
   if (
     !Object.values(InstructorIntent).includes(q.intent) ||
+    (q.responseLanguage !== undefined &&
+      (typeof q.responseLanguage !== 'string' ||
+        !/^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(q.responseLanguage) ||
+        q.responseLanguage.length > 35)) ||
     typeof q.topic !== 'string' ||
     q.topic.length > 2000 ||
     typeof q.includeDiscussions !== 'boolean' ||
