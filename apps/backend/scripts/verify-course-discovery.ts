@@ -32,6 +32,20 @@ async function main() {
     learningOutcomes: [],
     prerequisiteSkills: [],
   };
+  const architecture = {
+    ...metadata,
+    id: 'architecture',
+    title: 'Computer Architechture',
+    description:
+      'Computer architecture: digital representation, instruction sets, processors, datapaths and control, memory hierarchies and caches, I/O, and performance.',
+  };
+  const foundations = {
+    ...metadata,
+    id: 'foundations',
+    title: 'Hardware Foundations',
+    description: 'Processor datapaths and digital logic.',
+  };
+  const catalog = [metadata, architecture, foundations];
   let embeddingAvailable = true;
   const queryEmbedding = {
     create: async () => {
@@ -45,8 +59,11 @@ async function main() {
       statements.push(statement.sql);
       return db.$queryRaw(Prisma.sql`
         WITH "course" AS (
-          SELECT 'philosophy'::text AS id, 'Triết'::text AS title,
-            'Marxist philosophy and dialectical materialism'::text AS description
+          SELECT * FROM (VALUES
+            (${metadata.id}::text, ${metadata.title}::text, ${metadata.description}::text),
+            (${architecture.id}::text, ${architecture.title}::text, ${architecture.description}::text),
+            (${foundations.id}::text, ${foundations.title}::text, ${foundations.description}::text)
+          ) AS courses(id, title, description)
         ), "course_ai_profile" AS (
           SELECT NULL::text AS "courseId", NULL::text AS summary,
             NULL::text AS "profileText", NULL::"Difficulty" AS difficulty,
@@ -56,7 +73,10 @@ async function main() {
         SELECT * FROM (${statement}) AS verified
       `);
     },
-    course: { findMany: async () => [metadata] },
+    course: {
+      findMany: async ({ where }: { where: { id: { in: string[] } } }) =>
+        catalog.filter((course) => where.id.in.includes(course.id)),
+    },
   };
   const service = new CourseRetrievalService(
     adapter as any,
@@ -87,7 +107,68 @@ async function main() {
       status: 'passed',
     });
 
+    for (const query of [
+      'computer architecture',
+      'I want to learn about computer architecture, is there any course teaching that?',
+      'Computer Architechture',
+    ]) {
+      const results = await service.searchSummaries({
+        query,
+        desiredSkills: ['CPU design'],
+        desiredOutcomes: ['Build a processor'],
+        limit: 1,
+      });
+      assert.equal(results[0]?.id, 'architecture', query);
+      assert.equal(results[0]?.profile, null);
+      checks.push({
+        name: `Misspelled title discovery: ${query}`,
+        status: 'passed',
+      });
+    }
+
+    const keywordOnly = await service.searchSummaries({
+      query: 'processor datapaths',
+      desiredSkills: ['CPU design'],
+      desiredOutcomes: ['Build a processor'],
+    });
+    assert.ok(keywordOnly.some((course) => course.id === 'foundations'));
+    checks.push({
+      name: 'Inferred skills/outcomes do not exclude a matching description',
+      status: 'passed',
+    });
+    assert.deepEqual(
+      await service.searchSummaries({ query: 'computer networks' }),
+      [],
+    );
+    checks.push({
+      name: 'Shared computer keyword is not a title match',
+      status: 'passed',
+    });
+
+    // Single quotes and web-search operators remain bound SQL parameters.
+    assert.deepEqual(
+      await service.searchSummaries({ query: "zzqv' OR zzqv -unknown" }),
+      [],
+    );
+    checks.push({
+      name: 'Search syntax is safely parameterized',
+      status: 'passed',
+    });
+
     embeddingAvailable = false;
+    assert.equal(
+      (
+        await service.searchSummaries({
+          query: 'computer architecture',
+          limit: 1,
+        })
+      )[0]?.id,
+      'architecture',
+    );
+    checks.push({
+      name: 'Misspelled title survives embedding outage',
+      status: 'passed',
+    });
     assert.equal(
       (await service.searchSummaries({ query: 'triet' }))[0]?.id,
       'philosophy',

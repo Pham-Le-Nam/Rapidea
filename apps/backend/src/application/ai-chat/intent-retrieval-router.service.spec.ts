@@ -76,6 +76,27 @@ function createFixture() {
 }
 
 describe('IntentRetrievalRouterService', () => {
+  it('keeps the discovery topic separate from inferred skills and outcomes', async () => {
+    const fixture = createFixture();
+
+    await fixture.service.retrieve(
+      'learner-1',
+      query(LearnerIntent.FIND_COURSE, [], {
+        searchQuery: 'computer architecture',
+        desiredSkills: ['instruction sets'],
+        desiredOutcomes: ['Understand processor design'],
+      }),
+    );
+
+    expect(fixture.courses.searchSummaries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: 'computer architecture',
+        desiredSkills: ['instruction sets'],
+        desiredOutcomes: ['Understand processor design'],
+      }),
+    );
+  });
+
   it.each([
     LearnerIntent.FIND_COURSE,
     LearnerIntent.COMPARE_COURSES,

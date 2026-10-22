@@ -26,6 +26,7 @@ type FusedCourse = ReciprocalRankFusionResult<RankedCourse>;
 const DEFAULT_LIMIT = 5;
 const MAX_LIMIT = 20;
 const CANDIDATE_MULTIPLIER = 4;
+const TITLE_SIMILARITY_THRESHOLD = 0.75;
 const courseSummarySelect = {
   id: true,
   title: true,
@@ -102,12 +103,30 @@ export class CourseRetrievalService {
     const candidateLimit = limit * CANDIDATE_MULTIPLIER;
     const difficultyConstraint =
       input.difficultyMode === 'CONSTRAINT' ? (input.difficulty ?? null) : null;
+    // Each phrase is an alternative discovery signal. Requiring every inferred
+    // skill/outcome as well as the topic excludes otherwise relevant courses.
+    const keywordQueries = [
+      ...new Set(
+        [
+          input.query,
+          ...(input.courseNames ?? []),
+          ...(input.desiredSkills ?? []),
+          ...(input.desiredOutcomes ?? []),
+        ]
+          .map((text) => text.trim())
+          .filter(Boolean),
+      ),
+    ];
 
     const [semantic, keyword] = await Promise.all([
       this.semanticCandidates(searchText, difficultyConstraint, candidateLimit),
       this.prisma.$queryRaw<RankedCourse[]>(Prisma.sql`
                 WITH "query" AS (
-                    SELECT websearch_to_tsquery('english', ${searchText}) AS "value"
+                    SELECT string_agg('(' || phrase || ')', ' | ')::tsquery AS "value"
+                    FROM (
+                        SELECT NULLIF(websearch_to_tsquery('english', text)::text, '') AS phrase
+                        FROM unnest(${keywordQueries}::text[]) AS requested(text)
+                    ) AS phrases
                 )
                 SELECT
                     "course"."id",
@@ -144,8 +163,8 @@ export class CourseRetrievalService {
             `),
     ]);
 
-    // Title matching does not depend on profile generation, query translation or
-    // English stemming. PostgreSQL's built-in normalization needs no extension.
+    // Title discovery is independent of AI profiles. Trigram word similarity
+    // also finds misspelled titles inside natural-language requests.
     const names = [
       ...new Set(
         [input.query, ...(input.courseNames ?? [])]
@@ -162,14 +181,25 @@ export class CourseRetrievalService {
         FROM "course" AS "course"
         LEFT JOIN "course_ai_profile" AS "profile" ON "profile"."courseId" = "course"."id"
         WHERE (${difficultyConstraint}::"Difficulty" IS NULL OR "profile"."difficulty" = ${difficultyConstraint}::"Difficulty")
+      ), title_scores AS (
+        SELECT id, max(CASE
+          WHEN title = requested.name THEN 3::float8
+          WHEN length(title) >= 3 AND strpos(' ' || requested.name || ' ', ' ' || title || ' ') > 0 THEN 2::float8
+          WHEN length(requested.name) >= 3 AND strpos(' ' || title || ' ', ' ' || requested.name || ' ') > 0 THEN 2::float8
+          WHEN least(length(title), length(requested.name)) >= 5 THEN greatest(
+            word_similarity(title, requested.name),
+            word_similarity(requested.name, title)
+          )::float8
+          ELSE 0::float8
+        END) AS score
+        FROM normalized_courses
+        CROSS JOIN unnest(${names}::text[]) AS requested(name)
+        WHERE title <> ''
+        GROUP BY id
       )
-      SELECT id, 1::float8 AS score FROM normalized_courses
-      WHERE title <> '' AND EXISTS (
-        SELECT 1 FROM unnest(${names}::text[]) AS requested(name)
-        WHERE title = requested.name
-          OR (length(title) >= 3 AND strpos(' ' || requested.name || ' ', ' ' || title || ' ') > 0)
-      )
-      ORDER BY id
+      SELECT id, score FROM title_scores
+      WHERE score >= ${TITLE_SIMILARITY_THRESHOLD}
+      ORDER BY score DESC, id
       LIMIT ${candidateLimit}
     `);
     const fused = this.fuse(semantic, keyword);

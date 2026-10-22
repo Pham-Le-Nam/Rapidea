@@ -235,6 +235,44 @@ describe('CourseRetrievalService', () => {
     expect(titleSql.values).toContainEqual(['marxist philosophy', 'triet']);
   });
 
+  it('prioritizes a misspelled course title over unrelated hybrid results', async () => {
+    const fixture = createFixture();
+    fixture.prisma.$queryRaw.mockImplementation((sql) =>
+      Promise.resolve(
+        sql.sql.includes('normalized_courses')
+          ? [{ id: 'architecture', score: 0.8 }]
+          : [{ id: 'basic-it', score: 0.95 }],
+      ),
+    );
+    fixture.prisma.course.findMany.mockResolvedValue([
+      { ...course('architecture', 'Computer Architechture'), aiProfile: null },
+      course('basic-it', 'Basic IT'),
+    ]);
+
+    const results = await fixture.service.searchSummaries({
+      query: 'computer architecture',
+      desiredSkills: ['instruction sets'],
+      desiredOutcomes: ['Understand processor design'],
+      limit: 1,
+    });
+
+    expect(results).toEqual([
+      expect.objectContaining({
+        id: 'architecture',
+        title: 'Computer Architechture',
+        profile: null,
+      }),
+    ]);
+    const keywordSql = fixture.prisma.$queryRaw.mock.calls.find(([sql]) =>
+      sql.sql.includes('websearch_to_tsquery'),
+    )![0];
+    expect(keywordSql.values).toContainEqual([
+      'computer architecture',
+      'instruction sets',
+      'Understand processor design',
+    ]);
+  });
+
   it('still discovers courses when the embedding provider is unavailable', async () => {
     const fixture = createFixture();
     fixture.aiService.createEmbeddings.mockRejectedValue(

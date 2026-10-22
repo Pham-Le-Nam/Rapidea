@@ -136,7 +136,7 @@ export class IntentRetrievalRouterService {
     result: IntentRetrievalResult,
   ): Promise<CourseSearchResult[]> {
     const courses = await this.courses.searchSummaries({
-      query: this.searchText(query),
+      query: query.searchQuery?.trim() || this.searchText(query),
       courseNames: query.targets
         .filter((target) => target.type === 'COURSE' && target.name?.trim())
         .map((target) => target.name!.trim()),
