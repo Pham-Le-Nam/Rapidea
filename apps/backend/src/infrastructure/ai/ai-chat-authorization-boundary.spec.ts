@@ -9,6 +9,7 @@ import {
 import { RapideiaEvidenceService } from '../../application/ai-chat/rapideia-evidence.service';
 import { HybridContentSearchService } from './hybrid-content-search.service';
 import { QueryEmbeddingService } from './query-embedding.service';
+import { Prisma } from '../../../generated/prisma/client';
 
 function rankedChunk(
   id: string,
@@ -58,8 +59,10 @@ describe('AI chat authorization boundary', () => {
     const publicText = 'Authorized explanation of dependency injection.';
     const privateText = 'PRIVATE MATERIAL THAT MUST NEVER REACH THE MODEL.';
     const prisma = {
+      post: { findMany: jest.fn().mockResolvedValue([]) },
       $queryRaw: jest
         .fn()
+        .mockResolvedValue([])
         .mockResolvedValueOnce([
           rankedChunk('private-semantic', 'private-post', privateText, 0.99),
           rankedChunk('public-semantic', 'public-post', publicText, 0.8),
@@ -73,6 +76,7 @@ describe('AI chat authorization boundary', () => {
       createEmbeddings: jest.fn().mockResolvedValue([Array(1536).fill(0.1)]),
     };
     const authorization = {
+      postAccessSql: () => Prisma.sql`true`,
       canAccess: jest.fn((_userId, resource) =>
         Promise.resolve(resource.id === 'public-post'),
       ),

@@ -11,6 +11,18 @@ import { PrismaService } from '../database/prisma/prisma.service';
 export class AiContentAuthorizationService {
     constructor(private readonly prisma: PrismaService) {}
 
+    // Aliases used by live post discovery. Keep equivalent to postWhere so an
+    // owner/subscriber's matching posts cannot be crowded out before LIMIT.
+    postAccessSql(userId: string): Prisma.Sql {
+        return Prisma.sql`(
+            "post"."courseId" IS NULL OR "post"."isPreview" = true
+            OR "post"."userId" = ${userId} OR "course"."userId" = ${userId}
+            OR EXISTS (SELECT 1 FROM "subscribe" AS subscription
+                WHERE subscription."courseId" = "post"."courseId"
+                  AND subscription."userId" = ${userId})
+        )`;
+    }
+
     courseWhere(
         userId: string,
         mode: AiContentAccessMode,

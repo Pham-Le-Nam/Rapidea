@@ -91,6 +91,7 @@ describe('Instructor ownership authorization', () => {
       score: 0.8,
     });
     const prisma = {
+      post: { findMany: jest.fn().mockResolvedValue([]) },
       $queryRaw: jest
         .fn()
         .mockResolvedValue([
@@ -123,7 +124,7 @@ describe('Instructor ownership authorization', () => {
     expect(results.map((r) => r.sourceId)).toEqual(['owned']);
     expect(learnerAuthorization.canAccess).not.toHaveBeenCalled();
     for (const [sql] of prisma.$queryRaw.mock.calls as any[]) {
-      expect(sql.sql).toContain('EXISTS');
+      expect(sql.sql).toMatch(/EXISTS|"post"\."userId"/);
       expect(sql.values).toContain('owner');
     }
   });

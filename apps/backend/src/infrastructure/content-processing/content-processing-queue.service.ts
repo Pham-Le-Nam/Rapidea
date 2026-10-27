@@ -855,6 +855,7 @@ export class ContentProcessingQueueService
             courseIds: this.uniqueCourseIds([post.courseId]),
             metadata: {
                 sourceType: ContentSourceType.POST,
+                title: post.title ?? '',
                 attachedFileCount: post.files.length,
             },
             postSummaryInput: {

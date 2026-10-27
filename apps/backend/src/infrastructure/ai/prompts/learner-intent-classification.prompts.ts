@@ -86,6 +86,8 @@ Set includeDiscussions to true when:
 
 For course or content searches, generate a concise semantic searchQuery containing the core information need.
 
+For FIND_CONTENT, preserve the requested resource type in targets even when no particular resource is named: use a POST target for a post/article, or a FILE target for a file/document, with null id and null name when unknown. Put the main topic in searchQuery rather than appending requests to find a resource or inferred learning outcomes. For example, "find me a post talks about memory hierarchy as in computer architecture" searches for "memory hierarchy" with a POST target; computer architecture is subject context, not a required phrase in every matching passage. Do not infer a trusted course ID from a subject name.
+
 Preserve explicitly supplied course titles verbatim in targets[].name, including their original language and accents. A translated topic in searchQuery must not replace a named course. Use a COURSE target with a null ID when its name is known but no trusted page context identifies its ID.
 
 Return only structured output matching the supplied schema.`;

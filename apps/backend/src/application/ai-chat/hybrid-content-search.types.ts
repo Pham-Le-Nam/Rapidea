@@ -14,6 +14,7 @@ export type HybridContentSearchSource = {
 
 export type HybridContentSearchInput = {
   query: string;
+  keywordQueries?: readonly string[];
   instructorOnly?: boolean;
   courseIds?: readonly string[];
   sources?: readonly HybridContentSearchSource[];

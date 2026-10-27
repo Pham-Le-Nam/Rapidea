@@ -76,6 +76,32 @@ function createFixture() {
 }
 
 describe('IntentRetrievalRouterService', () => {
+  it('keeps a post discovery topic separate from course context and inferred terms', async () => {
+    const fixture = createFixture();
+    await fixture.service.retrieve(
+      'owner',
+      query(
+        LearnerIntent.FIND_CONTENT,
+        [
+          { type: 'POST', id: null, name: null },
+          { type: 'COURSE', id: null, name: 'Computer Architecture' },
+        ],
+        {
+          searchQuery: 'memory hierarchy',
+          desiredSkills: ['CPU caches'],
+          desiredOutcomes: ['Compare storage levels'],
+        },
+      ),
+    );
+    expect(fixture.content.search).toHaveBeenCalledWith('owner', {
+      query: 'memory hierarchy',
+      keywordQueries: ['CPU caches', 'Compare storage levels'],
+      courseIds: [],
+      sources: [],
+      sourceTypes: [ContentChunkSourceType.POST],
+      accessMode: AiContentAccessMode.DETAILS,
+    });
+  });
   it('keeps the discovery topic separate from inferred skills and outcomes', async () => {
     const fixture = createFixture();
 

@@ -1,4 +1,4 @@
-import { InternalServerErrorException } from '@nestjs/common';
+import { Prisma } from '../../../generated/prisma/client';
 import { AiContentAccessMode } from '../../application/ai-chat/ai-content-authorization.types';
 import { ContentChunkSourceType } from '../../application/ai-chat/hybrid-content-search.types';
 import { HybridContentSearchService } from './hybrid-content-search.service';
@@ -41,13 +41,15 @@ const RETRIEVAL_QUALITY_FIXTURES = [
 
 function createFixture() {
   const prisma = {
-    $queryRaw: jest.fn(),
+    $queryRaw: jest.fn().mockResolvedValue([]),
+    post: { findMany: jest.fn().mockResolvedValue([]) },
   };
   const aiService = {
     createEmbeddings: jest.fn().mockResolvedValue([Array(1536).fill(0.1)]),
   };
   const authorization = {
     canAccess: jest.fn().mockResolvedValue(true),
+    postAccessSql: () => Prisma.sql`true`,
   };
   const queryEmbedding = new QueryEmbeddingService(aiService as any);
   return {
@@ -184,13 +186,81 @@ describe('HybridContentSearchService', () => {
     expect(fixture.prisma.$queryRaw).not.toHaveBeenCalled();
   });
 
-  it('rejects an invalid query embedding', async () => {
+  it('retains lexical discovery when the embedding vector is invalid', async () => {
     const fixture = createFixture();
     fixture.aiService.createEmbeddings.mockResolvedValue([[Number.NaN]]);
 
     await expect(
       fixture.service.search('learner-1', { query: 'typescript' }),
-    ).rejects.toBeInstanceOf(InternalServerErrorException);
-    expect(fixture.prisma.$queryRaw).not.toHaveBeenCalled();
+    ).resolves.toEqual([]);
+    expect(fixture.prisma.$queryRaw).toHaveBeenCalledTimes(2);
+  });
+
+  it('discovers an unindexed matching title ahead of unrelated hybrid evidence and labels its citation', async () => {
+    const fixture = createFixture();
+    const direct = {
+      ...chunk('post:memory', 'memory', 1),
+      sequence: -1,
+      titleScore: 1,
+      content: 'Memory Hierarchy: caches, RAM and storage.',
+    };
+    fixture.prisma.$queryRaw
+      .mockResolvedValueOnce([chunk('database', 'database', 0.99)])
+      .mockResolvedValueOnce([chunk('database', 'database', 0.99)])
+      .mockResolvedValueOnce([direct]);
+    fixture.prisma.post.findMany.mockResolvedValue([
+      {
+        id: 'memory',
+        title: 'Memory Hierarchy',
+        summary: 'Computer architecture memory systems.',
+      },
+    ]);
+
+    const results = await fixture.service.search('owner', {
+      query: 'memory hierarchy computer architecture',
+      limit: 1,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toEqual(
+      expect.objectContaining({
+        sourceId: 'memory',
+        metadata: expect.objectContaining({ title: 'Memory Hierarchy' }),
+      }),
+    );
+    expect(fixture.authorization.canAccess).toHaveBeenCalledWith(
+      'owner',
+      { type: 'POST', id: 'memory' },
+      AiContentAccessMode.DETAILS,
+    );
+  });
+
+  it('never returns unauthorized live post text or hydrates its title', async () => {
+    const fixture = createFixture();
+    fixture.prisma.$queryRaw
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          ...chunk('post:private', 'private', 1),
+          titleScore: 1,
+          content: 'PRIVATE MEMORY POST',
+        },
+      ]);
+    fixture.authorization.canAccess.mockResolvedValue(false);
+    const results = await fixture.service.search('stranger', {
+      query: 'memory hierarchy',
+    });
+    expect(results).toEqual([]);
+    expect(fixture.prisma.post.findMany).not.toHaveBeenCalled();
+  });
+
+  it('does not search posts for file-only requests', async () => {
+    const fixture = createFixture();
+    await fixture.service.search('owner', {
+      query: 'memory hierarchy',
+      sourceTypes: [ContentChunkSourceType.FILE],
+    });
+    expect(fixture.prisma.$queryRaw).toHaveBeenCalledTimes(2);
   });
 });

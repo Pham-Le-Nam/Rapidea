@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InstructorContentAuthorizationService } from './instructor-content-authorization.service';
 import { Prisma } from '../../../generated/prisma/client';
 import { reciprocalRankFuse } from '../../application/ai-chat/reciprocal-rank-fusion';
@@ -25,6 +25,7 @@ type RankedChunk = {
   tokenCount: number;
   metadata: unknown;
   score: number;
+  titleScore?: number;
 };
 
 type FusedChunk = HybridContentSearchResult & {
@@ -38,11 +39,13 @@ const CANDIDATE_MULTIPLIER = 4;
 const MAX_CANDIDATE_LIMIT = 200;
 @Injectable()
 export class HybridContentSearchService {
+  private readonly logger = new Logger(HybridContentSearchService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly queryEmbedding: QueryEmbeddingService,
     private readonly authorization: AiContentAuthorizationService,
-    @Optional() private readonly instructorAuthorization?: InstructorContentAuthorizationService,
+    @Optional()
+    private readonly instructorAuthorization?: InstructorContentAuthorizationService,
   ) {}
 
   async search(
@@ -57,23 +60,73 @@ export class HybridContentSearchService {
       limit * CANDIDATE_MULTIPLIER,
       MAX_CANDIDATE_LIMIT,
     );
-    const { embedding, model } = await this.queryEmbedding.create(query);
-    if (input.instructorOnly && !this.instructorAuthorization) throw new Error('Instructor authorization is not configured');
+    if (input.instructorOnly && !this.instructorAuthorization)
+      throw new Error('Instructor authorization is not configured');
+    let queryVector:
+      | Awaited<ReturnType<QueryEmbeddingService['create']>>
+      | undefined;
+    try {
+      queryVector = await this.queryEmbedding.create(query);
+    } catch {
+      this.logger.warn(
+        'Semantic content search unavailable; using keyword and live post search.',
+      );
+    }
     const scope = Prisma.sql`${this.scopeSql(input)} ${input.instructorOnly ? this.instructorAuthorization!.chunkOwnershipSql(userId) : Prisma.empty}`;
+    const queries = [
+      ...new Set(
+        [query, ...(input.keywordQueries ?? [])]
+          .map((text) => text.trim())
+          .filter(Boolean),
+      ),
+    ];
 
-    const [semantic, keyword] = await Promise.all([
-      this.semanticCandidates(embedding, model, scope, candidateLimit),
-      this.keywordCandidates(query, scope, candidateLimit),
+    const [semantic, keyword, posts] = await Promise.all([
+      queryVector
+        ? this.semanticCandidates(
+            queryVector.embedding,
+            queryVector.model,
+            scope,
+            candidateLimit,
+          )
+        : Promise.resolve([]),
+      this.keywordCandidates(queries, scope, candidateLimit),
+      this.postCandidates(userId, input, queries, candidateLimit),
     ]);
 
-    const fused = this.fuse(semantic, keyword);
+    const titleMatches = new Set(
+      posts
+        .filter((post) => Number(post.titleScore) >= 0.75)
+        .map((post) => post.sourceId),
+    );
+    // Prefer current post text over potentially stale indexed copies when its
+    // title directly matches the request, then retain hybrid passage ranking.
+    const keepIndexed = (chunk: RankedChunk) =>
+      chunk.sourceType !== ContentChunkSourceType.POST ||
+      !titleMatches.has(chunk.sourceId);
+    const fused = this.fuse(semantic.filter(keepIndexed), [
+      ...posts,
+      ...keyword.filter(keepIndexed),
+    ]);
+    fused.sort(
+      (left, right) =>
+        Number(
+          right.sourceType === ContentChunkSourceType.POST &&
+            titleMatches.has(right.sourceId),
+        ) -
+        Number(
+          left.sourceType === ContentChunkSourceType.POST &&
+            titleMatches.has(left.sourceId),
+        ),
+    );
     const authorized = await this.authorizedResults(
       userId,
       fused,
       input.accessMode ?? AiContentAccessMode.DETAILS,
       input.instructorOnly,
     );
-    return authorized.slice(0, limit).map((result) => {
+    const results = await this.withSourceLabels(authorized.slice(0, limit));
+    return results.map((result) => {
       const {
         semanticRank: _semanticRank,
         keywordRank: _keywordRank,
@@ -111,13 +164,13 @@ export class HybridContentSearchService {
   }
 
   private keywordCandidates(
-    query: string,
+    queries: string[],
     scope: Prisma.Sql,
     limit: number,
   ): Promise<RankedChunk[]> {
     return this.prisma.$queryRaw<RankedChunk[]>(Prisma.sql`
             WITH "query" AS (
-                SELECT websearch_to_tsquery('english', ${query}) AS "value"
+                ${this.keywordQuerySql(queries)}
             )
             SELECT
                 "chunk"."id",
@@ -139,6 +192,110 @@ export class HybridContentSearchService {
             ORDER BY "score" DESC
             LIMIT ${limit}
         `);
+  }
+
+  private keywordQuerySql(queries: string[]): Prisma.Sql {
+    return Prisma.sql`SELECT string_agg('(' || phrase || ')', ' | ')::tsquery AS "value"
+      FROM (SELECT nullif(websearch_to_tsquery('english', text)::text, '') AS phrase
+        FROM unnest(${queries}::text[]) AS requested(text)) AS phrases`;
+  }
+
+  private async postCandidates(
+    userId: string,
+    input: HybridContentSearchInput,
+    queries: string[],
+    limit: number,
+  ): Promise<RankedChunk[]> {
+    if (
+      input.sourceTypes?.length &&
+      !input.sourceTypes.includes(ContentChunkSourceType.POST)
+    )
+      return [];
+    const access = input.instructorOnly
+      ? Prisma.sql`("post"."userId" = ${userId} OR "course"."userId" = ${userId})`
+      : this.authorization.postAccessSql(userId);
+    const names = queries
+      .map((text) =>
+        text
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^\p{L}\p{N}]+/gu, ' ')
+          .trim(),
+      )
+      .filter(Boolean);
+    const posts = await this.prisma.$queryRaw<RankedChunk[]>(Prisma.sql`
+      WITH "query" AS (${this.keywordQuerySql(queries)}), live_posts AS (
+        SELECT 'post:' || "post"."id" AS id, 'POST'::"ContentSourceType" AS "sourceType",
+          "post"."id" AS "sourceId", "post"."courseId", -1 AS sequence,
+          "post"."title", "post"."summary",
+          CASE WHEN jsonb_typeof("post"."content") = 'string' THEN "post"."content" #>> '{}'
+            ELSE (SELECT string_agg(value #>> '{}', E'\n')
+              FROM jsonb_path_query("post"."content", 'strict $.** ? (@.text.type() == "string").text') AS fragments(value)) END AS body,
+          jsonb_build_object('title', "post"."title", 'summary', "post"."summary", 'courseTitle', "course"."title") AS metadata,
+          trim(regexp_replace(regexp_replace(normalize(lower(coalesce("post"."title", '')), NFD), ${'[\u0300-\u036f]'}, '', 'g'), '[^[:alnum:]]+', ' ', 'g')) AS normalized_title,
+          setweight(to_tsvector('english', coalesce("post"."title", '')), 'A') ||
+          setweight(to_tsvector('english', coalesce("post"."summary", '')), 'B') ||
+          setweight(jsonb_to_tsvector('english', coalesce("post"."content", '{}'::jsonb), '["string"]'::jsonb), 'C') ||
+          setweight(to_tsvector('english', coalesce("course"."title", '')), 'D') AS document
+        FROM "post" AS "post"
+        LEFT JOIN "course" AS "course" ON "course"."id" = "post"."courseId"
+        WHERE ${access}
+      ), post_rankings AS (
+        SELECT "chunk".*, "query"."value", ts_rank_cd(document, "query"."value") AS keyword_score,
+          coalesce((SELECT max(CASE WHEN normalized_title = name THEN 1::float8
+            WHEN length(normalized_title) >= 5 AND strpos(' ' || name || ' ', ' ' || normalized_title || ' ') > 0 THEN 1::float8
+            WHEN least(length(normalized_title), length(name)) >= 5 THEN word_similarity(normalized_title, name)::float8
+            ELSE 0::float8 END) FROM unnest(${names}::text[]) AS requested(name)), 0) AS "titleScore"
+        FROM live_posts AS "chunk" CROSS JOIN "query"
+        WHERE true ${this.scopeSql(input)}
+      )
+      SELECT id, "sourceType", "sourceId", "courseId", sequence, metadata, "titleScore",
+        concat_ws(E'\n\n', title, summary, ts_headline('english', coalesce(body, ''), "value", 'MaxWords=150, MinWords=50, MaxFragments=3')) AS content,
+        0 AS "tokenCount", ("titleScore" + coalesce(keyword_score, 0))::float8 AS score
+      FROM post_rankings
+      WHERE document @@ "value" OR "titleScore" >= 0.75
+      ORDER BY "titleScore" DESC, keyword_score DESC NULLS LAST, "sourceId"
+      LIMIT ${limit}
+    `);
+    return posts.map((post) => ({
+      ...post,
+      tokenCount: Math.ceil(post.content.length / 4),
+    }));
+  }
+
+  private async withSourceLabels(results: FusedChunk[]): Promise<FusedChunk[]> {
+    const postIds = [
+      ...new Set(
+        results
+          .filter((r) => r.sourceType === ContentChunkSourceType.POST)
+          .map((r) => r.sourceId),
+      ),
+    ];
+    const posts = postIds.length
+      ? await this.prisma.post.findMany({
+          where: { id: { in: postIds } },
+          select: { id: true, title: true, summary: true },
+        })
+      : [];
+    const byId = new Map(posts.map((post) => [post.id, post]));
+    return results.map((result) => {
+      const post =
+        result.sourceType === ContentChunkSourceType.POST
+          ? byId.get(result.sourceId)
+          : undefined;
+      if (!post) return result;
+      const metadata =
+        result.metadata &&
+        typeof result.metadata === 'object' &&
+        !Array.isArray(result.metadata)
+          ? result.metadata
+          : {};
+      return {
+        ...result,
+        metadata: { ...metadata, title: post.title, summary: post.summary },
+      };
+    });
   }
 
   private fuse(
@@ -184,14 +341,20 @@ export class HybridContentSearchService {
       const sourceKey = `${candidate.sourceType}:${candidate.sourceId}`;
       let decision = decisions.get(sourceKey);
       if (!decision) {
-        decision = instructorOnly ? this.instructorAuthorization!.canAccess(userId, this.authorizationType(candidate.sourceType), candidate.sourceId) : this.authorization.canAccess(
-          userId,
-          {
-            type: this.authorizationType(candidate.sourceType),
-            id: candidate.sourceId,
-          },
-          mode,
-        );
+        decision = instructorOnly
+          ? this.instructorAuthorization!.canAccess(
+              userId,
+              this.authorizationType(candidate.sourceType),
+              candidate.sourceId,
+            )
+          : this.authorization.canAccess(
+              userId,
+              {
+                type: this.authorizationType(candidate.sourceType),
+                id: candidate.sourceId,
+              },
+              mode,
+            );
         decisions.set(sourceKey, decision);
       }
       return (await decision) ? candidate : null;

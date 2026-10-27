@@ -349,6 +349,7 @@ describe('InstructorAssistantService', () => {
         }),
       },
       post: {
+        findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest
           .fn()
           .mockImplementation(({ where }) =>

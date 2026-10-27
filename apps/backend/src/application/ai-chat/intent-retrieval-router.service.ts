@@ -232,11 +232,28 @@ export class IntentRetrievalRouterService {
     query: LearnerQuery,
     result: IntentRetrievalResult,
   ): Promise<void> {
+    const requestedTypes = query.targets.flatMap((target) =>
+      target.type === 'POST'
+        ? [ContentChunkSourceType.POST]
+        : target.type === 'FILE'
+          ? [ContentChunkSourceType.FILE]
+          : [],
+    );
     const chunks = await this.content.search(userId, {
-      query: this.searchText(query),
+      query: query.searchQuery?.trim() || this.searchText(query),
+      keywordQueries: [
+        ...query.targets
+          .filter((target) => target.type !== 'COURSE')
+          .map((target) => target.name)
+          .filter((name): name is string => Boolean(name)),
+        ...query.desiredSkills,
+        ...query.desiredOutcomes,
+      ],
       courseIds: this.officialSearchCourseIds(query),
       sources: this.contentSources(query),
-      sourceTypes: [ContentChunkSourceType.POST, ContentChunkSourceType.FILE],
+      sourceTypes: requestedTypes.length
+        ? [...new Set(requestedTypes)]
+        : [ContentChunkSourceType.POST, ContentChunkSourceType.FILE],
       accessMode: AiContentAccessMode.DETAILS,
     });
     this.addEvidence(result, IntentEvidenceKind.CONTENT_CHUNKS, chunks);
